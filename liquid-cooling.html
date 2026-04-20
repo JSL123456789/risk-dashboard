@@ -1,0 +1,1643 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>数据中心液冷全流程管理平台</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --primary:#0f4c81;--primary-light:#1a6fb5;--primary-bg:#e8f4fd;
+  --teal:#0d7377;--teal-light:#14a9ae;--teal-bg:#e0f7f7;
+  --success:#16a34a;--success-bg:#dcfce7;
+  --warning:#d97706;--warning-bg:#fef3c7;
+  --danger:#dc2626;--danger-bg:#fee2e2;
+  --purple:#7c3aed;--purple-bg:#ede9fe;
+  --gray:#6b7280;--gray-bg:#f3f4f6;
+  --border:#e5e7eb;
+  --shadow:0 1px 3px rgba(0,0,0,.1);
+  --shadow-md:0 4px 12px rgba(0,0,0,.1);
+  --shadow-lg:0 10px 30px rgba(0,0,0,.12);
+}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:#f0f4f8;color:#1e293b;min-height:100vh;}
+
+/* ===== HEADER ===== */
+.header{background:linear-gradient(135deg,#071e3d 0%,#1a3a6e 40%,#0f4c81 70%,#0d7377 100%);color:#fff;position:sticky;top:0;z-index:200;box-shadow:0 4px 20px rgba(0,0,0,.4);}
+.header-inner{display:flex;align-items:center;justify-content:space-between;padding:14px 28px;gap:16px;flex-wrap:wrap;}
+.header-logo{display:flex;align-items:center;gap:14px;}
+.header-icon{width:44px;height:44px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;}
+.header-title{font-size:19px;font-weight:700;letter-spacing:.5px;}
+.header-sub{font-size:11px;opacity:.65;margin-top:3px;letter-spacing:.3px;}
+.header-badges{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.hbadge{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:4px 12px;font-size:11px;color:#b8e0ff;}
+
+/* ===== PHASE NAV ===== */
+.phase-nav{background:rgba(0,0,0,.2);border-top:1px solid rgba(255,255,255,.1);display:flex;overflow-x:auto;scrollbar-width:none;}
+.phase-nav::-webkit-scrollbar{display:none;}
+.phase-btn{padding:12px 22px;color:rgba(255,255,255,.6);cursor:pointer;font-size:13px;font-weight:500;white-space:nowrap;border-bottom:3px solid transparent;transition:all .2s;display:flex;align-items:center;gap:8px;user-select:none;}
+.phase-btn:hover{color:rgba(255,255,255,.9);background:rgba(255,255,255,.06);}
+.phase-btn.active{color:#fff;border-bottom-color:#38bdf8;background:rgba(255,255,255,.1);}
+.phase-btn .phase-icon{font-size:16px;}
+.phase-btn .phase-label{display:flex;flex-direction:column;}
+.phase-btn .phase-num{font-size:10px;opacity:.6;margin-bottom:1px;}
+
+/* ===== MAIN ===== */
+.main{max-width:1400px;margin:0 auto;padding:24px 28px;}
+
+/* ===== PAGE ===== */
+.page{display:none;}
+.page.active{display:block;}
+
+/* ===== SECTION HEADER ===== */
+.section-header{margin-bottom:28px;}
+.section-title{font-size:22px;font-weight:700;color:#0f172a;display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+.section-title .icon{font-size:26px;}
+.section-desc{font-size:14px;color:#64748b;line-height:1.6;max-width:800px;}
+
+/* ===== PROGRESS OVERVIEW ===== */
+.phase-overview{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-bottom:28px;}
+.phase-card{background:#fff;border-radius:14px;padding:18px 20px;box-shadow:var(--shadow);border-left:5px solid #e5e7eb;cursor:pointer;transition:all .2s;}
+.phase-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-md);}
+.phase-card.prep{border-left-color:#f59e0b;}
+.phase-card.build{border-left-color:#3b82f6;}
+.phase-card.handover{border-left-color:#8b5cf6;}
+.phase-card.ops{border-left-color:#10b981;}
+.phase-card .pc-icon{font-size:28px;margin-bottom:8px;}
+.phase-card .pc-title{font-size:14px;font-weight:700;color:#1e293b;margin-bottom:4px;}
+.phase-card .pc-count{font-size:12px;color:#64748b;}
+.phase-card .pc-bar{height:4px;background:#f1f5f9;border-radius:2px;margin-top:10px;overflow:hidden;}
+.phase-card .pc-fill{height:100%;border-radius:2px;transition:width .5s;}
+.phase-card.prep .pc-fill{background:#f59e0b;}
+.phase-card.build .pc-fill{background:#3b82f6;}
+.phase-card.handover .pc-fill{background:#8b5cf6;}
+.phase-card.ops .pc-fill{background:#10b981;}
+
+/* ===== CHECKLIST ===== */
+.checklist-section{background:#fff;border-radius:14px;padding:24px;box-shadow:var(--shadow);margin-bottom:20px;}
+.cl-section-title{font-size:15px;font-weight:700;color:#1e293b;margin-bottom:16px;display:flex;align-items:center;gap:8px;padding-bottom:12px;border-bottom:2px solid #f1f5f9;}
+.cl-section-title .cst-icon{font-size:18px;}
+.cl-section-title .cst-badge{margin-left:auto;font-size:11px;padding:3px 10px;border-radius:10px;font-weight:500;}
+.badge-warn{background:#fef3c7;color:#92400e;}
+.badge-info{background:#dbeafe;color:#1e40af;}
+.badge-success{background:#dcfce7;color:#166534;}
+.badge-purple{background:#ede9fe;color:#5b21b6;}
+.badge-teal{background:#ccfbf1;color:#065f46;}
+
+/* ===== CHECKLIST ITEMS ===== */
+.cl-group{margin-bottom:20px;}
+.cl-group-title{font-size:13px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.cl-group-title::before{content:'';width:3px;height:14px;background:var(--primary-light);border-radius:2px;}
+.cl-items{display:grid;gap:8px;}
+.cl-item{display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border:1px solid #f1f5f9;border-radius:10px;cursor:pointer;transition:all .2s;user-select:none;}
+.cl-item:hover{border-color:#bfdbfe;background:#fafcff;}
+.cl-item.checked{background:#f0fdf4;border-color:#86efac;}
+.cl-item.checked .ci-title{color:#166534;text-decoration:none;}
+.cl-item.warn-item{border-left:3px solid #f59e0b;}
+.cl-item.danger-item{border-left:3px solid #ef4444;}
+.ci-check{width:20px;height:20px;border:2px solid #d1d5db;border-radius:5px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .2s;margin-top:1px;}
+.cl-item.checked .ci-check{background:#16a34a;border-color:#16a34a;color:#fff;}
+.ci-check::after{content:'✓';font-size:12px;font-weight:700;color:transparent;}
+.cl-item.checked .ci-check::after{color:#fff;}
+.ci-content{flex:1;min-width:0;}
+.ci-title{font-size:13px;font-weight:500;color:#1e293b;margin-bottom:3px;}
+.ci-desc{font-size:12px;color:#64748b;line-height:1.5;}
+.ci-tags{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;}
+.ci-tag{font-size:11px;padding:2px 8px;border-radius:8px;font-weight:500;}
+.tag-must{background:#fee2e2;color:#b91c1c;}
+.tag-ref{background:#e0f2fe;color:#0369a1;}
+.tag-timing{background:#fef9c3;color:#854d0e;}
+.tag-check{background:#f3e8ff;color:#7e22ce;}
+.ci-expand{font-size:11px;color:#3b82f6;cursor:pointer;margin-top:4px;display:inline-flex;align-items:center;gap:3px;}
+.ci-detail{display:none;margin-top:8px;padding:10px 12px;background:#f8fafc;border-radius:8px;font-size:12px;color:#475569;line-height:1.7;}
+.ci-detail.open{display:block;}
+
+/* ===== STATS BAR ===== */
+.stats-bar{display:flex;gap:20px;align-items:center;padding:14px 20px;background:linear-gradient(135deg,#f8fafc,#f1f5f9);border-radius:12px;margin-bottom:20px;flex-wrap:wrap;}
+.stat-item{display:flex;align-items:center;gap:8px;}
+.stat-dot{width:10px;height:10px;border-radius:50%;}
+.stat-label{font-size:12px;color:#64748b;}
+.stat-val{font-size:13px;font-weight:700;color:#1e293b;}
+.progress-ring{display:flex;align-items:center;gap:10px;margin-left:auto;}
+.pr-label{font-size:12px;color:#64748b;}
+.pr-bar{width:120px;height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden;}
+.pr-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,#3b82f6,#06b6d4);transition:width .5s;}
+.pr-pct{font-size:13px;font-weight:700;color:#1e293b;}
+
+/* ===== TIMELINE ===== */
+.timeline{margin-bottom:20px;}
+.tl-item{display:flex;gap:16px;margin-bottom:16px;position:relative;}
+.tl-item::before{content:'';position:absolute;left:19px;top:36px;bottom:-16px;width:2px;background:#e5e7eb;}
+.tl-item:last-child::before{display:none;}
+.tl-icon{width:38px;height:38px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px;z-index:1;}
+.tl-icon.t1{background:#fef3c7;border:2px solid #fcd34d;}
+.tl-icon.t2{background:#dbeafe;border:2px solid #93c5fd;}
+.tl-icon.t3{background:#ede9fe;border:2px solid #c4b5fd;}
+.tl-icon.t4{background:#dcfce7;border:2px solid #86efac;}
+.tl-icon.t5{background:#ffedd5;border:2px solid #fdba74;}
+.tl-content{flex:1;background:#fff;border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);}
+.tl-title{font-size:13px;font-weight:700;color:#1e293b;margin-bottom:4px;}
+.tl-body{font-size:12px;color:#64748b;line-height:1.7;}
+.tl-time{font-size:11px;color:#94a3b8;margin-top:6px;display:flex;align-items:center;gap:4px;}
+
+/* ===== TABLE ===== */
+.data-table{width:100%;border-collapse:collapse;font-size:13px;}
+.data-table th{padding:10px 14px;text-align:left;background:#f8fafc;font-size:12px;color:#64748b;font-weight:600;border-bottom:2px solid #e5e7eb;}
+.data-table td{padding:10px 14px;border-bottom:1px solid #f1f5f9;color:#374151;}
+.data-table tr:last-child td{border:none;}
+.data-table tr:hover td{background:#fafbfc;}
+.table-wrap{background:#fff;border-radius:14px;padding:0;box-shadow:var(--shadow);overflow:hidden;margin-bottom:20px;}
+.table-header{padding:16px 20px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;}
+.table-title{font-size:14px;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:8px;}
+
+/* ===== ALERT BOXES ===== */
+.alert{border-radius:10px;padding:14px 16px;margin-bottom:16px;display:flex;gap:10px;align-items:flex-start;}
+.alert.warn{background:#fffbeb;border:1px solid #fcd34d;}
+.alert.danger{background:#fff1f2;border:1px solid #fca5a5;}
+.alert.info{background:#eff6ff;border:1px solid #93c5fd;}
+.alert.success{background:#f0fdf4;border:1px solid #86efac;}
+.alert.purple{background:#faf5ff;border:1px solid #c4b5fd;}
+.alert-icon{font-size:18px;flex-shrink:0;margin-top:1px;}
+.alert-content{flex:1;}
+.alert-title{font-size:13px;font-weight:700;margin-bottom:4px;}
+.alert.warn .alert-title{color:#92400e;}
+.alert.danger .alert-title{color:#991b1b;}
+.alert.info .alert-title{color:#1e40af;}
+.alert.success .alert-title{color:#166534;}
+.alert.purple .alert-title{color:#5b21b6;}
+.alert-body{font-size:12px;line-height:1.7;color:#475569;}
+
+/* ===== PARAM TABLE ===== */
+.param-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-bottom:20px;}
+.param-card{background:#fff;border-radius:12px;padding:16px;box-shadow:var(--shadow);border-top:3px solid #e5e7eb;}
+.param-card.blue{border-top-color:#3b82f6;}
+.param-card.teal{border-top-color:#14b8a6;}
+.param-card.green{border-top-color:#22c55e;}
+.param-card.orange{border-top-color:#f97316;}
+.param-card.purple{border-top-color:#a855f7;}
+.param-card.red{border-top-color:#ef4444;}
+.pc-name{font-size:12px;color:#64748b;margin-bottom:4px;}
+.pc-value{font-size:20px;font-weight:700;color:#1e293b;margin-bottom:2px;}
+.pc-unit{font-size:12px;color:#94a3b8;margin-left:4px;font-weight:400;}
+.pc-note{font-size:11px;color:#94a3b8;margin-top:6px;padding-top:6px;border-top:1px solid #f1f5f9;}
+
+/* ===== TABS ===== */
+.sub-tabs{display:flex;gap:4px;margin-bottom:20px;background:#f1f5f9;padding:4px;border-radius:10px;width:fit-content;flex-wrap:wrap;}
+.sub-tab{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;color:#64748b;transition:all .2s;user-select:none;}
+.sub-tab.active{background:#fff;color:#1e40af;box-shadow:0 1px 4px rgba(0,0,0,.1);}
+.sub-tab:hover:not(.active){color:#374151;}
+.sub-content{display:none;}
+.sub-content.active{display:block;}
+
+/* ===== KEY POINTS ===== */
+.key-points{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-bottom:20px;}
+.kp-card{background:#fff;border-radius:14px;padding:20px;box-shadow:var(--shadow);}
+.kp-icon{font-size:32px;margin-bottom:10px;}
+.kp-title{font-size:14px;font-weight:700;color:#1e293b;margin-bottom:8px;}
+.kp-list{list-style:none;display:grid;gap:6px;}
+.kp-list li{font-size:12px;color:#475569;display:flex;align-items:flex-start;gap:6px;line-height:1.5;}
+.kp-list li::before{content:'▸';color:#3b82f6;flex-shrink:0;margin-top:1px;}
+
+/* ===== COLLAPSE ===== */
+.collapse-section{background:#fff;border-radius:14px;box-shadow:var(--shadow);margin-bottom:12px;overflow:hidden;}
+.collapse-header{padding:16px 20px;display:flex;align-items:center;cursor:pointer;gap:12px;user-select:none;border-bottom:1px solid transparent;}
+.collapse-header:hover{background:#fafbfc;}
+.collapse-header.open{border-bottom-color:#f1f5f9;}
+.ch-icon{font-size:20px;flex-shrink:0;}
+.ch-title{font-size:14px;font-weight:700;color:#1e293b;flex:1;}
+.ch-badge{font-size:11px;padding:2px 10px;border-radius:10px;}
+.ch-arrow{font-size:12px;color:#94a3b8;transition:transform .2s;}
+.collapse-header.open .ch-arrow{transform:rotate(90deg);}
+.collapse-body{display:none;padding:16px 20px;}
+.collapse-body.open{display:block;}
+
+/* ===== HOME PAGE ===== */
+.home-hero{background:linear-gradient(135deg,#071e3d,#0f4c81,#0d7377);border-radius:20px;padding:40px;color:#fff;margin-bottom:28px;position:relative;overflow:hidden;}
+.home-hero::after{content:'💧';position:absolute;right:40px;top:50%;transform:translateY(-50%);font-size:120px;opacity:.08;}
+.hero-title{font-size:28px;font-weight:800;margin-bottom:10px;line-height:1.3;}
+.hero-sub{font-size:15px;opacity:.75;line-height:1.7;max-width:600px;margin-bottom:24px;}
+.hero-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
+@media(max-width:768px){.hero-cards{grid-template-columns:repeat(2,1fr);}
+  .charts-row{grid-template-columns:1fr;}
+  .main{padding:16px;}
+  .home-hero{padding:24px;}
+}
+.hc-card{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:14px;padding:16px;cursor:pointer;transition:all .2s;}
+.hc-card:hover{background:rgba(255,255,255,.18);transform:translateY(-2px);}
+.hc-num{font-size:28px;font-weight:800;margin-bottom:4px;}
+.hc-label{font-size:12px;opacity:.75;}
+.hc-icon{font-size:20px;margin-bottom:8px;}
+
+/* ===== PRINT ===== */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .2s;}
+.btn-primary{background:#1a6fb5;color:#fff;}
+.btn-primary:hover{background:#0f4c81;}
+.btn-outline{background:#fff;color:#374151;border:1px solid #d1d5db;}
+.btn-outline:hover{background:#f9fafb;}
+.btn-sm{padding:6px 12px;font-size:12px;}
+
+/* ===== SPEC TABLE ===== */
+.spec-table{width:100%;border-collapse:collapse;font-size:13px;}
+.spec-table th{padding:9px 14px;background:#f0f4f8;font-size:12px;color:#475569;border:1px solid #e5e7eb;}
+.spec-table td{padding:9px 14px;border:1px solid #e5e7eb;color:#374151;vertical-align:top;}
+.spec-table tr:nth-child(even) td{background:#fafbfc;}
+.spec-wrap{background:#fff;border-radius:14px;padding:20px;box-shadow:var(--shadow);margin-bottom:20px;}
+.spec-title{font-size:14px;font-weight:700;color:#1e293b;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+
+/* ===== FOOTER ===== */
+.footer{text-align:center;padding:24px;color:#94a3b8;font-size:12px;margin-top:20px;}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-inner">
+    <div class="header-logo">
+      <div class="header-icon">❄️</div>
+      <div>
+        <div class="header-title">数据中心液冷全流程管理平台</div>
+        <div class="header-sub">Data Center Liquid Cooling Full-Cycle Management Platform</div>
+      </div>
+    </div>
+    <div class="header-badges">
+      <span class="hbadge">🏗️ 建设管控</span>
+      <span class="hbadge">🔄 接维管理</span>
+      <span class="hbadge">⚙️ 运维执行</span>
+      <span class="hbadge" id="updateTime">更新：2026-04-20</span>
+    </div>
+  </div>
+  <div class="phase-nav">
+    <div class="phase-btn active" onclick="showPage('home')">
+      <span class="phase-icon">🏠</span>
+      <span class="phase-label"><span class="phase-num">总览</span>平台首页</span>
+    </div>
+    <div class="phase-btn" onclick="showPage('prep')">
+      <span class="phase-icon">📋</span>
+      <span class="phase-label"><span class="phase-num">阶段一</span>现场准备</span>
+    </div>
+    <div class="phase-btn" onclick="showPage('build')">
+      <span class="phase-icon">🏗️</span>
+      <span class="phase-label"><span class="phase-num">阶段二</span>建设管控</span>
+    </div>
+    <div class="phase-btn" onclick="showPage('handover')">
+      <span class="phase-icon">🔄</span>
+      <span class="phase-label"><span class="phase-num">阶段三</span>接维管理</span>
+    </div>
+    <div class="phase-btn" onclick="showPage('ops')">
+      <span class="phase-icon">⚙️</span>
+      <span class="phase-label"><span class="phase-num">阶段四</span>运维执行</span>
+    </div>
+    <div class="phase-btn" onclick="showPage('params')">
+      <span class="phase-icon">📊</span>
+      <span class="phase-label"><span class="phase-num">参数库</span>关键指标</span>
+    </div>
+    <div class="phase-btn" onclick="showPage('emergency')">
+      <span class="phase-icon">🚨</span>
+      <span class="phase-label"><span class="phase-num">应急</span>故障处置</span>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+
+<!-- ===== HOME PAGE ===== -->
+<div class="page active" id="page-home">
+  <div class="home-hero">
+    <div class="hero-title">数据中心液冷全流程管理平台</div>
+    <div class="hero-sub">覆盖液冷数据中心从前期准备、建设管控、接维移交到日常运维的全生命周期标准化管理，现场按照平台要求执行落地即可。</div>
+    <div class="hero-cards">
+      <div class="hc-card" onclick="showPage('prep')">
+        <div class="hc-icon">📋</div>
+        <div class="hc-num">4</div>
+        <div class="hc-label">现场准备模块</div>
+      </div>
+      <div class="hc-card" onclick="showPage('build')">
+        <div class="hc-icon">🏗️</div>
+        <div class="hc-num">6</div>
+        <div class="hc-label">建设管控模块</div>
+      </div>
+      <div class="hc-card" onclick="showPage('handover')">
+        <div class="hc-icon">🔄</div>
+        <div class="hc-num">5</div>
+        <div class="hc-label">接维管理模块</div>
+      </div>
+      <div class="hc-card" onclick="showPage('ops')">
+        <div class="hc-icon">⚙️</div>
+        <div class="hc-num">6</div>
+        <div class="hc-label">运维执行模块</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 流程总览 -->
+  <div style="background:#fff;border-radius:14px;padding:24px;box-shadow:var(--shadow);margin-bottom:24px;">
+    <div class="spec-title">🗺️ 全流程管理路线图</div>
+    <div style="display:flex;gap:0;align-items:stretch;overflow-x:auto;">
+      <div style="flex:1;min-width:160px;background:linear-gradient(180deg,#fef3c7,#fffbeb);border-radius:12px;padding:18px;border:2px solid #fcd34d;margin-right:4px;">
+        <div style="font-size:20px;margin-bottom:8px;">📋</div>
+        <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:8px;">阶段一：现场准备</div>
+        <div style="font-size:11px;color:#78350f;line-height:1.7;">
+          ✦ 土建条件核查<br>✦ 机电系统确认<br>✦ 供货物资清单<br>✦ 人员资质培训<br>✦ 安全措施部署
+        </div>
+        <div style="font-size:11px;background:#fcd34d;border-radius:6px;padding:4px 8px;margin-top:10px;color:#78350f;text-align:center;">提前8周启动</div>
+      </div>
+      <div style="display:flex;align-items:center;font-size:20px;color:#94a3b8;padding:0 4px;">→</div>
+      <div style="flex:1;min-width:160px;background:linear-gradient(180deg,#dbeafe,#eff6ff);border-radius:12px;padding:18px;border:2px solid #93c5fd;margin-right:4px;">
+        <div style="font-size:20px;margin-bottom:8px;">🏗️</div>
+        <div style="font-size:13px;font-weight:700;color:#1e40af;margin-bottom:8px;">阶段二：建设管控</div>
+        <div style="font-size:11px;color:#1e3a8a;line-height:1.7;">
+          ✦ 设备开箱验收<br>✦ 施工质量管控<br>✦ 管路安装检测<br>✦ 冲洗试压测试<br>✦ 系统联调调试
+        </div>
+        <div style="font-size:11px;background:#93c5fd;border-radius:6px;padding:4px 8px;margin-top:10px;color:#1e3a8a;text-align:center;">关键质量管控期</div>
+      </div>
+      <div style="display:flex;align-items:center;font-size:20px;color:#94a3b8;padding:0 4px;">→</div>
+      <div style="flex:1;min-width:160px;background:linear-gradient(180deg,#ede9fe,#faf5ff);border-radius:12px;padding:18px;border:2px solid #c4b5fd;margin-right:4px;">
+        <div style="font-size:20px;margin-bottom:8px;">🔄</div>
+        <div style="font-size:13px;font-weight:700;color:#5b21b6;margin-bottom:8px;">阶段三：接维管理</div>
+        <div style="font-size:11px;color:#4c1d95;line-height:1.7;">
+          ✦ 竣工资料核验<br>✦ 系统性能验证<br>✦ 运维交底培训<br>✦ 备品备件清点<br>✦ 正式移交签收
+        </div>
+        <div style="font-size:11px;background:#c4b5fd;border-radius:6px;padding:4px 8px;margin-top:10px;color:#4c1d95;text-align:center;">30天过渡期保障</div>
+      </div>
+      <div style="display:flex;align-items:center;font-size:20px;color:#94a3b8;padding:0 4px;">→</div>
+      <div style="flex:1;min-width:160px;background:linear-gradient(180deg,#dcfce7,#f0fdf4);border-radius:12px;padding:18px;border:2px solid #86efac;">
+        <div style="font-size:20px;margin-bottom:8px;">⚙️</div>
+        <div style="font-size:13px;font-weight:700;color:#166534;margin-bottom:8px;">阶段四：运维执行</div>
+        <div style="font-size:11px;color:#14532d;line-height:1.7;">
+          ✦ 日/周/月巡检<br>✦ 水质监测管理<br>✦ 冷板操作规程<br>✦ CDU日常维护<br>✦ 故障应急处置
+        </div>
+        <div style="font-size:11px;background:#86efac;border-radius:6px;padding:4px 8px;margin-top:10px;color:#14532d;text-align:center;">7×24持续运维</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 核心口诀 -->
+  <div style="background:linear-gradient(135deg,#1e293b,#334155);border-radius:14px;padding:24px;margin-bottom:24px;color:#fff;">
+    <div style="font-size:14px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px;">💡 液冷运维核心口诀</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">
+      <div style="background:rgba(239,68,68,.2);border:1px solid rgba(239,68,68,.4);border-radius:10px;padding:14px;text-align:center;">
+        <div style="font-size:24px;margin-bottom:6px;">🚰</div>
+        <div style="font-size:13px;font-weight:700;color:#fca5a5;margin-bottom:4px;">防漏是天大的事</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.6);">任何渗漏都是重大隐患，零容忍</div>
+      </div>
+      <div style="background:rgba(59,130,246,.2);border:1px solid rgba(59,130,246,.4);border-radius:10px;padding:14px;text-align:center;">
+        <div style="font-size:24px;margin-bottom:6px;">🧪</div>
+        <div style="font-size:13px;font-weight:700;color:#93c5fd;margin-bottom:4px;">水质是长期的事</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.6);">定期检测，持续维护DI水水质</div>
+      </div>
+      <div style="background:rgba(168,85,247,.2);border:1px solid rgba(168,85,247,.4);border-radius:10px;padding:14px;text-align:center;">
+        <div style="font-size:24px;margin-bottom:6px;">🔧</div>
+        <div style="font-size:13px;font-weight:700;color:#d8b4fe;margin-bottom:4px;">冷板操作是技术的事</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.6);">严格操作规程，专业人员执行</div>
+      </div>
+      <div style="background:rgba(16,185,129,.2);border:1px solid rgba(16,185,129,.4);border-radius:10px;padding:14px;text-align:center;">
+        <div style="font-size:24px;margin-bottom:6px;">📊</div>
+        <div style="font-size:13px;font-weight:700;color:#6ee7b7;margin-bottom:4px;">CDU监控是每天的事</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.6);">每日巡检，实时监控各项参数</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 快捷入口 -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;">
+    <div style="background:#fff;border-radius:14px;padding:20px;box-shadow:var(--shadow);cursor:pointer;" onclick="showPage('params')">
+      <div style="font-size:18px;margin-bottom:8px;">📊</div>
+      <div style="font-size:14px;font-weight:700;color:#1e293b;margin-bottom:6px;">关键运维参数速查</div>
+      <div style="font-size:12px;color:#64748b;">pH值、电导率、供液温度、压力等核心参数一览</div>
+    </div>
+    <div style="background:#fff;border-radius:14px;padding:20px;box-shadow:var(--shadow);cursor:pointer;" onclick="showPage('emergency')">
+      <div style="font-size:18px;margin-bottom:8px;">🚨</div>
+      <div style="font-size:14px;font-weight:700;color:#1e293b;margin-bottom:6px;">应急故障处置手册</div>
+      <div style="font-size:12px;color:#64748b;">漏液、CDU故障、水质超标等典型故障处置流程</div>
+    </div>
+    <div style="background:#fff;border-radius:14px;padding:20px;box-shadow:var(--shadow);cursor:pointer;" onclick="showPage('ops')">
+      <div style="font-size:18px;margin-bottom:8px;">📅</div>
+      <div style="font-size:14px;font-weight:700;color:#1e293b;margin-bottom:6px;">日/周/月巡检清单</div>
+      <div style="font-size:12px;color:#64748b;">标准化巡检项目，现场执行打勾即可</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PAGE: 现场准备 ===== -->
+<div class="page" id="page-prep">
+  <div class="section-header">
+    <div class="section-title"><span class="icon">📋</span>阶段一：现场准备工作</div>
+    <div class="section-desc">液冷系统建设前，需提前8周启动现场准备工作，涵盖土建条件、机电系统、物资供应、人员资质等全维度核查，确保建设条件成熟。</div>
+  </div>
+
+  <div class="alert warn">
+    <div class="alert-icon">⚠️</div>
+    <div class="alert-content">
+      <div class="alert-title">重要提示</div>
+      <div class="alert-body">建设前准备工作不到位是液冷项目延期的主要原因。请务必在设备进场前完成所有<strong>必须项（红标）</strong>的核查确认，避免返工和安全事故。</div>
+    </div>
+  </div>
+
+  <div class="sub-tabs">
+    <div class="sub-tab active" onclick="showSubTab('prep','civil')">🏢 土建条件</div>
+    <div class="sub-tab" onclick="showSubTab('prep','mep')">⚡ 机电系统</div>
+    <div class="sub-tab" onclick="showSubTab('prep','material')">📦 物资准备</div>
+    <div class="sub-tab" onclick="showSubTab('prep','team')">👷 人员与安全</div>
+  </div>
+
+  <!-- 土建条件 -->
+  <div class="sub-content active" id="prep-civil">
+    <div class="checklist-section">
+      <div class="cl-section-title">
+        <span class="cst-icon">🏢</span>土建基础条件核查
+        <span class="cst-badge badge-warn">进场前必查</span>
+      </div>
+      <div class="cl-group">
+        <div class="cl-group-title">📐 承重与空间</div>
+        <div class="cl-items">
+          <div class="cl-item warn-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">楼板承重确认（≥12 kN/m²）</div>
+              <div class="ci-desc">液冷机柜单机架重量可达1.5~2吨，需确认结构工程师出具楼板承重计算书，GPU机柜区域重点核查</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span><span class="ci-tag tag-timing">提前8周</span></div>
+              <div class="ci-expand" onclick="toggleDetail(this,event)">▶ 查看详情</div>
+              <div class="ci-detail">
+                核查要点：<br>
+                • GPU机柜（32~70kW）：动态荷载≥15 kN/m²<br>
+                • CPU机柜（9.6~16kW）：动态荷载≥12 kN/m²<br>
+                • CDU设备区：需考虑水满载重量，额外增加5~8 kN/m²<br>
+                • 需出具结构工程师签字的荷载核算书<br>
+                • 如承重不足，需进行结构加固方案（会大幅延长工期）
+              </div>
+            </div>
+          </div>
+          <div class="cl-item warn-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">机房净高核查（≥3.5m，含管路空间）</div>
+              <div class="ci-desc">液冷管路（供回水管+电气桥架）需要足够的顶部空间，建议净高≥3.5m，管路区域预留≥600mm</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+              <div class="ci-expand" onclick="toggleDetail(this,event)">▶ 查看详情</div>
+              <div class="ci-detail">
+                管路空间分配建议：<br>
+                • 供水管（含保温层）：DN100~DN200，外径约200~350mm<br>
+                • 回水管：同上<br>
+                • 电气桥架：200~400mm<br>
+                • 检修空间：≥200mm<br>
+                • 以上合计需≥1200mm顶部可用空间
+              </div>
+            </div>
+          </div>
+          <div class="cl-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">设备运输通道核查（门洞宽≥1.2m，高≥2.2m）</div>
+              <div class="ci-desc">确认CDU、服务器机柜等大型设备的进场路径，含电梯、走廊、门洞尺寸</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+          <div class="cl-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">防水堵漏处理（地面/墙面穿线孔密封）</div>
+              <div class="ci-desc">液冷机房对防水要求极高，所有管道穿墙孔、地面线槽需做防水密封处理</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="cl-group">
+        <div class="cl-group-title">🌡️ 环境与消防</div>
+        <div class="cl-items">
+          <div class="cl-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">地面防静电处理（电阻1MΩ~1GΩ）</div>
+              <div class="ci-desc">液冷机房需铺设防静电地板，避免静电积累损坏IT设备和液冷接头</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+          <div class="cl-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">消防系统类型确认（避免水喷淋）</div>
+              <div class="ci-desc">液冷机房建议采用气体灭火系统，如已安装水喷淋需评估改造方案，避免误喷造成二次损害</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span><span class="ci-tag tag-check">专项核查</span></div>
+            </div>
+          </div>
+          <div class="cl-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">漏液感应检测线槽预埋</div>
+              <div class="ci-desc">在机柜列底部、CDU下方、管路低点预埋漏液感应线，连接BMS报警系统</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+          <div class="cl-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">应急排水槽/集水坑核查</div>
+              <div class="ci-desc">CDU区域和主管路区域需设置应急排水设施，避免漏液扩散至IT设备区</div>
+              <div class="ci-tags"><span class="ci-tag tag-ref">参考项</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 机电系统 -->
+  <div class="sub-content" id="prep-mep">
+    <div class="checklist-section">
+      <div class="cl-section-title">
+        <span class="cst-icon">⚡</span>机电系统就绪确认
+        <span class="cst-badge badge-info">设备进场前完成</span>
+      </div>
+      <div class="cl-group">
+        <div class="cl-group-title">💧 冷源与管路</div>
+        <div class="cl-items">
+          <div class="cl-item warn-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">一次侧冷源（冷却水）供应确认</div>
+              <div class="ci-desc">确认冷却塔/冷机已就绪，冷却水供水温度≤32°C，压力0.3~0.6MPa，流量满足设计需求</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+              <div class="ci-expand" onclick="toggleDetail(this,event)">▶ 查看详情</div>
+              <div class="ci-detail">
+                一次侧（冷却水）验收参数：<br>
+                • 供水温度：夏季≤32°C，冬季≤25°C<br>
+                • 供回水压差：0.2~0.5MPa<br>
+                • 水质：pH 7~9，电导率≤500 μS/cm，浊度≤5 NTU<br>
+                • 流量：按CDU额定功率计算（每100kW约需3~5 m³/h）<br>
+                • 冷却塔型号：ICS650额定制冷量650kW，每台需匹配冷却水流量约112 m³/h
+              </div>
+            </div>
+          </div>
+          <div class="cl-item warn-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">二次侧（去离子水）制备系统就绪</div>
+              <div class="ci-desc">RO+离子交换设备安装调试完成，出水电导率≤50 μS/cm，硬度≤50 mg/L，氯离子≤25 mg/L</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+              <div class="ci-expand" onclick="toggleDetail(this,event)">▶ 查看详情</div>
+              <div class="ci-detail">
+                二次侧（DI水）水质标准：<br>
+                • 电导率：目标10~50 μS/cm<br>
+                • pH值：7~9<br>
+                • 硬度：≤50 mg/L（以CaCO₃计）<br>
+                • 氯离子：≤25 mg/L（防腐蚀）<br>
+                • 固体悬浮物（SS）：≤5 mg/L<br>
+                • 注意：与半导体DIW（电阻率0.02~0.1 MΩ·cm）水质相当，但远低于UPW
+              </div>
+            </div>
+          </div>
+          <div class="cl-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">补水与排水管路预接</div>
+              <div class="ci-desc">液冷系统需配置自动补水装置，补水管路已接通，排水管路引至地漏或集水坑</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+          <div class="cl-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">乙二醇溶液（一次侧防冻液）浓度确认</div>
+              <div class="ci-desc">腾讯N+X方案一次侧使用40%乙二醇水溶液，需提前配制到位，冰点≤-24°C</div>
+              <div class="ci-tags"><span class="ci-tag tag-ref">参考项</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="cl-group">
+        <div class="cl-group-title">⚡ 供配电系统</div>
+        <div class="cl-items">
+          <div class="cl-item warn-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">CDU专用供电回路就绪（三相380V）</div>
+              <div class="ci-desc">每台CDU450需配置≥25kW专用供电回路，UPS供电保障，确认断路器容量和线缆截面</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+          <div class="cl-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">控制系统（BMS/DCIM）通信线路预布</div>
+              <div class="ci-desc">Modbus/BACnet通信线、网络光纤已预布到位，CCU通信端口已规划</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+          <div class="cl-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">接地系统核查（防电化学腐蚀）</div>
+              <div class="ci-desc">液冷管路需与电气系统良好接地，防止杂散电流导致管路电化学腐蚀</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 物资准备 -->
+  <div class="sub-content" id="prep-material">
+    <div class="checklist-section">
+      <div class="cl-section-title">
+        <span class="cst-icon">📦</span>物资与备件准备
+        <span class="cst-badge badge-purple">进场前到位</span>
+      </div>
+      <div class="cl-group">
+        <div class="cl-group-title">🔩 施工材料</div>
+        <div class="cl-items">
+          <div class="cl-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">316L不锈钢/PP-R管材清单确认</div>
+              <div class="ci-desc">二次侧（DI水）管路必须使用316L不锈钢或PP-R，禁止使用碳钢（会污染水质）</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+              <div class="ci-expand" onclick="toggleDetail(this,event)">▶ 查看详情</div>
+              <div class="ci-detail">
+                管材选型要求：<br>
+                • 二次侧主管（室内）：316L不锈钢（首选）或PP-R<br>
+                • 二次侧支管（机柜内）：316L不锈钢软管<br>
+                • 一次侧（冷却水）：碳钢衬塑或不锈钢均可<br>
+                • 严禁：镀锌管、铜管（与DI水会产生电化学反应）<br>
+                • 管件：同材质，截止阀需用不锈钢蝶阀或球阀
+              </div>
+            </div>
+          </div>
+          <div class="cl-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">快接头（干式快速接头）型号统一确认</div>
+              <div class="ci-desc">服务器冷板快接头必须与服务器厂商接口匹配，提前获取服务器接口规格书</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span><span class="ci-tag tag-check">重点核查</span></div>
+            </div>
+          </div>
+          <div class="cl-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">管路保温材料（防结露）</div>
+              <div class="ci-desc">供水温度＜20°C时管路外表面会结露，需包裹闭孔泡沫保温，厚度≥20mm</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="cl-group">
+        <div class="cl-group-title">🔧 工具与检测仪器</div>
+        <div class="cl-items">
+          <div class="cl-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">压力测试设备（水压试验泵）</div>
+              <div class="ci-desc">管路安装完成后需做1.5倍工作压力水压试验，需配备手动试压泵和压力表</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+          <div class="cl-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">水质检测仪（电导率计/pH计）</div>
+              <div class="ci-desc">现场配备便携式电导率计和pH计，用于施工过程和运维阶段的水质快速检测</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+          <div class="cl-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">内窥镜（管路清洁度检查）</div>
+              <div class="ci-desc">管路冲洗完成后用内窥镜检查关键节点清洁度，确认无焊渣、铁锈等杂质</div>
+              <div class="ci-tags"><span class="ci-tag tag-ref">参考项</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 人员与安全 -->
+  <div class="sub-content" id="prep-team">
+    <div class="checklist-section">
+      <div class="cl-section-title">
+        <span class="cst-icon">👷</span>人员资质与安全部署
+        <span class="cst-badge badge-success">施工前到位</span>
+      </div>
+      <div class="cl-group">
+        <div class="cl-group-title">🎓 人员资质</div>
+        <div class="cl-items">
+          <div class="cl-item warn-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">液冷系统专业技术人员到位（≥2人）</div>
+              <div class="ci-desc">至少2名熟悉液冷系统原理的技术人员，具备CDU操作培训证书或厂商认证</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+          <div class="cl-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">电工证持证人员（进网作业许可证）</div>
+              <div class="ci-desc">CDU供电、控制线路接线必须由持证电工操作，高压柜操作需高压电工证</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+          <div class="cl-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">焊工资质（管路焊接）</div>
+              <div class="ci-desc">316L不锈钢氩弧焊必须由持证焊工操作，焊接质量直接影响管路密封性</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+          <div class="cl-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">厂商技术人员联系方式（CDU/冷板厂商）</div>
+              <div class="ci-desc">建立CDU厂商、服务器厂商、管路施工商的技术支持联系人清单，7×24小时响应</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="cl-group">
+        <div class="cl-group-title">🦺 安全措施</div>
+        <div class="cl-items">
+          <div class="cl-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">动火作业许可证制度建立</div>
+              <div class="ci-desc">管路焊接等动火作业必须办理动火证，配备灭火器，专人旁站监督</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+          <div class="cl-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">IT设备区隔离保护措施</div>
+              <div class="ci-desc">施工期间IT设备区需用防尘帘/保护板隔离，防止施工粉尘、水溅进入设备</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+          <div class="cl-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">应急预案培训（漏液应急）</div>
+              <div class="ci-desc">所有施工人员培训漏液应急处置程序：发现漏液→立即关阀→断电→上报→处置</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PAGE: 建设管控 ===== -->
+<div class="page" id="page-build">
+  <div class="section-header">
+    <div class="section-title"><span class="icon">🏗️</span>阶段二：建设期质量管控</div>
+    <div class="section-desc">建设期是液冷系统质量形成的关键阶段，重点管控设备验收、管路施工、冲洗试压和系统调试四大环节，质量问题必须在交付前消除。</div>
+  </div>
+
+  <div class="alert danger">
+    <div class="alert-icon">🔴</div>
+    <div class="alert-content">
+      <div class="alert-title">质量红线</div>
+      <div class="alert-body">以下问题一票否决，必须整改完成才能进入下一阶段：<strong>管路水压试验不合格、冲洗水质不达标、CDU控制系统无法正常联动、漏液感应检测线未接通</strong>。</div>
+    </div>
+  </div>
+
+  <div class="sub-tabs">
+    <div class="sub-tab active" onclick="showSubTab('build','unbox')">📦 开箱验收</div>
+    <div class="sub-tab" onclick="showSubTab('build','piping')">🔩 管路施工</div>
+    <div class="sub-tab" onclick="showSubTab('build','flush')">💧 冲洗试压</div>
+    <div class="sub-tab" onclick="showSubTab('build','debug')">🖥️ 系统调试</div>
+    <div class="sub-tab" onclick="showSubTab('build','quality')">✅ 质量验收</div>
+  </div>
+
+  <div class="sub-content active" id="build-unbox">
+    <div class="checklist-section">
+      <div class="cl-section-title"><span class="cst-icon">📦</span>设备开箱验收清单</div>
+      <div class="cl-group">
+        <div class="cl-group-title">🖥️ CDU（冷量分配单元）验收</div>
+        <div class="cl-items">
+          <div class="cl-item warn-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">CDU外观检查（无变形/破损）</div>
+              <div class="ci-desc">检查CDU箱体四面、顶部，记录所有磕碰痕迹并拍照留档，与装箱单比对</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+          <div class="cl-item warn-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">CDU铭牌参数核对（型号/额定功率/电压）</div>
+              <div class="ci-desc">核对铭牌参数与采购规格书一致，CDU450额定冷量450kW，供电380V三相</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+          <div class="cl-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">随机资料清点（说明书/合格证/测试报告）</div>
+              <div class="ci-desc">检查随机文件：操作手册、电气原理图、水路原理图、出厂测试报告、合格证</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+          <div class="cl-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">水泵/换热器/仪表完好性确认</div>
+              <div class="ci-desc">内部循环泵、板式换热器、温度计、压力表、流量计等仪表无损坏</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="cl-group">
+        <div class="cl-group-title">❄️ 冷板及快接头验收</div>
+        <div class="cl-items">
+          <div class="cl-item warn-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">冷板型号与服务器型号匹配确认</div>
+              <div class="ci-desc">对照服务器BOM清单，逐一核对CPU/GPU冷板型号，错发型号无法安装</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span><span class="ci-tag tag-check">重点核查</span></div>
+            </div>
+          </div>
+          <div class="cl-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">快接头密封圈完好（无老化/变形）</div>
+              <div class="ci-desc">快接头密封圈是泄漏的高发位置，开箱后检查所有密封圈状态，备份5%数量的备用圈</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sub-content" id="build-piping">
+    <div class="checklist-section">
+      <div class="cl-section-title"><span class="cst-icon">🔩</span>管路施工质量管控</div>
+      <div class="cl-group">
+        <div class="cl-group-title">📐 施工工艺</div>
+        <div class="cl-items">
+          <div class="cl-item danger-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">氩弧焊焊接质量检查（外观/无砂眼）</div>
+              <div class="ci-desc">所有焊口必须100%外观检查，重要节点进行PT（渗透检测）或UT（超声检测），焊缝无气孔、裂纹、咬边</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+              <div class="ci-expand" onclick="toggleDetail(this,event)">▶ 查看详情</div>
+              <div class="ci-detail">
+                焊接质量要求：<br>
+                • 坡口角度：30°~35°，对口错边≤0.5mm<br>
+                • 背面保护气体：氩气（防氧化），流量10~15 L/min<br>
+                • 焊后处理：酸洗钝化（去除热影响区氧化层）<br>
+                • 检测方法：目视+PT（关键焊口）或RT（主管道）<br>
+                • 合格标准：参照GB/T 12459、TSG D0001
+              </div>
+            </div>
+          </div>
+          <div class="cl-item warn-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">管路坡度/排气点设置（最高点设排气阀）</div>
+              <div class="ci-desc">系统最高点必须设置自动排气阀，管路有≥0.3%坡度朝向排气点，避免气堵</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+          <div class="cl-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">支架间距符合规范（DN100管≤3m一支架）</div>
+              <div class="ci-desc">按管径选择支架间距，防止管路长期承重变形，减少振动</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+          <div class="cl-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">热补偿装置安装（直管段＞30m设膨胀节）</div>
+              <div class="ci-desc">长管路需设置波纹管膨胀节或U形补偿弯，防止热胀冷缩应力损坏管路</div>
+              <div class="ci-tags"><span class="ci-tag tag-ref">参考项</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sub-content" id="build-flush">
+    <div class="checklist-section">
+      <div class="cl-section-title"><span class="cst-icon">💧</span>管路冲洗与试压标准</div>
+      <div class="alert info" style="margin-bottom:16px;">
+        <div class="alert-icon">ℹ️</div>
+        <div class="alert-content">
+          <div class="alert-title">冲洗试压顺序</div>
+          <div class="alert-body">① 水压试验（强度试验）→ ② 冲洗（大流量冲走杂质）→ ③ 水质检测 → ④ 气密性试验 → ⑤ 充液投运</div>
+        </div>
+      </div>
+      <div class="cl-group">
+        <div class="cl-group-title">💪 水压强度试验</div>
+        <div class="cl-items">
+          <div class="cl-item danger-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">水压试验：1.5倍工作压力，保压30min</div>
+              <div class="ci-desc">工作压力通常0.4~0.6MPa，试验压力0.6~0.9MPa，30分钟内压降≤0.05MPa为合格</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+          <div class="cl-item warn-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">气密性试验（0.1MPa氮气，24h）</div>
+              <div class="ci-desc">水压试验后用氮气做气密性试验，确认所有接头、阀门密封良好，24小时压降≤1%</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="cl-group">
+        <div class="cl-group-title">🌊 管路冲洗验收</div>
+        <div class="cl-items">
+          <div class="cl-item danger-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">大流量冲洗（≥2倍设计流量，冲洗≥4小时）</div>
+              <div class="ci-desc">用临时冲洗泵大流量冲洗，将施工残留的焊渣、铁锈、粉尘等杂质冲出系统</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+              <div class="ci-expand" onclick="toggleDetail(this,event)">▶ 查看详情</div>
+              <div class="ci-detail">
+                冲洗验收标准：<br>
+                • 出口水颜色：目测澄清透明<br>
+                • 滤网：100目滤网过滤，无肉眼可见颗粒<br>
+                • 浊度：≤5 NTU<br>
+                • 铁离子：≤0.3 mg/L<br>
+                • 固体悬浮物：≤5 mg/L<br>
+                • 冲洗过程：先单段冲洗，再全系统联通冲洗<br>
+                • 注意：冲洗废水不得进入CDU换热器，需设临时旁通
+              </div>
+            </div>
+          </div>
+          <div class="cl-item warn-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">冲洗后水质检测（电导率、pH、铁离子）</div>
+              <div class="ci-desc">冲洗完成后取样化验，确认水质指标达到二次侧DI水标准才能与CDU联通</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+          <div class="cl-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">过滤器/Y型过滤网安装（精度≤100μm）</div>
+              <div class="ci-desc">在CDU进水口前安装Y型过滤器，首次运行后1周内清洗一次，防止初期杂质堵塞CDU</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sub-content" id="build-debug">
+    <div class="checklist-section">
+      <div class="cl-section-title"><span class="cst-icon">🖥️</span>系统联调与调试</div>
+      <div class="cl-group">
+        <div class="cl-group-title">🔄 CDU功能调试</div>
+        <div class="cl-items">
+          <div class="cl-item warn-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">CDU水泵启停测试（主/备泵切换）</div>
+              <div class="ci-desc">验证主泵正常启动、备泵自动切换功能，切换时间≤30s，流量恢复≤60s</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+          <div class="cl-item warn-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">温度控制验证（供水温度±2°C调节精度）</div>
+              <div class="ci-desc">设定目标供水温度（如28°C），验证CDU温控调节精度≤±2°C，响应时间≤5min</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+          <div class="cl-item warn-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">CCU与BMS/DCIM通信联调</div>
+              <div class="ci-desc">验证CDU温度、压力、流量、告警等数据能正确上报至BMS/DCIM平台，Modbus地址无冲突</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+          <div class="cl-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">告警联动测试（漏液→停泵→告警）</div>
+              <div class="ci-desc">模拟漏液信号，验证CDU能在60s内收到漏液告警并按预设策略响应</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="cl-group">
+        <div class="cl-group-title">🖧 服务器液冷调试</div>
+        <div class="cl-items">
+          <div class="cl-item warn-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">冷板安装规范确认（螺丝扭矩/接触面）</div>
+              <div class="ci-desc">按厂商规范安装冷板，CPU/GPU冷板安装扭矩符合要求，确认导热介质涂抹均匀</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+          <div class="cl-item warn-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">快接头连接验证（干式连接防泄漏）</div>
+              <div class="ci-desc">所有快接头连接后拉力测试，确认锁紧到位，用干燥纸巾擦拭接头处确认无渗漏</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+          <div class="cl-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">满载工况热测试（GPU温度≤75°C）</div>
+              <div class="ci-desc">服务器满载运行测试，验证液冷效果，GPU结温≤75°C（各厂商规格有差异）</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sub-content" id="build-quality">
+    <div class="checklist-section">
+      <div class="cl-section-title"><span class="cst-icon">✅</span>竣工质量验收清单</div>
+      <div class="cl-group">
+        <div class="cl-group-title">📋 文件资料验收</div>
+        <div class="cl-items">
+          <div class="cl-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">竣工图纸（管路平面图/系统原理图）</div>
+              <div class="ci-desc">竣工图须与实际安装一致，含管径、阀门位置、仪表位置标注，电子版+蓝图各一套</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+          <div class="cl-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">水压试验报告+水质检测报告</div>
+              <div class="ci-desc">完整的试压记录和水质化验报告，须有施工方、监理方签字确认</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+          <div class="cl-item" onclick="toggleCheck(this)">
+            <div class="ci-check"></div>
+            <div class="ci-content">
+              <div class="ci-title">设备出厂测试报告汇总</div>
+              <div class="ci-desc">CDU、冷板、快接头等主要设备的出厂测试报告归档</div>
+              <div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PAGE: 接维管理 ===== -->
+<div class="page" id="page-handover">
+  <div class="section-header">
+    <div class="section-title"><span class="icon">🔄</span>阶段三：接维管理</div>
+    <div class="section-desc">接维是建设方向运维方移交的关键节点，建议设置30天过渡期，确保知识转移充分、文档完整、人员熟悉系统后再正式独立运维。</div>
+  </div>
+
+  <div class="alert purple">
+    <div class="alert-icon">💜</div>
+    <div class="alert-content">
+      <div class="alert-title">接维核心原则</div>
+      <div class="alert-body">不接不清楚的账，不接缺资料的账，不接有隐患的账。接维前必须完成三个"说清楚"：<strong>系统说清楚、资料说清楚、备件说清楚</strong>。</div>
+    </div>
+  </div>
+
+  <div class="sub-tabs">
+    <div class="sub-tab active" onclick="showSubTab('handover','docs')">📄 资料移交</div>
+    <div class="sub-tab" onclick="showSubTab('handover','verify')">🔍 系统验证</div>
+    <div class="sub-tab" onclick="showSubTab('handover','training')">🎓 培训交底</div>
+    <div class="sub-tab" onclick="showSubTab('handover','spare')">🔧 备品备件</div>
+    <div class="sub-tab" onclick="showSubTab('handover','sign')">✍️ 正式移交</div>
+  </div>
+
+  <div class="sub-content active" id="handover-docs">
+    <div class="checklist-section">
+      <div class="cl-section-title"><span class="cst-icon">📄</span>技术资料移交清单</div>
+      <div class="cl-group">
+        <div class="cl-group-title">📐 工程图纸</div>
+        <div class="cl-items">
+          <div class="cl-item warn-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">液冷系统竣工图（平面+系统原理图）</div><div class="ci-desc">与实际系统100%一致的竣工图纸，纸质+电子（CAD/PDF）各一套</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item warn-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">供配电系统图（CDU供电回路）</div><div class="ci-desc">含断路器型号、线缆规格、UPS回路编号</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">BMS/DCIM点位表（监控测点清单）</div><div class="ci-desc">所有监控测点的位置、量程、告警阈值清单</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">设备布局图（CDU/机柜/管路位置）</div><div class="ci-desc">机房平面布局图，标注设备编号与实物对应</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+        </div>
+      </div>
+      <div class="cl-group">
+        <div class="cl-group-title">📋 设备档案</div>
+        <div class="cl-items">
+          <div class="cl-item warn-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">CDU设备台账（编号/厂商/投产日期/保修期）</div><div class="ci-desc">每台CDU的详细档案，包含序列号、安装位置、保修到期日</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">冷板/快接头台账（型号/服务器对应关系）</div><div class="ci-desc">记录每个机柜的冷板型号、快接头规格，与服务器品牌型号的对应关系</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">厂商联系清单（技术支持/售后热线）</div><div class="ci-desc">CDU厂商、冷板厂商、管路施工商、水处理商的技术支持联系人和24小时热线</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sub-content" id="handover-verify">
+    <div class="checklist-section">
+      <div class="cl-section-title"><span class="cst-icon">🔍</span>系统性能验证</div>
+      <div class="cl-group">
+        <div class="cl-group-title">📊 关键指标验证</div>
+        <div class="cl-items">
+          <div class="cl-item danger-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">供液温度验证（≤32°C）</div><div class="ci-desc">在设计工况下，持续运行4小时，供液温度稳定在≤32°C</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item danger-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">出液温度验证（≤45°C）</div><div class="ci-desc">满载工况下，CDU回水温度≤45°C，GPU出液温度≤45°C</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item warn-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">水质指标验证（电导率/pH/铁离子）</div><div class="ci-desc">系统运行中取样，电导率10~50μS/cm，pH 7~9，铁离子≤0.3mg/L</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item warn-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">备泵切换时间验证（≤60s）</div><div class="ci-desc">模拟主泵故障，验证备泵切换后GPU不会因流量中断而过热（限时60s）</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">漏液检测系统功能验证</div><div class="ci-desc">逐段测试漏液感应线，确认每个告警区域能正确触发BMS告警</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sub-content" id="handover-training">
+    <div class="checklist-section">
+      <div class="cl-section-title"><span class="cst-icon">🎓</span>运维培训交底清单</div>
+      <div class="cl-group">
+        <div class="cl-group-title">📚 知识培训</div>
+        <div class="cl-items">
+          <div class="cl-item warn-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">液冷系统原理培训（CDU/冷板/管路）</div><div class="ci-desc">系统架构、工作原理、关键参数含义，由建设方/厂商技术人员讲解，≥4小时</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item warn-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">CDU操作培训（启停/参数调整/告警处理）</div><div class="ci-desc">CDU控制面板操作、参数设置、常见告警码含义及处理方法，实操演练</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item warn-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">冷板插拔操作培训（带液插拔规程）</div><div class="ci-desc">服务器冷板的规范安装/拆卸步骤，干式快接头使用方法，严禁操作项说明</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">水质管理培训（检测方法/处理措施）</div><div class="ci-desc">水质检测操作演示，水质异常的判断和处理，补水/换水操作规程</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">应急处置培训（漏液/停泵/过温应急）</div><div class="ci-desc">三大应急场景的处置流程演练，确保每位运维人员独立完成应急处置</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sub-content" id="handover-spare">
+    <div class="checklist-section">
+      <div class="cl-section-title"><span class="cst-icon">🔧</span>备品备件清点</div>
+      <div class="cl-group">
+        <div class="cl-group-title">🗂️ 必备备件清单</div>
+        <div class="cl-items">
+          <div class="cl-item warn-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">快接头密封圈（≥50套）</div><div class="ci-desc">快接头O型圈是最高频的更换件，按总接头数量的5%储备</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item warn-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">水泵机械密封（每台CDU备1套）</div><div class="ci-desc">水泵机械密封年均更换频率约1~2次，必须储备</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">Y型过滤器滤芯（每台备3套）</div><div class="ci-desc">初期运行阶段滤芯更换频繁，储备充足</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">导热介质（散热膏/导热垫，20套以上）</div><div class="ci-desc">冷板重装时需要更换导热介质，按机柜总数10%储备</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">离子交换树脂（水处理系统备用）</div><div class="ci-desc">DI水制备系统的离子交换树脂，储备6个月用量</div><div class="ci-tags"><span class="ci-tag tag-ref">参考项</span></div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sub-content" id="handover-sign">
+    <div class="checklist-section">
+      <div class="cl-section-title"><span class="cst-icon">✍️</span>正式移交签收</div>
+      <div class="cl-group">
+        <div class="cl-group-title">📝 移交程序</div>
+        <div class="cl-items">
+          <div class="cl-item warn-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">30天过渡期试运行完成</div><div class="ci-desc">建设方/厂商陪同运行30天，处理遗留问题和磨合调整</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item warn-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">遗留问题清单归零</div><div class="ci-desc">过渡期发现的所有问题已整改完毕，遗留问题清单已清零</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">移交验收报告签字确认</div><div class="ci-desc">建设方、运维方、监理方三方共同签署移交验收报告</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">保修期条款确认（≥1年）</div><div class="ci-desc">确认设备保修期起算时间、保修范围、响应时效等条款</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PAGE: 运维执行 ===== -->
+<div class="page" id="page-ops">
+  <div class="section-header">
+    <div class="section-title"><span class="icon">⚙️</span>阶段四：运维执行手册</div>
+    <div class="section-desc">液冷系统运维分为日常巡检、水质管理、冷板操作、CDU维护、预防性维保五大模块，7×24小时持续运行保障。</div>
+  </div>
+
+  <div class="sub-tabs">
+    <div class="sub-tab active" onclick="showSubTab('ops','daily')">📅 日常巡检</div>
+    <div class="sub-tab" onclick="showSubTab('ops','water')">🧪 水质管理</div>
+    <div class="sub-tab" onclick="showSubTab('ops','coldplate')">❄️ 冷板操作</div>
+    <div class="sub-tab" onclick="showSubTab('ops','cdu')">🖥️ CDU维护</div>
+    <div class="sub-tab" onclick="showSubTab('ops','pm')">🔩 预防性维保</div>
+  </div>
+
+  <div class="sub-content active" id="ops-daily">
+    <div class="sub-tabs" style="margin-bottom:16px;">
+      <div class="sub-tab active" onclick="showSubTab('dailychk','day')">每日巡检</div>
+      <div class="sub-tab" onclick="showSubTab('dailychk','week')">每周巡检</div>
+      <div class="sub-tab" onclick="showSubTab('dailychk','month')">每月巡检</div>
+    </div>
+
+    <div class="sub-content active" id="dailychk-day">
+      <div class="checklist-section">
+        <div class="cl-section-title"><span class="cst-icon">☀️</span>每日巡检清单（每班次执行）</div>
+        <div class="cl-group">
+          <div class="cl-group-title">💧 液冷系统参数（每班2次）</div>
+          <div class="cl-items">
+            <div class="cl-item warn-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">CDU供液温度读数记录（目标≤32°C）</div><div class="ci-desc">记录每台CDU的供液温度，超过32°C立即排查冷源是否正常</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+            <div class="cl-item warn-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">CDU回液温度读数记录（正常≤45°C）</div><div class="ci-desc">回液温度反映IT负载热密度，持续升高需关注</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+            <div class="cl-item warn-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">系统压力巡检（供回水压差0.2~0.5MPa）</div><div class="ci-desc">压差过低可能是泵故障或管路堵塞，压差过高可能是过滤器堵塞</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+            <div class="cl-item warn-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">液位查看（膨胀罐液位正常范围）</div><div class="ci-desc">膨胀罐液位应在1/3~2/3刻度范围，液位下降说明有渗漏</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+            <div class="cl-item danger-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">漏液感应系统状态确认（无告警）</div><div class="ci-desc">检查BMS中漏液检测点状态，任何告警必须立即现场确认处置</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+            <div class="cl-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">CDU设备告警灯状态（无红灯）</div><div class="ci-desc">巡视CDU面板告警灯，有红灯立即查看告警码并处理</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          </div>
+        </div>
+        <div class="cl-group">
+          <div class="cl-group-title">👁️ 现场目视检查</div>
+          <div class="cl-items">
+            <div class="cl-item danger-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">管路/接头目视检查（无渗漏/水迹）</div><div class="ci-desc">重点检查快接头、法兰、阀门、焊口位置，发现水迹立即处理</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+            <div class="cl-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">CDU声音异常检查（无异响）</div><div class="ci-desc">水泵有异响（振动、气蚀）说明可能有气泡或机械故障</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sub-content" id="dailychk-week">
+      <div class="checklist-section">
+        <div class="cl-section-title"><span class="cst-icon">📅</span>每周巡检清单</div>
+        <div class="cl-items">
+          <div class="cl-item warn-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">水质快速检测（电导率/pH）</div><div class="ci-desc">用便携仪器检测二次侧DI水，记录数值，超标前一天上报处理</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">过滤器压差检查（△P≤0.05MPa更换）</div><div class="ci-desc">过滤器压差超标说明滤芯堵塞，需及时更换</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">备泵手动切换测试</div><div class="ci-desc">每周手动切换一次主备泵，防止备泵长期不用导致卡泵</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">保温层完好性检查</div><div class="ci-desc">检查管路保温层有无破损、脱落，破损处及时修补防结露</div><div class="ci-tags"><span class="ci-tag tag-ref">参考项</span></div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sub-content" id="dailychk-month">
+      <div class="checklist-section">
+        <div class="cl-section-title"><span class="cst-icon">📆</span>每月巡检清单</div>
+        <div class="cl-items">
+          <div class="cl-item warn-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">水质全项检测（送专业机构化验）</div><div class="ci-desc">每月送检一次，检测铁离子、铜离子、氯离子、硬度、TOC等全项指标</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">CDU水泵振动检测</div><div class="ci-desc">用振动仪检测泵体振动值，超标说明叶轮磨损或轴承故障，提前安排维保</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">系统安全阀校验</div><div class="ci-desc">验证安全阀设定压力正确，避免超压保护失效</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">漏液感应系统功能测试</div><div class="ci-desc">逐段人工测试漏液感应线，确认告警功能正常</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">运维月报编写</div><div class="ci-desc">汇总当月水质数据、告警次数、维修记录、备件消耗，出具月度运维报告</div><div class="ci-tags"><span class="ci-tag tag-ref">参考项</span></div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sub-content" id="ops-water">
+    <div class="checklist-section">
+      <div class="cl-section-title"><span class="cst-icon">🧪</span>水质管理规程</div>
+      <div class="alert warn" style="margin-bottom:16px;">
+        <div class="alert-icon">⚠️</div>
+        <div class="alert-content">
+          <div class="alert-title">水质是长期的事</div>
+          <div class="alert-body">水质劣化是缓慢过程，但一旦超标造成腐蚀或结垢，损失是不可逆的。必须建立长期检测档案，通过趋势分析提前预警。</div>
+        </div>
+      </div>
+      <div class="spec-wrap">
+        <div class="spec-title">📊 DI水（二次侧）水质控制标准</div>
+        <table class="spec-table">
+          <tr><th>检测项目</th><th>控制目标</th><th>告警阈值</th><th>处理措施</th></tr>
+          <tr><td>pH值</td><td>7.0 ~ 9.0</td><td>&lt;6.5 或 &gt;9.5</td><td>投加pH调节剂，检查是否有污染</td></tr>
+          <tr><td>电导率</td><td>10 ~ 50 μS/cm</td><td>&gt;100 μS/cm</td><td>换水或补充离子交换处理</td></tr>
+          <tr><td>硬度（CaCO₃）</td><td>≤50 mg/L</td><td>&gt;100 mg/L</td><td>检查补水水质，更新离子交换树脂</td></tr>
+          <tr><td>氯离子</td><td>≤25 mg/L</td><td>&gt;50 mg/L</td><td>立即换水，排查氯离子来源</td></tr>
+          <tr><td>铁离子</td><td>≤0.3 mg/L</td><td>&gt;1.0 mg/L</td><td>检查管路腐蚀，清洗过滤器</td></tr>
+          <tr><td>铜离子</td><td>≤0.1 mg/L</td><td>&gt;0.5 mg/L</td><td>排查铜质零件，防止电偶腐蚀</td></tr>
+          <tr><td>浊度</td><td>≤5 NTU</td><td>&gt;10 NTU</td><td>更换过滤芯，检查杂质来源</td></tr>
+        </table>
+      </div>
+      <div class="cl-group">
+        <div class="cl-group-title">🔬 水质异常处理流程</div>
+        <div class="cl-items">
+          <div class="cl-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">电导率超标处理（＞100μS/cm）</div><div class="ci-desc">停止补水→排放部分系统水→补充新制DI水→复测至达标；同时检查补水水质是否合格</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">氯离子超标紧急处理</div><div class="ci-desc">氯离子是不锈钢最大杀手，超标后24小时内必须换水，同时检查漏点（市政水是否混入）</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">铁离子超标处理</div><div class="ci-desc">铁离子超标说明管路有腐蚀，需加强过滤，进行管路内壁检查，查找腐蚀点</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sub-content" id="ops-coldplate">
+    <div class="checklist-section">
+      <div class="cl-section-title"><span class="cst-icon">❄️</span>冷板操作规程</div>
+      <div class="alert danger" style="margin-bottom:16px;">
+        <div class="alert-icon">🔴</div>
+        <div class="alert-content">
+          <div class="alert-title">严禁操作</div>
+          <div class="alert-body">①严禁在管路带压状态下强行拆卸快接头；②严禁不挂漏液接水盘就拆卸冷板连接管；③严禁用手触碰快接头密封面；④严禁使用扳手强力扭紧快接头（手力即可）</div>
+        </div>
+      </div>
+      <div class="cl-group">
+        <div class="cl-group-title">🔧 冷板安装/更换操作步骤</div>
+        <div class="cl-items">
+          <div class="cl-item warn-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">Step 1：关闭该机柜液路阀门</div><div class="ci-desc">先关闭该服务器对应的供水/回水分支阀，等待1分钟压力平衡</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item warn-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">Step 2：放置漏液接水盘</div><div class="ci-desc">在快接头下方放置接水盘，接容量≥2L，防止残液滴到服务器电路板</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item warn-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">Step 3：断开快接头（干式连接）</div><div class="ci-desc">按快接头品牌操作：旋转解锁环→轻拉分离，干式接头会自动密封，残液量≤2mL</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">Step 4：卸下冷板固定螺丝</div><div class="ci-desc">按厂商规定的松卸顺序（通常对角线）松螺丝，避免冷板受力不均</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">Step 5：清洁接触面，涂抹导热介质</div><div class="ci-desc">清除旧导热膏，用酒精擦净表面，按厂商规定量均匀涂抹新导热膏</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">Step 6：安装新冷板，按扭矩拧紧</div><div class="ci-desc">按厂商规定扭矩值（通常0.8~1.2 N·m）拧紧，对角线顺序，分2~3次到位</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">Step 7：重连快接头，确认锁紧</div><div class="ci-desc">插入快接头直到听到"咔哒"声，轻拉验证锁紧，用纸巾擦拭确认无渗漏</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">Step 8：开阀、观察温度恢复正常</div><div class="ci-desc">缓慢开启液路阀，观察5分钟内GPU温度恢复正常，无异常告警</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sub-content" id="ops-cdu">
+    <div class="checklist-section">
+      <div class="cl-section-title"><span class="cst-icon">🖥️</span>CDU日常维护规程</div>
+      <div class="cl-group">
+        <div class="cl-group-title">⚙️ 每日CDU维护项目</div>
+        <div class="cl-items">
+          <div class="cl-item warn-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">CCU控制界面巡查（参数无异常）</div><div class="ci-desc">查看CCU面板：供回水温度、泵运行状态、压力、流量、告警列表</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">CDU外观巡检（无渗漏/无异响）</div><div class="ci-desc">目视检查CDU箱体外部管路接头，耳听水泵声音是否正常</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+        </div>
+      </div>
+      <div class="cl-group">
+        <div class="cl-group-title">📋 关键告警处理指南</div>
+        <div class="cl-items">
+          <div class="cl-item danger-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">【高温告警】供液温度＞35°C处理</div><div class="ci-desc">检查一次侧冷却水供水温度→检查板换是否结垢→检查冷却塔工况→必要时降低IT负载</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item danger-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">【低流量告警】流量＜设计值80%处理</div><div class="ci-desc">检查Y型过滤器是否堵塞→检查泵转速→检查管路阀门是否误关→检查泵叶轮</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+          <div class="cl-item danger-item" onclick="toggleCheck(this)"><div class="ci-check"></div><div class="ci-content"><div class="ci-title">【泵故障告警】水泵停转处理</div><div class="ci-desc">立即确认备泵是否自动投入→确认GPU温度→若备泵未投入立即手动切换→60s内GPU过热超限必须降负载</div><div class="ci-tags"><span class="ci-tag tag-must">必须项</span></div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sub-content" id="ops-pm">
+    <div class="checklist-section">
+      <div class="cl-section-title"><span class="cst-icon">🔩</span>预防性维保计划</div>
+      <div class="spec-wrap">
+        <div class="spec-title">🗓️ 年度预防性维保时间表</div>
+        <table class="spec-table">
+          <tr><th>维保项目</th><th>周期</th><th>执行人</th><th>参考工时</th></tr>
+          <tr><td>Y型过滤器清洗/换芯</td><td>每季度</td><td>运维工程师</td><td>2h/台</td></tr>
+          <tr><td>水质全项化验（专业机构）</td><td>每月</td><td>运维工程师送检</td><td>1h</td></tr>
+          <tr><td>水泵机械密封检查</td><td>每半年</td><td>厂商/运维</td><td>4h/台</td></tr>
+          <tr><td>CDU板式换热器清洗</td><td>每年</td><td>厂商</td><td>8h/台</td></tr>
+          <tr><td>膨胀罐预充压力检查</td><td>每半年</td><td>运维工程师</td><td>1h/台</td></tr>
+          <tr><td>漏液感应线全面测试</td><td>每季度</td><td>运维工程师</td><td>4h</td></tr>
+          <tr><td>快接头密封圈目视检查</td><td>每季度</td><td>运维工程师</td><td>2h</td></tr>
+          <tr><td>离子交换树脂更换</td><td>按检测结果（约1年）</td><td>厂商/运维</td><td>4h</td></tr>
+          <tr><td>冷板导热介质检查（抽检10%）</td><td>每年</td><td>服务器厂商/运维</td><td>2h/台服务器</td></tr>
+          <tr><td>系统全量阀门检查</td><td>每年</td><td>运维工程师</td><td>8h</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PAGE: 参数库 ===== -->
+<div class="page" id="page-params">
+  <div class="section-header">
+    <div class="section-title"><span class="icon">📊</span>关键运维参数速查</div>
+    <div class="section-desc">液冷系统核心运维参数一览，现场快速对照。</div>
+  </div>
+
+  <div class="param-grid">
+    <div class="param-card blue"><div class="pc-name">供液温度（目标）</div><div class="pc-value">≤32<span class="pc-unit">°C</span></div><div class="pc-note">超过35°C触发高温告警，超40°C降负载</div></div>
+    <div class="param-card orange"><div class="pc-name">回液温度（正常）</div><div class="pc-value">≤45<span class="pc-unit">°C</span></div><div class="pc-note">满载工况，超45°C检查冷量是否充足</div></div>
+    <div class="param-card teal"><div class="pc-name">DI水电导率</div><div class="pc-value">10~50<span class="pc-unit">μS/cm</span></div><div class="pc-note">超100μS/cm换水处理</div></div>
+    <div class="param-card green"><div class="pc-name">DI水pH值</div><div class="pc-value">7~9</div><div class="pc-note">超范围检查水质污染来源</div></div>
+    <div class="param-card purple"><div class="pc-name">系统工作压力</div><div class="pc-value">0.3~0.6<span class="pc-unit">MPa</span></div><div class="pc-note">安全阀设定0.8MPa</div></div>
+    <div class="param-card red"><div class="pc-name">供回水压差</div><div class="pc-value">0.2~0.5<span class="pc-unit">MPa</span></div><div class="pc-note">压差过低检查泵或堵塞</div></div>
+    <div class="param-card blue"><div class="pc-name">水压试验压力</div><div class="pc-value">1.5倍<span class="pc-unit">工作压力</span></div><div class="pc-note">保压30min，压降≤0.05MPa合格</div></div>
+    <div class="param-card orange"><div class="pc-name">CDU额定冷量</div><div class="pc-value">450<span class="pc-unit">kW/台</span></div><div class="pc-note">腾讯CDU450型号规格</div></div>
+    <div class="param-card teal"><div class="pc-name">备泵切换时间</div><div class="pc-value">≤60<span class="pc-unit">s</span></div><div class="pc-note">GPU停液60s内达过热上限</div></div>
+    <div class="param-card green"><div class="pc-name">氯离子限值</div><div class="pc-value">≤25<span class="pc-unit">mg/L</span></div><div class="pc-note">超50mg/L立即换水（不锈钢腐蚀风险）</div></div>
+    <div class="param-card purple"><div class="pc-name">铁离子限值</div><div class="pc-value">≤0.3<span class="pc-unit">mg/L</span></div><div class="pc-note">反映管路腐蚀程度</div></div>
+    <div class="param-card red"><div class="pc-name">一次侧乙二醇浓度</div><div class="pc-value">40<span class="pc-unit">%</span></div><div class="pc-note">腾讯方案，冰点≤-24°C</div></div>
+  </div>
+
+  <div class="spec-wrap">
+    <div class="spec-title">🖥️ 机柜功率规格（腾讯T-Block方案）</div>
+    <table class="spec-table">
+      <tr><th>机柜类型</th><th>功率规格</th><th>冷却方式</th><th>典型应用</th></tr>
+      <tr><td>CPU机柜</td><td>9.6kW / 16kW</td><td>冷板液冷</td><td>通用计算服务器</td></tr>
+      <tr><td>GPU机柜</td><td>32kW / 40kW</td><td>冷板液冷</td><td>AI训练服务器</td></tr>
+      <tr><td>GPU机柜（高功率）</td><td>56kW / 70kW</td><td>冷板液冷</td><td>下一代AI芯片服务器</td></tr>
+      <tr><td>CDU分布单元</td><td>450kW额定（LCDU450）</td><td>板式换热</td><td>每0.5MW/POD配套</td></tr>
+    </table>
+  </div>
+
+  <div class="spec-wrap">
+    <div class="spec-title">🏗️ N+X 2.0架构规模参数</div>
+    <table class="spec-table">
+      <tr><th>规格</th><th>近期方案（2026年H2）</th><th>远期方案（2027年H1）</th></tr>
+      <tr><td>最小交付单元</td><td>1个房间（2MW）</td><td>1个MDC模组（500kW）</td></tr>
+      <tr><td>8MW模组配置</td><td colspan="2">4个房间，16台主用ICS650+10台备用ICS650，32台CDU450（主备各16），32台FW95风墙（主）+16台（备）</td></tr>
+      <tr><td>冗余方式</td><td colspan="2">主用分布式（每房间独立）+ 备用集中式（共享）</td></tr>
+      <tr><td>故障隔离范围</td><td>最大1个房间（2MW）</td><td>最大1个MDC（500kW）</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ===== PAGE: 应急处置 ===== -->
+<div class="page" id="page-emergency">
+  <div class="section-header">
+    <div class="section-title"><span class="icon">🚨</span>应急故障处置手册</div>
+    <div class="section-desc">液冷系统典型故障的应急处置流程，现场发现异常后按对应流程操作。</div>
+  </div>
+
+  <div class="alert danger">
+    <div class="alert-icon">🔴</div>
+    <div class="alert-content">
+      <div class="alert-title">应急处置原则</div>
+      <div class="alert-body">① <strong>人身安全第一</strong>，涉及高压电区域严禁单人操作；② <strong>先止损再排查</strong>，发现漏液先关阀；③ <strong>边处置边上报</strong>，不得隐瞒不报；④ <strong>保留现场</strong>，拍照记录故障状态</div>
+    </div>
+  </div>
+
+  <!-- 漏液应急 -->
+  <div class="collapse-section">
+    <div class="collapse-header" onclick="toggleCollapse(this)">
+      <span class="ch-icon">🚰</span>
+      <span class="ch-title">漏液应急处置流程</span>
+      <span class="ch-badge badge-warn">高频故障</span>
+      <span class="ch-arrow">▶</span>
+    </div>
+    <div class="collapse-body">
+      <div class="timeline">
+        <div class="tl-item"><div class="tl-icon t1">1️⃣</div><div class="tl-content"><div class="tl-title">立即关闭漏液区域阀门</div><div class="tl-body">找到漏液点对应的供水/回水分支阀，立即关闭。如无法确认，关闭该区域CDU出口总阀。</div><div class="tl-time">⏱ 目标：发现后2分钟内完成</div></div></div>
+        <div class="tl-item"><div class="tl-icon t2">2️⃣</div><div class="tl-content"><div class="tl-title">评估漏液范围，保护IT设备</div><div class="tl-body">查看漏液是否接触到IT设备。若有液体溅到服务器，立即断开该服务器电源（先断电源再擦拭，防止短路）。</div><div class="tl-time">⏱ 目标：2~5分钟</div></div></div>
+        <div class="tl-item"><div class="tl-icon t3">3️⃣</div><div class="tl-content"><div class="tl-title">上报值班主管，启动应急预案</div><div class="tl-body">立即电话上报，说明漏液位置、规模、是否影响IT设备，请求支援。同时联系CDU厂商技术支持。</div><div class="tl-time">⏱ 目标：5分钟内</div></div></div>
+        <div class="tl-item"><div class="tl-icon t4">4️⃣</div><div class="tl-content"><div class="tl-title">查找漏液点，临时处置</div><div class="tl-body">系统泄压后，检查漏液点类型：快接头松动（重新锁紧/更换密封圈）、焊口开裂（临时堵漏或旁通）、阀门渗漏（更换阀门）。</div><div class="tl-time">⏱ 根据具体情况</div></div></div>
+        <div class="tl-item"><div class="tl-icon t5">5️⃣</div><div class="tl-content"><div class="tl-title">恢复系统，验证无渗漏</div><div class="tl-body">修复完成后，缓慢开阀升压，观察30分钟无渗漏后恢复正常运行。记录故障原因和处置过程。</div><div class="tl-time">⏱ 修复后持续观察1小时</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CDU故障应急 -->
+  <div class="collapse-section">
+    <div class="collapse-header" onclick="toggleCollapse(this)">
+      <span class="ch-icon">🖥️</span>
+      <span class="ch-title">CDU水泵故障应急处置</span>
+      <span class="ch-badge badge-info">关键故障</span>
+      <span class="ch-arrow">▶</span>
+    </div>
+    <div class="collapse-body">
+      <div class="alert warn" style="margin-bottom:12px;">
+        <div class="alert-icon">⚡</div>
+        <div class="alert-content"><div class="alert-title">时间窗口极短</div><div class="alert-body">CDU水泵停转后，GPU依靠余热容量，约<strong>60秒内</strong>达到过热上限。必须在60s内确认备泵投入，否则必须立即降低GPU负载。</div></div>
+      </div>
+      <div class="timeline">
+        <div class="tl-item"><div class="tl-icon t1">1️⃣</div><div class="tl-content"><div class="tl-title">确认备泵自动投入（0~30s）</div><div class="tl-body">查看CDU控制面板：备泵应已自动启动，流量指示应恢复正常。如备泵已投入，保持观察并记录故障时间。</div></div></div>
+        <div class="tl-item"><div class="tl-icon t2">2️⃣</div><div class="tl-content"><div class="tl-title">备泵未投入→立即手动切换（30~60s）</div><div class="tl-body">在CDU控制面板手动选择备泵启动。同时监控GPU温度，若温度快速上升，联系调度准备降负载。</div></div></div>
+        <div class="tl-item"><div class="tl-icon t3">3️⃣</div><div class="tl-content"><div class="tl-title">超过60s仍无流量→执行GPU降负载</div><div class="tl-body">通知业务侧或计算调度系统，按优先级降低该区域GPU负载至安全功率（≤50%）。</div></div></div>
+        <div class="tl-item"><div class="tl-icon t4">4️⃣</div><div class="tl-content"><div class="tl-title">排查主泵故障原因</div><div class="tl-body">常见原因：过载跳闸（复位断路器）、机械密封泄漏（需停机更换）、控制信号故障（检查CCU接线）。</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 水质超标应急 -->
+  <div class="collapse-section">
+    <div class="collapse-header" onclick="toggleCollapse(this)">
+      <span class="ch-icon">🧪</span>
+      <span class="ch-title">水质超标应急处置</span>
+      <span class="ch-badge badge-purple">隐性风险</span>
+      <span class="ch-arrow">▶</span>
+    </div>
+    <div class="collapse-body">
+      <div class="timeline">
+        <div class="tl-item"><div class="tl-icon t1">1️⃣</div><div class="tl-content"><div class="tl-title">确认超标指标和程度</div><div class="tl-body">复测确认（排除检测误差）。确认是电导率超标还是氯离子/铁离子等特定离子超标，不同指标处理方式不同。</div></div></div>
+        <div class="tl-item"><div class="tl-icon t2">2️⃣</div><div class="tl-content"><div class="tl-title">停止补水，分析来源</div><div class="tl-body">立即停止自动补水，检查：补水水质是否达标（RO出水）→系统是否有市政水混入→是否有材料溶出（新设备投产）。</div></div></div>
+        <div class="tl-item"><div class="tl-icon t3">3️⃣</div><div class="tl-content"><div class="tl-title">排放+补充DI水（换水处理）</div><div class="tl-body">排放系统水量的30%→补充等量合格DI水→复测→如仍超标重复操作，直至达标。</div></div></div>
+        <div class="tl-item"><div class="tl-icon t4">4️⃣</div><div class="tl-content"><div class="tl-title">根本原因修复</div><div class="tl-body">修复补水系统（更换RO膜/离子交换树脂）、修复漏点（防止市政水混入）、完善水质监测自动报警。</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 高温告警应急 -->
+  <div class="collapse-section">
+    <div class="collapse-header" onclick="toggleCollapse(this)">
+      <span class="ch-icon">🌡️</span>
+      <span class="ch-title">高温告警应急处置</span>
+      <span class="ch-badge badge-warn">常见告警</span>
+      <span class="ch-arrow">▶</span>
+    </div>
+    <div class="collapse-body">
+      <div class="key-points">
+        <div class="kp-card"><div class="kp-icon">🔍</div><div class="kp-title">排查顺序（从外到内）</div><ul class="kp-list"><li>一次侧冷却水供水温度是否偏高（冷却塔工况）</li><li>CDU进出水温差是否正常（反映换热器效率）</li><li>系统流量是否正常（泵状态/过滤器）</li><li>IT负载是否异常升高（算法任务峰值）</li><li>CDU板式换热器是否结垢（需化学清洗）</li></ul></div>
+        <div class="kp-card"><div class="kp-icon">⚡</div><div class="kp-title">快速降温措施</div><ul class="kp-list"><li>降低CDU目标供液温度设定值</li><li>检查冷却塔风扇是否全开</li><li>临时增加旁通冷量（如有备用CDU）</li><li>业务侧降低GPU负载功率</li><li>环境温度过高时检查机房空调辅助制冷</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 报警码速查 -->
+  <div class="spec-wrap">
+    <div class="spec-title">📟 CDU常见告警码速查</div>
+    <table class="spec-table">
+      <tr><th>告警码</th><th>含义</th><th>优先级</th><th>处理措施</th></tr>
+      <tr><td>E01</td><td>供液温度过高（＞35°C）</td><td style="color:#d97706;font-weight:700;">中</td><td>检查冷却水供水，降低负载</td></tr>
+      <tr><td>E02</td><td>主泵运行故障</td><td style="color:#dc2626;font-weight:700;">高</td><td>确认备泵投入，60s内响应</td></tr>
+      <tr><td>E03</td><td>低流量告警（＜80%设计值）</td><td style="color:#dc2626;font-weight:700;">高</td><td>检查过滤器/泵/阀门</td></tr>
+      <tr><td>E04</td><td>漏液检测告警</td><td style="color:#dc2626;font-weight:700;">紧急</td><td>立即现场确认，关阀处置</td></tr>
+      <tr><td>E05</td><td>液位低告警</td><td style="color:#d97706;font-weight:700;">中</td><td>检查补水系统，排查渗漏</td></tr>
+      <tr><td>E06</td><td>通信中断</td><td style="color:#2563eb;font-weight:700;">低</td><td>检查网线/RS485接线，重启CCU</td></tr>
+      <tr><td>E07</td><td>过压告警（＞0.7MPa）</td><td style="color:#dc2626;font-weight:700;">高</td><td>检查安全阀，降低补水压力</td></tr>
+      <tr><td>E08</td><td>欠压告警（＜0.15MPa）</td><td style="color:#d97706;font-weight:700;">中</td><td>检查系统液位，补液</td></tr>
+    </table>
+  </div>
+</div>
+
+</div><!-- end main -->
+
+<div class="footer">数据中心液冷全流程管理平台 · 基于腾讯N+X液冷架构实践 · 2026-04-20</div>
+
+<script>
+// ===== 页面切换 =====
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.phase-btn').forEach(b => b.classList.remove('active'));
+  const page = document.getElementById('page-' + id);
+  if (page) page.classList.add('active');
+  const btns = document.querySelectorAll('.phase-btn');
+  btns.forEach(b => {
+    if (b.getAttribute('onclick') && b.getAttribute('onclick').includes("'" + id + "'")) {
+      b.classList.add('active');
+    }
+  });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ===== 子标签切换 =====
+function showSubTab(group, id) {
+  // 找到当前操作的 sub-tabs 父容器
+  const allSubContents = document.querySelectorAll('[id^="' + group + '-"]');
+  allSubContents.forEach(c => c.classList.remove('active'));
+  const allSubTabs = [];
+  allSubContents.forEach(c => {
+    const parent = c.parentElement;
+    if (parent) {
+      const tabs = parent.querySelectorAll('.sub-tab');
+      tabs.forEach(t => allSubTabs.push(t));
+    }
+  });
+  // 隐藏所有同组sub-tab
+  document.querySelectorAll('.sub-tab').forEach(t => {
+    const onclick = t.getAttribute('onclick') || '';
+    if (onclick.includes("'" + group + "'")) t.classList.remove('active');
+  });
+  // 激活目标
+  const target = document.getElementById(group + '-' + id);
+  if (target) target.classList.add('active');
+  document.querySelectorAll('.sub-tab').forEach(t => {
+    const onclick = t.getAttribute('onclick') || '';
+    if (onclick.includes("'" + group + "'") && onclick.includes("'" + id + "'")) {
+      t.classList.add('active');
+    }
+  });
+}
+
+// ===== 巡检子标签 =====
+function showDailyTab(id) {
+  showSubTab('dailychk', id);
+}
+
+// ===== 复选框切换 =====
+function toggleCheck(el) {
+  el.classList.toggle('checked');
+  updateStats();
+}
+
+// ===== 详情展开 =====
+function toggleDetail(btn, e) {
+  e.stopPropagation();
+  const detail = btn.nextElementSibling;
+  if (detail && detail.classList.contains('ci-detail')) {
+    detail.classList.toggle('open');
+    btn.textContent = detail.classList.contains('open') ? '▼ 收起' : '▶ 查看详情';
+  }
+}
+
+// ===== 折叠面板 =====
+function toggleCollapse(header) {
+  header.classList.toggle('open');
+  const body = header.nextElementSibling;
+  if (body) body.classList.toggle('open');
+}
+
+// ===== 统计进度 =====
+function updateStats() {
+  // 可扩展：统计各阶段完成率
+}
+
+// ===== 初始化 =====
+document.addEventListener('DOMContentLoaded', function() {
+  // 日期更新
+  const now = new Date();
+  document.getElementById('updateTime').textContent = '更新：' + now.toLocaleDateString('zh-CN');
+});
+</script>
+</body>
+</html>
