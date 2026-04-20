@@ -432,7 +432,7 @@ function buildDashboard(){
     </div>
     <div class="chart-card ref-card">
       <div class="chart-title-ref"><span class="ct-icon">⭕</span>隐患状态占比</div>
-      <div class="chart-wrap" style="height:260px;position:relative"><canvas id="chartStatusPie"></canvas></div>
+      <div class="chart-wrap" style="height:280px;position:relative;overflow:visible"><canvas id="chartStatusPie" style="overflow:visible"></canvas></div>
       <div class="ref-legend" id="statusLegend"></div>
     </div>
     <div class="chart-card ref-card">
@@ -535,6 +535,7 @@ function buildDashboard(){
     },
     options:{
       responsive:true,maintainAspectRatio:false,cutout:'60%',
+      layout:{padding:{top:30,bottom:30,left:50,right:50}},
       plugins:{
         legend:{display:false},
         tooltip:{callbacks:{label:function(item){const pct=(item.raw/total*100).toFixed(2);return ` ${item.label}：${item.raw}项 (${pct}%)`;}}},
@@ -550,13 +551,15 @@ function buildDashboard(){
         meta.data.forEach((arc,i)=>{
           if(statusVals[i]===0) return;
           const angle=(arc.startAngle+arc.endAngle)/2;
-          const r=arc.outerRadius*1.2;
+          const r=arc.outerRadius*1.28;
           const x=cx+Math.cos(angle)*r;
           const y=cy+Math.sin(angle)*r;
           const pct=(statusVals[i]/total*100).toFixed(2);
+          // 根据角度决定文字对齐方式，避免被截断
+          const cosA=Math.cos(angle);
+          ctx.textAlign=cosA>0.1?'left':cosA<-0.1?'right':'center';
           ctx.font='11px sans-serif';
           ctx.fillStyle='#374151';
-          ctx.textAlign='center';
           ctx.textBaseline='bottom';
           ctx.fillText(statuses[i],x,y);
           ctx.font='bold 11px sans-serif';
