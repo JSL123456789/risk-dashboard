@@ -285,6 +285,27 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
 .btn-sm{padding:5px 10px;font-size:11px;}
 .btn-outline{background:#fff;color:#374151;border:1px solid #d1d5db;}.btn-outline:hover{background:#f9fafb;}
 
+/* 引导选择按钮 */
+.guide-sel-btn{padding:9px 18px;border-radius:20px;border:2px solid #e5e7eb;background:#fff;color:#374151;font-size:13px;cursor:pointer;transition:all .2s;font-weight:500;}
+.guide-sel-btn:hover{border-color:#93c5fd;background:#eff6ff;color:#1e40af;}
+.guide-sel-btn.active{border-color:#3b82f6;background:#3b82f6;color:#fff;font-weight:700;box-shadow:0 2px 8px rgba(59,130,246,.3);}
+
+/* 板块整体确认区 */
+.section-confirm-bar{background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:2px solid #86efac;border-radius:12px;padding:16px 20px;margin-top:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.section-confirm-bar.done{background:linear-gradient(135deg,#f0fdf4,#dcfce7);}
+.section-confirm-bar.undone{background:linear-gradient(135deg,#f8fafc,#f1f5f9);border-color:#d1d5db;}
+.scb-info{flex:1;}
+.scb-title{font-size:13px;font-weight:700;color:#166534;margin-bottom:3px;}
+.scb-title.undone-title{color:#374151;}
+.scb-sub{font-size:12px;color:#16a34a;}
+.scb-sub.undone-sub{color:#64748b;}
+.scb-result{font-size:12px;color:#166534;display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px;}
+.scb-btn{padding:9px 20px;border-radius:9px;border:none;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap;}
+.scb-btn.confirm-btn{background:#16a34a;color:#fff;box-shadow:0 2px 8px rgba(22,163,74,.3);}
+.scb-btn.confirm-btn:hover{background:#15803d;}
+.scb-btn.revoke-btn{background:#fee2e2;color:#b91c1c;}
+.scb-btn.revoke-btn:hover{background:#fecaca;}
+
 @media(max-width:768px){
   .main{padding:12px 14px;}
   .header-inner{padding:10px 14px;}
@@ -736,7 +757,56 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
 <div class="footer">数据中心液冷全流程管理平台 v2.0 · 支持按园区/模组跟踪 · 数据本地保存 · 更新：2026-04-20</div>
 </div><!-- /main -->
 
-<!-- MODAL -->
+<!-- 园区/模组选择引导弹窗（进入页面强制弹出） -->
+<div class="modal-overlay" id="selectGuideModal" style="z-index:2000;">
+  <div class="modal" style="max-width:560px;padding:36px 32px;">
+    <div class="modal-icon">🏢</div>
+    <div class="modal-title" style="font-size:20px;">请选择您的园区和模组</div>
+    <div class="modal-body" style="margin-bottom:20px;">选择后将跟踪该模组的全生命周期任务进度，数据独立保存，可随时切换。</div>
+    <div style="margin-bottom:18px;">
+      <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:10px;">🏢 选择园区</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;" id="guide-park-btns">
+        <button class="guide-sel-btn" data-park="cq-taihe" onclick="guideSelectPark('cq-taihe',this)">重庆·泰和</button>
+        <button class="guide-sel-btn" data-park="cq-yunfu" onclick="guideSelectPark('cq-yunfu',this)">重庆·云福</button>
+        <button class="guide-sel-btn" data-park="gz-guian" onclick="guideSelectPark('gz-guian',this)">贵阳·贵安</button>
+        <button class="guide-sel-btn" data-park="cd-xiqu" onclick="guideSelectPark('cd-xiqu',this)">成都·西区</button>
+        <button class="guide-sel-btn" data-park="cd-gaoxin" onclick="guideSelectPark('cd-gaoxin',this)">成都·高新</button>
+      </div>
+    </div>
+    <div style="margin-bottom:24px;">
+      <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:10px;">📦 选择模组</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;" id="guide-module-btns">
+        <button class="guide-sel-btn" data-module="M1" onclick="guideSelectModule('M1',this)">模组 M1</button>
+        <button class="guide-sel-btn" data-module="M2" onclick="guideSelectModule('M2',this)">模组 M2</button>
+        <button class="guide-sel-btn" data-module="M3" onclick="guideSelectModule('M3',this)">模组 M3</button>
+        <button class="guide-sel-btn" data-module="M4" onclick="guideSelectModule('M4',this)">模组 M4</button>
+      </div>
+    </div>
+    <div id="guide-selected-info" style="display:none;background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:#166534;text-align:center;font-weight:600;"></div>
+    <div class="modal-actions">
+      <button class="modal-btn secondary" onclick="skipGuide()">跳过（仅查看）</button>
+      <button class="modal-btn primary" id="guide-confirm-btn" onclick="confirmGuide()" disabled style="opacity:.4;cursor:not-allowed;">✅ 确认进入</button>
+    </div>
+  </div>
+</div>
+
+<!-- 板块整体确认弹窗 -->
+<div class="modal-overlay hidden" id="sectionConfirmModal" style="z-index:1500;">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-icon" id="scModalIcon">✍️</div>
+    <div class="modal-title" id="scModalTitle">确认本板块已完成</div>
+    <div class="modal-body" id="scModalBody"></div>
+    <div style="margin-bottom:20px;">
+      <input class="submit-input" id="scUserInput" placeholder="请输入您的姓名进行签名确认" style="width:100%;padding:12px 16px;font-size:14px;border:2px solid #e5e7eb;border-radius:10px;outline:none;" />
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn secondary" onclick="closeSectionModal()">取消</button>
+      <button class="modal-btn primary" onclick="confirmSectionSubmit()">✅ 签名确认</button>
+    </div>
+  </div>
+</div>
+
+<!-- 通用MODAL -->
 <div class="modal-overlay hidden" id="modalOverlay">
   <div class="modal">
     <div class="modal-icon" id="modalIcon">✅</div>
@@ -1038,7 +1108,7 @@ function saveTaskState(taskId, state) {
   else localStorage.removeItem(key);
 }
 
-// 渲染任务项
+// 渲染任务项（只展示勾选状态，无逐项签名）
 function renderTask(groupId, task) {
   const container = document.getElementById('tasks-' + groupId);
   if (!container) return;
@@ -1059,25 +1129,7 @@ function renderTask(groupId, task) {
 
   const detailHtml = task.detail ? `<div class="task-expand-btn" onclick="toggleTaskDetail(this,event)">▶ 查看详情</div><div class="task-detail">${task.detail.replace(/\n/g,'<br>')}</div>` : '';
 
-  let submitHtml = '';
-  if (isCompleted && state) {
-    submitHtml = `<div class="task-submit-area">
-      <div class="submit-result">✅ 已完成
-        <span>操作人：<b>${state.user}</b></span>
-        <span class="sr-time">${state.time}</span>
-        ${currentPark!=='all'&&currentModule!=='all'?'<button class="submit-btn revoke" onclick="revokeTask(\''+task.id+'\',event)">撤销</button>':''}
-      </div>
-    </div>`;
-  } else if (currentPark !== 'all' && currentModule !== 'all') {
-    submitHtml = `<div class="task-submit-area">
-      <div class="submit-row">
-        <input class="submit-input" id="input-${task.id}" placeholder="输入您的姓名后提交" />
-        <button class="submit-btn confirm" onclick="submitTask('${task.id}','${groupId}',event)">✓ 确认完成</button>
-      </div>
-    </div>`;
-  }
-
-  div.innerHTML = `<div class="task-header" onclick="selectTask(this.parentNode,'${task.id}')">
+  div.innerHTML = `<div class="task-header" style="cursor:default;">
     <div class="task-check"></div>
     <div class="task-content">
       <div class="task-title">${task.title}</div>
@@ -1085,78 +1137,216 @@ function renderTask(groupId, task) {
       <div class="task-tags">${tagsHtml}</div>
       ${detailHtml}
     </div>
-  </div>${submitHtml}`;
+  </div>`;
   container.appendChild(div);
 }
 
-// 渲染所有任务
+// 渲染所有任务，并为每个checklist-section添加板块确认区
 function renderAllTasks() {
-  // 清空所有容器
   document.querySelectorAll('[id^="tasks-"]').forEach(el => el.innerHTML = '');
   Object.keys(TASKS).forEach(groupId => {
     TASKS[groupId].forEach(task => renderTask(groupId, task));
   });
+  renderAllSectionConfirms();
   updateAllStats();
   updateHeaderInfo();
 }
 
-// 选中/展开任务提交区
-function selectTask(el, taskId) {
-  if (currentPark === 'all' || currentModule === 'all') {
-    showTip('请先在顶部选择具体的园区和模组，再操作任务');
-    return;
-  }
-  const state = getTaskState(taskId);
-  if (state && state.done) return;
-  el.classList.toggle('selected');
+// 为每个checklist-section渲染板块确认区
+function renderAllSectionConfirms() {
+  document.querySelectorAll('.checklist-section').forEach(section => {
+    // 找出该section内所有tasks-容器的groupId
+    const taskContainers = section.querySelectorAll('[id^="tasks-"]');
+    if (!taskContainers.length) return;
+    // 收集所有groupId
+    const groupIds = Array.from(taskContainers).map(el => el.id.replace('tasks-',''));
+    const sectionKey = 'section_' + groupIds[0]; // 用第一个groupId作为板块key
+
+    // 移除旧确认区
+    const old = section.querySelector('.section-confirm-bar');
+    if (old) old.remove();
+
+    // 获取板块确认状态
+    const sectionState = getSectionState(sectionKey);
+    const isDone = sectionState && sectionState.done;
+
+    // 统计任务数
+    const totalTasks = groupIds.reduce((s, g) => s + (TASKS[g]||[]).length, 0);
+
+    // 获取section标题
+    const titleEl = section.querySelector('.cl-section-title');
+    const sectionTitle = titleEl ? titleEl.textContent.trim().replace(/[📦⚡🏗️🔧💧⚙️📅🧪❄️🖥️🔩🏢📁🔍🎓✅✍️👷⚙️]/g,'').trim() : '本板块';
+
+    const bar = document.createElement('div');
+    if (isDone) {
+      bar.className = 'section-confirm-bar done';
+      bar.innerHTML = `<div class="scb-info">
+        <div class="scb-title">✅ 本板块已确认完成</div>
+        <div class="scb-result">
+          <span>操作人：<b>${sectionState.user}</b></span>
+          <span style="color:#6b7280;font-size:11px;">${sectionState.time}</span>
+          <span style="color:#64748b;font-size:11px;">· 共 ${totalTasks} 项</span>
+        </div>
+      </div>
+      ${currentPark!=='all'&&currentModule!=='all'?`<button class="scb-btn revoke-btn" onclick="revokeSectionConfirm('${sectionKey}', this)">撤销确认</button>`:''}`;
+    } else {
+      bar.className = 'section-confirm-bar undone';
+      const canConfirm = currentPark !== 'all' && currentModule !== 'all';
+      bar.innerHTML = `<div class="scb-info">
+        <div class="scb-title undone-title">📋 完成上方所有检查项后，点击右侧按钮整体确认</div>
+        <div class="scb-sub undone-sub">共 ${totalTasks} 项任务 · 确认后将记录操作人和时间</div>
+      </div>
+      ${canConfirm ? `<button class="scb-btn confirm-btn" onclick="openSectionConfirm('${sectionKey}', '${sectionTitle}', this)">✍️ 签名确认本板块</button>` : '<span style="font-size:12px;color:#94a3b8;">请先选择园区和模组</span>'}`;
+    }
+    bar.id = 'scbar-' + sectionKey;
+    section.appendChild(bar);
+  });
 }
 
-// 提交任务完成
-function submitTask(taskId, groupId, event) {
-  if (event) event.stopPropagation();
-  const input = document.getElementById('input-' + taskId);
-  const user = input ? input.value.trim() : '';
-  if (!user) { input && input.focus(); showTip('请输入您的姓名'); return; }
+// 板块确认状态存储
+function sectionStoreKey(sectionKey) {
+  return `lc_sec_${currentPark}_${currentModule}_${sectionKey}`;
+}
+function getSectionState(sectionKey) {
+  const val = localStorage.getItem(sectionStoreKey(sectionKey));
+  return val ? JSON.parse(val) : null;
+}
+function saveSectionState(sectionKey, state) {
+  const key = sectionStoreKey(sectionKey);
+  if (state) localStorage.setItem(key, JSON.stringify(state));
+  else localStorage.removeItem(key);
+}
 
+// 当前正在操作的板块key
+let currentSectionKey = '';
+let currentSectionTitle = '';
+
+// 打开板块确认弹窗
+function openSectionConfirm(sectionKey, sectionTitle, btnEl) {
+  if (currentPark === 'all' || currentModule === 'all') {
+    showTip('请先选择具体的园区和模组');
+    return;
+  }
+  currentSectionKey = sectionKey;
+  currentSectionTitle = sectionTitle;
+  document.getElementById('scModalTitle').textContent = '确认本板块已完成';
+  document.getElementById('scModalBody').innerHTML = `<b>${sectionTitle}</b><br>确认您已逐项检查完毕，点击签名确认后将记录完成人和时间。<br><br>📍 ${PARKS[currentPark]} · 模组 ${currentModule}`;
+  document.getElementById('scUserInput').value = '';
+  document.getElementById('sectionConfirmModal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('scUserInput').focus(), 100);
+}
+
+// 关闭板块确认弹窗
+function closeSectionModal() {
+  document.getElementById('sectionConfirmModal').classList.add('hidden');
+}
+
+// 确认板块提交
+function confirmSectionSubmit() {
+  const user = document.getElementById('scUserInput').value.trim();
+  if (!user) { showTip('请输入您的姓名'); document.getElementById('scUserInput').focus(); return; }
   const now = new Date();
   const timeStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
-  saveTaskState(taskId, { done: true, user: user, time: timeStr, park: currentPark, module: currentModule });
+  saveSectionState(currentSectionKey, { done: true, user, time: timeStr });
 
-  // 更新DOM
-  const el = document.getElementById('task-' + taskId);
-  if (el) {
-    el.className = 'task-item completed' + (el.classList.contains('warn-item') ? ' warn-item' : '');
-    const submitArea = el.querySelector('.task-submit-area');
-    if (submitArea) {
-      submitArea.innerHTML = `<div class="submit-result">✅ 已完成
-        <span>操作人：<b>${user}</b></span>
-        <span class="sr-time">${timeStr}</span>
-        <button class="submit-btn revoke" onclick="revokeTask('${taskId}',event)">撤销</button>
-      </div>`;
-    }
-  }
-  updateAllStats();
+  // 同时把该板块下所有任务标记为完成
+  const groupIds = currentSectionKey.replace('section_','');
+  // 找到该板块的所有task并标记
+  const groupId = groupIds;
+  const allGroupsForSection = getAllGroupsForSection(groupId);
+  allGroupsForSection.forEach(g => {
+    (TASKS[g]||[]).forEach(t => {
+      if (!getTaskState(t.id) || !getTaskState(t.id).done) {
+        saveTaskState(t.id, { done: true, user, time: timeStr, park: currentPark, module: currentModule });
+      }
+    });
+  });
+
+  closeSectionModal();
+  renderAllTasks();
   checkPhaseCompletion(groupId);
 }
 
-// 撤销任务
-function revokeTask(taskId, event) {
-  if (event) event.stopPropagation();
-  saveTaskState(taskId, null);
-  // 重新渲染该任务
-  const el = document.getElementById('task-' + taskId);
-  if (el) {
-    el.className = 'task-item' + (el.classList.contains('warn-item') ? ' warn-item' : '');
-    const submitArea = el.querySelector('.task-submit-area');
-    if (submitArea) {
-      submitArea.innerHTML = `<div class="submit-row">
-        <input class="submit-input" id="input-${taskId}" placeholder="输入您的姓名后提交" />
-        <button class="submit-btn confirm" onclick="submitTask('${taskId}','',event)">✓ 确认完成</button>
-      </div>`;
-    }
-  }
-  updateAllStats();
+// 撤销板块确认
+function revokeSectionConfirm(sectionKey, btnEl) {
+  saveSectionState(sectionKey, null);
+  // 撤销该板块下所有任务
+  const groupId = sectionKey.replace('section_','');
+  const allGroups = getAllGroupsForSection(groupId);
+  allGroups.forEach(g => {
+    (TASKS[g]||[]).forEach(t => saveTaskState(t.id, null));
+  });
+  renderAllTasks();
 }
+
+// 根据groupId找到该section内所有groupId（一个section可能有多个任务组）
+function getAllGroupsForSection(firstGroupId) {
+  // 找到包含该groupId对应tasks容器的section，返回section内所有groupId
+  const el = document.getElementById('tasks-' + firstGroupId);
+  if (!el) return [firstGroupId];
+  const section = el.closest('.checklist-section');
+  if (!section) return [firstGroupId];
+  return Array.from(section.querySelectorAll('[id^="tasks-"]')).map(e => e.id.replace('tasks-',''));
+}
+
+// ===== 引导弹窗逻辑 =====
+let guidePark = '';
+let guideModule = '';
+
+function guideSelectPark(park, btn) {
+  guidePark = park;
+  document.querySelectorAll('#guide-park-btns .guide-sel-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  updateGuideInfo();
+}
+
+function guideSelectModule(mod, btn) {
+  guideModule = mod;
+  document.querySelectorAll('#guide-module-btns .guide-sel-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  updateGuideInfo();
+}
+
+function updateGuideInfo() {
+  const info = document.getElementById('guide-selected-info');
+  const btn = document.getElementById('guide-confirm-btn');
+  if (guidePark && guideModule) {
+    info.style.display = 'block';
+    info.textContent = '✅ 已选择：' + (PARKS[guidePark]||guidePark) + ' · 模组 ' + guideModule;
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    btn.style.cursor = 'pointer';
+  } else {
+    info.style.display = 'none';
+    btn.disabled = true;
+    btn.style.opacity = '.4';
+    btn.style.cursor = 'not-allowed';
+  }
+}
+
+function confirmGuide() {
+  if (!guidePark || !guideModule) return;
+  currentPark = guidePark;
+  currentModule = guideModule;
+  // 同步顶部选择器
+  document.querySelectorAll('#park-btns .sel-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.park === currentPark);
+  });
+  document.querySelectorAll('#module-btns .sel-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.module === currentModule);
+  });
+  document.getElementById('selectGuideModal').classList.add('hidden');
+  renderAllTasks();
+}
+
+function skipGuide() {
+  document.getElementById('selectGuideModal').classList.add('hidden');
+}
+
+// ===== 旧的逐项任务操作（保留为空以兼容）=====
+function selectTask(el, taskId) {}
+function submitTask(taskId, groupId, event) {}
+function revokeTask(taskId, event) {}
 
 // 检查阶段完成情况
 function checkPhaseCompletion(groupId) {
@@ -1188,7 +1378,7 @@ function showProductionComplete() {
   modal.classList.remove('hidden');
 }
 
-// 统计各阶段进度
+// 统计各阶段进度（以板块section为单位）
 function calcPhaseStats(phase) {
   const groups = PHASE_GROUPS[phase] || [];
   const total = groups.reduce((s, g) => s + (TASKS[g] || []).length, 0);
@@ -1424,6 +1614,8 @@ document.addEventListener('DOMContentLoaded', function() {
       this.classList.add('active');
     });
   });
+  // 启动时弹出园区/模组选择引导
+  document.getElementById('selectGuideModal').classList.remove('hidden');
 });
 </script>
 </body>
