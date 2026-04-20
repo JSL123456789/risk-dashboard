@@ -220,6 +220,17 @@ td .cell.multiline{white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:2
 .toast{position:fixed;bottom:24px;right:24px;background:#1e293b;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;box-shadow:var(--shadow-lg);opacity:0;transform:translateY(10px);transition:all .3s;z-index:9999;}
 .toast.show{opacity:1;transform:translateY(0);}
 
+/* ===== EDITABLE FIELDS ===== */
+.field-editable{width:100%;border:1px solid #e5e7eb;border-radius:6px;padding:3px 8px;font-size:13px;color:#1e293b;font-weight:500;background:#fff;outline:none;transition:border .2s;box-sizing:border-box;}
+.field-editable:focus{border-color:#3b82f6;background:#eff6ff;}
+.field-editable:hover{border-color:#94a3b8;}
+.status-select{appearance:none;-webkit-appearance:none;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:16px;padding:2px 24px 2px 8px;font-size:11px;font-weight:600;cursor:pointer;outline:none;transition:all .2s;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23666'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 6px center;}
+.status-select:hover{opacity:.85;}
+
+/* ===== ZONE INPUT ===== */
+.zone-input{padding:7px 12px;background:#fff;color:#374151;}
+.zone-input:focus{border-color:var(--primary-light);outline:none;}
+
 /* ===== EMPTY ===== */
 .empty-state{text-align:center;padding:48px 20px;color:#94a3b8;}
 .empty-icon{font-size:40px;margin-bottom:12px;}
@@ -649,7 +660,8 @@ function buildSheetPanels(){
         <div class="filter-group">
           <select class="flt" onchange="onFlt('${escA(sheet)}','cat',this.value)"><option value="">全部分类</option>${catOpts}</select>
           <select class="flt" onchange="onFlt('${escA(sheet)}','status',this.value)"><option value="">全部状态</option>${stOpts}</select>
-          <select class="flt" onchange="onFlt('${escA(sheet)}','zone',this.value)"><option value="">全部模组</option>${zoneOpts}</select>
+          <input class="flt zone-input" list="zoneList-${escA(sheet)}" placeholder="输入或选择模组" oninput="onFlt('${escA(sheet)}','zone',this.value)" style="min-width:130px;max-width:180px;">
+          <datalist id="zoneList-${escA(sheet)}">${zones.map(z=>`<option value="${escA(z)}">`).join('')}</datalist>
         </div>
         <div class="toolbar-right">
           <span class="count-lbl" id="cnt-${escA(sheet)}"></span>
@@ -814,14 +826,19 @@ function renderModal(){
 
   const META_FIELDS=['序号','园区','模组','风险分类','风险发现人','录入时间','风险设备','风险影响范围','隐患状态','责任方'];
   const LONG_FIELDS=['风险描述','风险原因','解决方案','备注','待办项','处理意见（3月4日）','进展（两周）'];
+  const STATUS_LIST=['已完成','处理中','挂起','未处理'];
   
-  let body=`<div class="modal-section"><div class="ms-title">基本信息</div><div class="fields-grid">`;
+  let body=`<div class="modal-section"><div class="ms-title">基本信息 <span style="font-size:11px;color:#94a3b8;font-weight:normal;margin-left:8px">📝 园区/模组/状态可直接编辑</span></div><div class="fields-grid">`;
   META_FIELDS.forEach(k=>{
     if(!(k in row)) return;
     let val=row[k];
-    if(k==='隐患状态') val=statusBadge(row[k]);
-    else if(k==='风险分类') val=cateBadge(row[k]);
+    if(k==='隐患状态'){
+      const opts=STATUS_LIST.map(s=>`<option value="${esc(s)}" ${s===row[k]?'selected':''}>${esc(s)}</option>`).join('');
+      val=`<select class="status-select status-sel-${esc(row[k])}" onchange="updateField('${escA(modalSheet)}',${modalIdx},'隐患状态',this.value)" style="border:1px solid #e5e7eb;border-radius:16px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer;outline:none;">${opts}</select>`;
+    } else if(k==='风险分类') val=cateBadge(row[k]);
     else if(k==='责任方'&&row[k]) val=`<span class="badge b-责任">${esc(row[k])}</span>`;
+    else if(k==='园区') val=`<input class="field-editable" value="${escA(row[k]||'')}" onchange="updateField('${escA(modalSheet)}',${modalIdx},'园区',this.value)" onblur="updateField('${escA(modalSheet)}',${modalIdx},'园区',this.value)" placeholder="填写园区名称">`;
+    else if(k==='模组') val=`<input class="field-editable" value="${escA(row[k]||'')}" onchange="updateField('${escA(modalSheet)}',${modalIdx},'模组',this.value)" onblur="updateField('${escA(modalSheet)}',${modalIdx},'模组',this.value)" placeholder="填写模组名称">`;
     else val=`<span>${esc(row[k])}</span>`;
     body+=`<div class="field-item"><div class="field-label">${esc(k)}</div><div class="field-value">${val}</div></div>`;
   });
@@ -833,6 +850,9 @@ function renderModal(){
   });
 
   document.getElementById('mBody').innerHTML=body;
+  // 同步状态选择器颜色
+  const sel=document.querySelector('.status-select');
+  if(sel) syncStatusColor(sel);
 }
 
 document.getElementById('modalOverlay').addEventListener('click',e=>{
@@ -844,6 +864,37 @@ document.addEventListener('keydown',e=>{
   if(e.key==='ArrowLeft') modalNav(-1);
   if(e.key==='ArrowRight') modalNav(1);
 });
+
+// ========== FIELD EDIT ==========
+function updateField(sheet, idx, field, value){
+  const filtered=getFiltered(sheet);
+  const row=filtered[idx];
+  if(!row) return;
+  const realIdx=DATA[sheet].indexOf(row);
+  if(realIdx<0) return;
+  DATA[sheet][realIdx][field]=value;
+  // 若是状态字段，刷新状态选择器颜色
+  if(field==='隐患状态'){
+    const sel=document.querySelector('.status-select');
+    if(sel) syncStatusColor(sel);
+    showToast(`✅ 状态已更新为"${value}"`);
+  } else if(field==='园区'||field==='模组'){
+    showToast(`✅ ${field}已更新为"${value}"`);
+  }
+  // 刷新表格/卡片视图
+  renderSheet(sheet);
+  // 更新弹窗副标题
+  document.getElementById('mSub').textContent=`${sheet} · ${DATA[sheet][realIdx]['园区']||''} · ${DATA[sheet][realIdx]['模组']||''} · 第 ${DATA[sheet][realIdx]['序号']} 项`;
+}
+
+function syncStatusColor(sel){
+  const colorMap={'处理中':'#dbeafe,#1d4ed8','已完成':'#dcfce7,#15803d','挂起':'#fef3c7,#92400e','未处理':'#f3f4f6,#374151'};
+  const v=sel.value;
+  const [bg,color]=(colorMap[v]||'#f3f4f6,#374151').split(',');
+  sel.style.background=bg;
+  sel.style.color=color;
+  sel.style.borderColor=color+'44';
+}
 
 // ========== EXPORT ==========
 function exportCSV(sheet){
