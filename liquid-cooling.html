@@ -127,6 +127,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
 .submit-btn.revoke:hover{background:#fecaca;}
 .submit-result{font-size:11px;color:#166534;display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
 .submit-result .sr-time{color:#6b7280;font-size:10px;}
+/* 任务备注 */
+.task-remark{font-size:11px;color:#0369a1;background:#f0f9ff;border-left:2px solid #38bdf8;padding:4px 8px;border-radius:0 4px 4px 0;margin-top:4px;line-height:1.5;word-break:break-all;}
+.task-remark-label{font-weight:600;margin-right:4px;}
+/* 备注弹窗 */
+.remark-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px;}
+.remark-modal-overlay.hidden{display:none;}
+.remark-modal{background:#fff;border-radius:16px;padding:24px 28px;max-width:460px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.2);}
+.remark-modal-title{font-size:16px;font-weight:700;color:#0f172a;margin-bottom:6px;}
+.remark-modal-task{font-size:13px;color:#475569;margin-bottom:16px;padding:10px 12px;background:#f8fafc;border-radius:8px;border-left:3px solid #38bdf8;line-height:1.5;}
+.remark-modal-label{font-size:12px;font-weight:600;color:#374151;margin-bottom:6px;}
+.remark-modal textarea{width:100%;padding:10px 12px;font-size:13px;border:2px solid #e5e7eb;border-radius:8px;resize:vertical;min-height:72px;max-height:160px;outline:none;font-family:inherit;color:#1e293b;line-height:1.6;transition:border-color .2s;}
+.remark-modal textarea:focus{border-color:#38bdf8;}
+.remark-modal-hint{font-size:11px;color:#94a3b8;margin-top:4px;margin-bottom:16px;}
+.remark-modal-actions{display:flex;gap:10px;justify-content:flex-end;}
+.remark-modal-btn{padding:9px 20px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;}
+.remark-modal-btn.cancel{background:#f1f5f9;color:#475569;}
+.remark-modal-btn.cancel:hover{background:#e2e8f0;}
+.remark-modal-btn.confirm{background:linear-gradient(135deg,#0f4c81,#1a6fb5);color:#fff;}
+.remark-modal-btn.confirm:hover{opacity:.9;}
 
 /* STATS BAR */
 .stats-bar{display:flex;gap:16px;align-items:center;padding:12px 18px;background:linear-gradient(135deg,#f8fafc,#f1f5f9);border-radius:12px;margin-bottom:16px;flex-wrap:wrap;}
@@ -773,8 +792,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
     <div class="modal-icon" id="scModalIcon">✍️</div>
     <div class="modal-title" id="scModalTitle">确认本板块已完成</div>
     <div class="modal-body" id="scModalBody"></div>
-    <div style="margin-bottom:20px;">
+    <div style="margin-bottom:12px;">
       <input class="submit-input" id="scUserInput" placeholder="请输入您的姓名进行签名确认" style="width:100%;padding:12px 16px;font-size:14px;border:2px solid #e5e7eb;border-radius:10px;outline:none;" />
+    </div>
+    <div style="margin-bottom:20px;">
+      <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:6px;">📝 备注说明（可选）</div>
+      <textarea id="scRemarkInput" placeholder="可填写本次检查的整体情况说明，如异常发现、特殊处理等..." style="width:100%;padding:10px 12px;font-size:13px;border:2px solid #e5e7eb;border-radius:8px;resize:vertical;min-height:72px;max-height:140px;outline:none;font-family:inherit;color:#1e293b;line-height:1.6;transition:border-color .2s;" onfocus="this.style.borderColor='#38bdf8'" onblur="this.style.borderColor='#e5e7eb'"></textarea>
+      <div style="font-size:11px;color:#94a3b8;margin-top:3px;">备注将显示在检查记录中，可留空</div>
     </div>
     <div class="modal-actions">
       <button class="modal-btn secondary" onclick="closeSectionModal()">取消</button>
@@ -785,6 +809,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
 
 <!-- 通用MODAL -->
 <div class="modal-overlay hidden" id="modalOverlay">
+
+<!-- 任务备注弹窗 -->
+<div class="remark-modal-overlay hidden" id="taskRemarkModal">
+  <div class="remark-modal">
+    <div class="remark-modal-title">✅ 确认完成并添加备注</div>
+    <div class="remark-modal-task" id="remarkTaskTitle"></div>
+    <div class="remark-modal-label">📝 备注说明（可选）</div>
+    <textarea id="remarkInput" placeholder="请填写该项目的检查情况，如：检查正常、发现异常XX已处理、待跟进等..."></textarea>
+    <div class="remark-modal-hint">备注将显示在任务条目下方，可留空直接确认</div>
+    <div class="remark-modal-actions">
+      <button class="remark-modal-btn cancel" onclick="closeTaskRemarkModal()">取消</button>
+      <button class="remark-modal-btn confirm" onclick="confirmTaskRemark()">✅ 确认完成</button>
+    </div>
+  </div>
+</div>
   <div class="modal">
     <div class="modal-icon" id="modalIcon">✅</div>
     <div class="modal-title" id="modalTitle">确认完成</div>
@@ -1119,6 +1158,9 @@ function renderTask(groupId, task) {
 
   const detailHtml = task.detail ? `<div class="task-expand-btn" onclick="toggleTaskDetail(this,event)">▶ 查看详情</div><div class="task-detail">${task.detail.replace(/\n/g,'<br>')}</div>` : '';
 
+  // 已完成时显示备注
+  const remarkHtml = (isCompleted && state && state.remark) ? `<div class="task-remark"><span class="task-remark-label">备注：</span>${state.remark}</div>` : '';
+
   div.innerHTML = `<div class="task-header" style="cursor:pointer;" onclick="toggleTask('${task.id}')">
     <div class="task-check"></div>
     <div class="task-content">
@@ -1126,6 +1168,7 @@ function renderTask(groupId, task) {
       <div class="task-desc">${task.desc}</div>
       <div class="task-tags">${tagsHtml}</div>
       ${detailHtml}
+      ${remarkHtml}
     </div>
   </div>`;
   container.appendChild(div);
@@ -1170,6 +1213,7 @@ function renderAllSectionConfirms() {
     const bar = document.createElement('div');
     if (isDone) {
       bar.className = 'section-confirm-bar done';
+      const remarkHtml = sectionState.remark ? `<div style="font-size:11px;color:#0369a1;background:#f0f9ff;border-left:2px solid #38bdf8;padding:3px 8px;border-radius:0 4px 4px 0;margin-top:4px;">📝 ${sectionState.remark}</div>` : '';
       bar.innerHTML = `<div class="scb-info">
         <div class="scb-title">✅ 本板块已确认完成</div>
         <div class="scb-result">
@@ -1177,6 +1221,7 @@ function renderAllSectionConfirms() {
           <span style="color:#6b7280;font-size:11px;">${sectionState.time}</span>
           <span style="color:#64748b;font-size:11px;">· 共 ${totalTasks} 项</span>
         </div>
+        ${remarkHtml}
       </div>
       ${currentPark&&currentPark!=='all'&&currentModule&&currentModule!=='all'?`<button class="scb-btn revoke-btn" onclick="revokeSectionConfirm('${sectionKey}', this)">撤销确认</button>`:''}`;
     } else {
@@ -1222,6 +1267,7 @@ function openSectionConfirm(sectionKey, sectionTitle, btnEl) {
   document.getElementById('scModalTitle').textContent = '确认本板块已完成';
   document.getElementById('scModalBody').innerHTML = `<b>${sectionTitle}</b><br>确认您已逐项检查完毕，点击签名确认后将记录完成人和时间。<br><br>📍 ${currentPark} · ${currentModule}`;
   document.getElementById('scUserInput').value = '';
+  document.getElementById('scRemarkInput').value = '';
   document.getElementById('sectionConfirmModal').classList.remove('hidden');
   setTimeout(() => document.getElementById('scUserInput').focus(), 100);
 }
@@ -1235,9 +1281,10 @@ function closeSectionModal() {
 function confirmSectionSubmit() {
   const user = document.getElementById('scUserInput').value.trim();
   if (!user) { showTip('请输入您的姓名'); document.getElementById('scUserInput').focus(); return; }
+  const remark = (document.getElementById('scRemarkInput').value || '').trim();
   const now = new Date();
   const timeStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
-  saveSectionState(currentSectionKey, { done: true, user, time: timeStr });
+  saveSectionState(currentSectionKey, { done: true, user, time: timeStr, remark });
 
   // 同时把该板块下所有任务标记为完成
   const groupIds = currentSectionKey.replace('section_','');
@@ -1509,6 +1556,9 @@ function selectPark(park, btn) {}
 function selectModule(mod, btn) {}
 function renderModuleBtns(park, containerId, onclickFn) {}
 
+// 当前待确认的任务ID
+let _pendingRemarkTaskId = '';
+
 // 点击任务条目切换完成状态
 function toggleTask(taskId) {
   if (currentPark === 'all' || currentModule === 'all' || !currentPark || !currentModule) {
@@ -1519,12 +1569,43 @@ function toggleTask(taskId) {
   if (state && state.done) {
     // 已完成 → 撤销
     saveTaskState(taskId, null);
+    renderAllTasks();
   } else {
-    // 未完成 → 标记完成（无需签名，直接记录）
-    const now = new Date();
-    const timeStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
-    saveTaskState(taskId, { done: true, user: '已确认', time: timeStr, park: currentPark, module: currentModule });
+    // 未完成 → 弹出备注弹窗
+    openTaskRemarkModal(taskId);
   }
+}
+
+// 打开任务备注弹窗
+function openTaskRemarkModal(taskId) {
+  _pendingRemarkTaskId = taskId;
+  // 找到任务标题
+  let taskTitle = taskId;
+  for (const g in TASKS) {
+    const t = TASKS[g].find(t => t.id === taskId);
+    if (t) { taskTitle = t.title; break; }
+  }
+  document.getElementById('remarkTaskTitle').textContent = taskTitle;
+  document.getElementById('remarkInput').value = '';
+  document.getElementById('taskRemarkModal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('remarkInput').focus(), 100);
+}
+
+// 关闭任务备注弹窗
+function closeTaskRemarkModal() {
+  document.getElementById('taskRemarkModal').classList.add('hidden');
+  _pendingRemarkTaskId = '';
+}
+
+// 确认完成并保存备注
+function confirmTaskRemark() {
+  const taskId = _pendingRemarkTaskId;
+  if (!taskId) return;
+  const remark = document.getElementById('remarkInput').value.trim();
+  const now = new Date();
+  const timeStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+  saveTaskState(taskId, { done: true, user: '已确认', time: timeStr, park: currentPark, module: currentModule, remark });
+  closeTaskRemarkModal();
   renderAllTasks();
 }
 
