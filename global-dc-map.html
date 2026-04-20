@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>全球数据中心分布地图</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Microsoft YaHei',Arial,sans-serif;background:#0a0f1e;color:#e0e8f0;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+
+  /* 顶栏 */
+  #header{background:linear-gradient(135deg,#0d1b3e 0%,#1a2d5a 100%);padding:10px 20px;display:flex;align-items:center;gap:16px;border-bottom:1px solid #1e3a6e;z-index:1000;flex-shrink:0;box-shadow:0 2px 20px rgba(0,100,255,0.2);}
+  #header .logo{font-size:20px;font-weight:700;color:#4db8ff;letter-spacing:1px;white-space:nowrap;}
+  #header .logo span{color:#fff;}
+  #header .stats{display:flex;gap:16px;flex:1;}
+  .stat-item{background:rgba(255,255,255,0.05);border:1px solid rgba(77,184,255,0.2);border-radius:8px;padding:4px 14px;text-align:center;min-width:90px;}
+  .stat-item .num{font-size:18px;font-weight:700;color:#4db8ff;}
+  .stat-item .lab{font-size:11px;color:#8ab;margin-top:1px;}
+
+  /* 控制栏 */
+  #controls{background:#0e1b35;padding:8px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid #1e3a6e;flex-shrink:0;z-index:999;}
+  .ctrl-group{display:flex;align-items:center;gap:6px;}
+  .ctrl-label{font-size:12px;color:#8ab;white-space:nowrap;}
+  .map-btn{padding:5px 14px;border:1px solid #2a4a8a;border-radius:6px;background:transparent;color:#acd;cursor:pointer;font-size:12px;transition:all 0.2s;}
+  .map-btn.active,.map-btn:hover{background:#1a3a7a;border-color:#4db8ff;color:#fff;}
+  .filter-btn{padding:4px 12px;border:1px solid rgba(255,255,255,0.15);border-radius:14px;background:transparent;color:#ccd;cursor:pointer;font-size:12px;transition:all 0.2s;}
+  .filter-btn.active,.filter-btn:hover{color:#fff;border-color:var(--color);}
+  .filter-btn.active{background:var(--color);border-color:var(--color);}
+  #search-box{background:rgba(255,255,255,0.07);border:1px solid #2a4a8a;border-radius:6px;padding:5px 12px;color:#fff;font-size:12px;width:200px;outline:none;}
+  #search-box:focus{border-color:#4db8ff;}
+  #search-box::placeholder{color:#567;}
+  .divider{width:1px;height:24px;background:#1e3a6e;margin:0 4px;}
+
+  /* 地图容器 */
+  #map{flex:1;z-index:1;}
+
+  /* 信息面板 */
+  #info-panel{position:absolute;right:20px;top:140px;width:320px;background:rgba(10,18,40,0.96);border:1px solid #1e3a6e;border-radius:12px;padding:18px;z-index:900;display:none;max-height:calc(100vh - 180px);overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,255,0.2);}
+  #info-panel h3{font-size:15px;color:#4db8ff;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #1e3a6e;}
+  #info-panel .info-row{display:flex;justify-content:space-between;margin-bottom:8px;font-size:13px;}
+  #info-panel .info-row .key{color:#8ab;}
+  #info-panel .info-row .val{color:#def;font-weight:500;text-align:right;max-width:60%;}
+  #info-panel .badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;margin-right:4px;margin-top:2px;}
+  .close-btn{position:absolute;right:12px;top:12px;cursor:pointer;color:#567;font-size:16px;line-height:1;}
+  .close-btn:hover{color:#fff;}
+
+  /* 图例 */
+  #legend{position:absolute;left:20px;bottom:30px;background:rgba(10,18,40,0.92);border:1px solid #1e3a6e;border-radius:10px;padding:12px 16px;z-index:900;min-width:160px;}
+  #legend h4{font-size:12px;color:#8ab;margin-bottom:8px;}
+  .legend-item{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;color:#ccd;}
+  .legend-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;}
+
+  /* 统计侧栏 */
+  #stats-panel{position:absolute;left:20px;top:140px;width:200px;background:rgba(10,18,40,0.92);border:1px solid #1e3a6e;border-radius:10px;padding:14px;z-index:900;}
+  #stats-panel h4{font-size:12px;color:#8ab;margin-bottom:10px;}
+  .rank-item{display:flex;align-items:center;gap:6px;margin-bottom:7px;font-size:12px;}
+  .rank-num{width:16px;color:#567;font-size:11px;}
+  .rank-bar-wrap{flex:1;background:rgba(255,255,255,0.05);border-radius:3px;height:6px;}
+  .rank-bar{height:6px;border-radius:3px;background:linear-gradient(90deg,#4db8ff,#0066ff);}
+  .rank-label{width:55px;color:#acd;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .rank-count{color:#4db8ff;font-size:11px;width:26px;text-align:right;}
+
+  /* Leaflet覆盖 */
+  .leaflet-control-zoom{border:1px solid #1e3a6e!important;border-radius:8px!important;overflow:hidden;}
+  .leaflet-control-zoom a{background:#0e1b35!important;color:#4db8ff!important;border-bottom:1px solid #1e3a6e!important;}
+  .leaflet-control-zoom a:hover{background:#1a2d5a!important;}
+  .leaflet-popup-content-wrapper{background:rgba(10,18,40,0.97)!important;border:1px solid #2a4a8a!important;border-radius:10px!important;color:#def!important;box-shadow:0 4px 20px rgba(0,100,255,0.3)!important;}
+  .leaflet-popup-tip{background:rgba(10,18,40,0.97)!important;}
+  .leaflet-popup-content{margin:12px 16px!important;font-size:13px;line-height:1.6;}
+  .popup-title{font-size:14px;font-weight:700;color:#4db8ff;margin-bottom:6px;}
+  .popup-row{display:flex;justify-content:space-between;gap:10px;margin-bottom:3px;}
+  .popup-key{color:#8ab;}
+  .popup-val{color:#def;font-weight:500;}
+  .popup-badge{display:inline-block;padding:1px 7px;border-radius:3px;font-size:11px;margin-top:4px;}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div class="logo">🌐 全球<span>数据中心</span>分布地图</div>
+  <div class="stats">
+    <div class="stat-item"><div class="num" id="s-total">0</div><div class="lab">数据中心总数</div></div>
+    <div class="stat-item"><div class="num" id="s-country">0</div><div class="lab">覆盖国家/地区</div></div>
+    <div class="stat-item"><div class="num" id="s-provider">10</div><div class="lab">云服务商</div></div>
+    <div class="stat-item"><div class="num" id="s-shown">0</div><div class="lab">当前显示</div></div>
+  </div>
+</div>
+
+<div id="controls">
+  <div class="ctrl-group">
+    <span class="ctrl-label">地图模式：</span>
+    <button class="map-btn active" id="btn-standard" onclick="switchLayer('standard')">🗺 标准</button>
+    <button class="map-btn" id="btn-satellite" onclick="switchLayer('satellite')">🛰 卫星</button>
+    <button class="map-btn" id="btn-terrain" onclick="switchLayer('terrain')">⛰ 地形</button>
+    <button class="map-btn" id="btn-dark" onclick="switchLayer('dark')">🌙 暗色</button>
+  </div>
+  <div class="divider"></div>
+  <div class="ctrl-group">
+    <span class="ctrl-label">厂商筛选：</span>
+    <button class="filter-btn active" style="--color:#4db8ff" onclick="filterProvider('all',this)">全部</button>
+    <button class="filter-btn" style="--color:#FF9900" onclick="filterProvider('AWS',this)">AWS</button>
+    <button class="filter-btn" style="--color:#0078D4" onclick="filterProvider('Azure',this)">Azure</button>
+    <button class="filter-btn" style="--color:#4285F4" onclick="filterProvider('Google',this)">Google</button>
+    <button class="filter-btn" style="--color:#FF6A00" onclick="filterProvider('Alibaba',this)">阿里云</button>
+    <button class="filter-btn" style="--color:#00C5FF" onclick="filterProvider('Tencent',this)">腾讯云</button>
+    <button class="filter-btn" style="--color:#E31937" onclick="filterProvider('Huawei',this)">华为云</button>
+    <button class="filter-btn" style="--color:#9B59B6" onclick="filterProvider('Equinix',this)">Equinix</button>
+    <button class="filter-btn" style="--color:#2ECC71" onclick="filterProvider('Digital',this)">Digital Realty</button>
+    <button class="filter-btn" style="--color:#F39C12" onclick="filterProvider('IBM',this)">IBM</button>
+    <button class="filter-btn" style="--color:#E74C3C" onclick="filterProvider('Oracle',this)">Oracle</button>
+  </div>
+  <div class="divider"></div>
+  <div class="ctrl-group">
+    <span class="ctrl-label">聚合：</span>
+    <button class="map-btn active" id="btn-cluster" onclick="toggleCluster(true)">开启</button>
+    <button class="map-btn" id="btn-nocluster" onclick="toggleCluster(false)">关闭</button>
+  </div>
+  <div class="ctrl-group">
+    <input type="text" id="search-box" placeholder="🔍 搜索数据中心/城市/国家..." oninput="searchDC(this.value)">
+  </div>
+</div>
+
+<div id="map"></div>
+
+<div id="stats-panel">
+  <h4>📊 国家/地区数量排行</h4>
+  <div id="rank-list"></div>
+</div>
+
+<div id="legend">
+  <h4>图例 — 云服务商</h4>
+  <div class="legend-item"><div class="legend-dot" style="background:#FF9900"></div>AWS</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#0078D4"></div>Azure</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#4285F4"></div>Google Cloud</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#FF6A00"></div>阿里云</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#00C5FF"></div>腾讯云</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#E31937"></div>华为云</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#9B59B6"></div>Equinix</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#2ECC71"></div>Digital Realty</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#F39C12"></div>IBM Cloud</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#E74C3C"></div>Oracle Cloud</div>
+</div>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="document.getElementById('info-panel').style.display='none'">✕</span>
+  <h3 id="ip-title"></h3>
+  <div id="ip-body"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script>
+// ============ 数据集 ============
+const DC_DATA = [
+  // ===== AWS =====
+  {name:"AWS US East (N. Virginia)",provider:"AWS",region:"美国东部",city:"Ashburn, VA",country:"美国",lat:38.9072,lng:-77.0369,tier:"T3+",size:"超大型",year:2006,color:"#FF9900"},
+  {name:"AWS US East (Ohio)",provider:"AWS",region:"美国东部",city:"Columbus, OH",country:"美国",lat:39.9612,lng:-82.9988,tier:"T3+",size:"大型",year:2016,color:"#FF9900"},
+  {name:"AWS US West (Oregon)",provider:"AWS",region:"美国西部",city:"Hillsboro, OR",country:"美国",lat:45.5231,lng:-122.9762,tier:"T3+",size:"超大型",year:2011,color:"#FF9900"},
+  {name:"AWS US West (N. California)",provider:"AWS",region:"美国西部",city:"San Jose, CA",country:"美国",lat:37.3382,lng:-121.8863,tier:"T3",size:"大型",year:2009,color:"#FF9900"},
+  {name:"AWS GovCloud US-East",provider:"AWS",region:"美国政府",city:"Ashburn, VA",country:"美国",lat:39.0438,lng:-77.4874,tier:"T3+",size:"大型",year:2018,color:"#FF9900"},
+  {name:"AWS GovCloud US-West",provider:"AWS",region:"美国政府",city:"Portland, OR",country:"美国",lat:45.5051,lng:-122.675,tier:"T3+",size:"大型",year:2011,color:"#FF9900"},
+  {name:"AWS Canada (Central)",provider:"AWS",region:"加拿大",city:"Montreal, QC",country:"加拿大",lat:45.5017,lng:-73.5673,tier:"T3+",size:"大型",year:2016,color:"#FF9900"},
+  {name:"AWS Canada West (Calgary)",provider:"AWS",region:"加拿大",city:"Calgary, AB",country:"加拿大",lat:51.0447,lng:-114.0719,tier:"T3",size:"中型",year:2023,color:"#FF9900"},
+  {name:"AWS South America (São Paulo)",provider:"AWS",region:"南美",city:"São Paulo",country:"巴西",lat:-23.5505,lng:-46.6333,tier:"T3+",size:"大型",year:2011,color:"#FF9900"},
+  {name:"AWS EU (Ireland)",provider:"AWS",region:"欧洲",city:"Dublin",country:"爱尔兰",lat:53.3498,lng:-6.2603,tier:"T3+",size:"超大型",year:2007,color:"#FF9900"},
+  {name:"AWS EU (Frankfurt)",provider:"AWS",region:"欧洲",city:"Frankfurt",country:"德国",lat:50.1109,lng:8.6821,tier:"T3+",size:"大型",year:2014,color:"#FF9900"},
+  {name:"AWS EU (London)",provider:"AWS",region:"欧洲",city:"London",country:"英国",lat:51.5074,lng:-0.1278,tier:"T3+",size:"大型",year:2016,color:"#FF9900"},
+  {name:"AWS EU (Paris)",provider:"AWS",region:"欧洲",city:"Paris",country:"法国",lat:48.8566,lng:2.3522,tier:"T3+",size:"大型",year:2017,color:"#FF9900"},
+  {name:"AWS EU (Stockholm)",provider:"AWS",region:"欧洲",city:"Stockholm",country:"瑞典",lat:59.3293,lng:18.0686,tier:"T3+",size:"中型",year:2018,color:"#FF9900"},
+  {name:"AWS EU (Milan)",provider:"AWS",region:"欧洲",city:"Milan",country:"意大利",lat:45.4654,lng:9.1859,tier:"T3",size:"中型",year:2020,color:"#FF9900"},
+  {name:"AWS EU (Spain)",provider:"AWS",region:"欧洲",city:"Zaragoza",country:"西班牙",lat:41.6488,lng:-0.8891,tier:"T3",size:"中型",year:2022,color:"#FF9900"},
+  {name:"AWS EU (Zurich)",provider:"AWS",region:"欧洲",city:"Zurich",country:"瑞士",lat:47.3769,lng:8.5417,tier:"T3",size:"中型",year:2022,color:"#FF9900"},
+  {name:"AWS AP (Singapore)",provider:"AWS",region:"亚太",city:"Singapore",country:"新加坡",lat:1.3521,lng:103.8198,tier:"T3+",size:"超大型",year:2010,color:"#FF9900"},
+  {name:"AWS AP (Tokyo)",provider:"AWS",region:"亚太",city:"Tokyo",country:"日本",lat:35.6762,lng:139.6503,tier:"T3+",size:"超大型",year:2011,color:"#FF9900"},
+  {name:"AWS AP (Seoul)",provider:"AWS",region:"亚太",city:"Seoul",country:"韩国",lat:37.5665,lng:126.978,tier:"T3+",size:"大型",year:2016,color:"#FF9900"},
+  {name:"AWS AP (Mumbai)",provider:"AWS",region:"亚太",city:"Mumbai",country:"印度",lat:19.076,lng:72.8777,tier:"T3+",size:"大型",year:2016,color:"#FF9900"},
+  {name:"AWS AP (Hyderabad)",provider:"AWS",region:"亚太",city:"Hyderabad",country:"印度",lat:17.385,lng:78.4867,tier:"T3",size:"中型",year:2022,color:"#FF9900"},
+  {name:"AWS AP (Sydney)",provider:"AWS",region:"亚太",city:"Sydney",country:"澳大利亚",lat:-33.8688,lng:151.2093,tier:"T3+",size:"大型",year:2012,color:"#FF9900"},
+  {name:"AWS AP (Melbourne)",provider:"AWS",region:"亚太",city:"Melbourne",country:"澳大利亚",lat:-37.8136,lng:144.9631,tier:"T3",size:"中型",year:2023,color:"#FF9900"},
+  {name:"AWS AP (Hong Kong)",provider:"AWS",region:"亚太",city:"Hong Kong",country:"中国香港",lat:22.3193,lng:114.1694,tier:"T3+",size:"大型",year:2019,color:"#FF9900"},
+  {name:"AWS AP (Jakarta)",provider:"AWS",region:"亚太",city:"Jakarta",country:"印度尼西亚",lat:-6.2088,lng:106.8456,tier:"T3+",size:"大型",year:2021,color:"#FF9900"},
+  {name:"AWS AP (Bangkok)",provider:"AWS",region:"亚太",city:"Bangkok",country:"泰国",lat:13.7563,lng:100.5018,tier:"T3",size:"中型",year:2023,color:"#FF9900"},
+  {name:"AWS AP (Osaka)",provider:"AWS",region:"亚太",city:"Osaka",country:"日本",lat:34.6937,lng:135.5023,tier:"T3+",size:"大型",year:2021,color:"#FF9900"},
+  {name:"AWS ME (Bahrain)",provider:"AWS",region:"中东",city:"Manama",country:"巴林",lat:26.2235,lng:50.5876,tier:"T3",size:"中型",year:2019,color:"#FF9900"},
+  {name:"AWS ME (UAE)",provider:"AWS",region:"中东",city:"Dubai",country:"阿联酋",lat:25.2048,lng:55.2708,tier:"T3",size:"中型",year:2022,color:"#FF9900"},
+  {name:"AWS ME (Israel)",provider:"AWS",region:"中东",city:"Tel Aviv",country:"以色列",lat:32.0853,lng:34.7818,tier:"T3",size:"中型",year:2023,color:"#FF9900"},
+  {name:"AWS AF (Cape Town)",provider:"AWS",region:"非洲",city:"Cape Town",country:"南非",lat:-33.9249,lng:18.4241,tier:"T3",size:"中型",year:2020,color:"#FF9900"},
+  {name:"AWS China (Beijing)",provider:"AWS",region:"中国",city:"北京",country:"中国",lat:40.0583,lng:116.5735,tier:"T3+",size:"大型",year:2014,color:"#FF9900"},
+  {name:"AWS China (Ningxia)",provider:"AWS",region:"中国",city:"中卫",country:"中国",lat:37.5004,lng:105.197,tier:"T3+",size:"大型",year:2017,color:"#FF9900"},
+
+  // ===== Azure =====
+  {name:"Azure East US",provider:"Azure",region:"美国东部",city:"Richmond, VA",country:"美国",lat:37.3719,lng:-79.8164,tier:"T3+",size:"超大型",year:2012,color:"#0078D4"},
+  {name:"Azure East US 2",provider:"Azure",region:"美国东部",city:"Richmond, VA",country:"美国",lat:36.6681,lng:-78.3889,tier:"T3+",size:"超大型",year:2014,color:"#0078D4"},
+  {name:"Azure West US",provider:"Azure",region:"美国西部",city:"San Francisco, CA",country:"美国",lat:37.783,lng:-122.417,tier:"T3+",size:"大型",year:2012,color:"#0078D4"},
+  {name:"Azure West US 2",provider:"Azure",region:"美国西部",city:"Moses Lake, WA",country:"美国",lat:47.233,lng:-119.852,tier:"T3+",size:"大型",year:2016,color:"#0078D4"},
+  {name:"Azure West US 3",provider:"Azure",region:"美国西部",city:"Phoenix, AZ",country:"美国",lat:33.4484,lng:-112.074,tier:"T3+",size:"大型",year:2021,color:"#0078D4"},
+  {name:"Azure Central US",provider:"Azure",region:"美国中部",city:"Des Moines, IA",country:"美国",lat:41.5908,lng:-93.6208,tier:"T3+",size:"大型",year:2014,color:"#0078D4"},
+  {name:"Azure North Central US",provider:"Azure",region:"美国中部",city:"Chicago, IL",country:"美国",lat:41.8819,lng:-87.6278,tier:"T3+",size:"大型",year:2009,color:"#0078D4"},
+  {name:"Azure South Central US",provider:"Azure",region:"美国中部",city:"San Antonio, TX",country:"美国",lat:29.4167,lng:-98.5,tier:"T3+",size:"大型",year:2008,color:"#0078D4"},
+  {name:"Azure Canada Central",provider:"Azure",region:"加拿大",city:"Toronto",country:"加拿大",lat:43.653,lng:-79.383,tier:"T3+",size:"大型",year:2016,color:"#0078D4"},
+  {name:"Azure Canada East",provider:"Azure",region:"加拿大",city:"Quebec City",country:"加拿大",lat:46.817,lng:-71.217,tier:"T3",size:"中型",year:2016,color:"#0078D4"},
+  {name:"Azure Brazil South",provider:"Azure",region:"南美",city:"São Paulo",country:"巴西",lat:-23.55,lng:-46.633,tier:"T3+",size:"大型",year:2014,color:"#0078D4"},
+  {name:"Azure North Europe",provider:"Azure",region:"欧洲",city:"Dublin",country:"爱尔兰",lat:53.3478,lng:-6.2597,tier:"T3+",size:"超大型",year:2009,color:"#0078D4"},
+  {name:"Azure West Europe",provider:"Azure",region:"欧洲",city:"Amsterdam",country:"荷兰",lat:52.3667,lng:4.9,tier:"T3+",size:"超大型",year:2009,color:"#0078D4"},
+  {name:"Azure UK South",provider:"Azure",region:"欧洲",city:"London",country:"英国",lat:50.941,lng:-0.799,tier:"T3+",size:"大型",year:2016,color:"#0078D4"},
+  {name:"Azure UK West",provider:"Azure",region:"欧洲",city:"Cardiff",country:"英国",lat:53.427,lng:-3.084,tier:"T3",size:"中型",year:2016,color:"#0078D4"},
+  {name:"Azure Germany West Central",provider:"Azure",region:"欧洲",city:"Frankfurt",country:"德国",lat:50.1109,lng:8.6821,tier:"T3+",size:"大型",year:2019,color:"#0078D4"},
+  {name:"Azure France Central",provider:"Azure",region:"欧洲",city:"Paris",country:"法国",lat:48.8566,lng:2.3522,tier:"T3+",size:"大型",year:2018,color:"#0078D4"},
+  {name:"Azure Switzerland North",provider:"Azure",region:"欧洲",city:"Zurich",country:"瑞士",lat:47.4516,lng:8.5648,tier:"T3",size:"中型",year:2019,color:"#0078D4"},
+  {name:"Azure Norway East",provider:"Azure",region:"欧洲",city:"Oslo",country:"挪威",lat:59.9139,lng:10.7522,tier:"T3",size:"中型",year:2020,color:"#0078D4"},
+  {name:"Azure Sweden Central",provider:"Azure",region:"欧洲",city:"Gävle",country:"瑞典",lat:60.6749,lng:17.1413,tier:"T3",size:"中型",year:2021,color:"#0078D4"},
+  {name:"Azure Poland Central",provider:"Azure",region:"欧洲",city:"Warsaw",country:"波兰",lat:52.2297,lng:21.0122,tier:"T3",size:"中型",year:2023,color:"#0078D4"},
+  {name:"Azure Spain Central",provider:"Azure",region:"欧洲",city:"Madrid",country:"西班牙",lat:40.4168,lng:-3.7038,tier:"T3",size:"中型",year:2023,color:"#0078D4"},
+  {name:"Azure Italy North",provider:"Azure",region:"欧洲",city:"Milan",country:"意大利",lat:45.4654,lng:9.1859,tier:"T3",size:"中型",year:2023,color:"#0078D4"},
+  {name:"Azure East Asia",provider:"Azure",region:"亚太",city:"Hong Kong",country:"中国香港",lat:22.267,lng:114.188,tier:"T3+",size:"大型",year:2010,color:"#0078D4"},
+  {name:"Azure Southeast Asia",provider:"Azure",region:"亚太",city:"Singapore",country:"新加坡",lat:1.283,lng:103.833,tier:"T3+",size:"超大型",year:2010,color:"#0078D4"},
+  {name:"Azure Japan East",provider:"Azure",region:"亚太",city:"Tokyo",country:"日本",lat:35.68,lng:139.77,tier:"T3+",size:"大型",year:2014,color:"#0078D4"},
+  {name:"Azure Japan West",provider:"Azure",region:"亚太",city:"Osaka",country:"日本",lat:34.6939,lng:135.5022,tier:"T3",size:"中型",year:2014,color:"#0078D4"},
+  {name:"Azure Korea Central",provider:"Azure",region:"亚太",city:"Seoul",country:"韩国",lat:37.5665,lng:126.978,tier:"T3+",size:"大型",year:2017,color:"#0078D4"},
+  {name:"Azure Australia East",provider:"Azure",region:"亚太",city:"Sydney",country:"澳大利亚",lat:-33.86,lng:151.2094,tier:"T3+",size:"大型",year:2014,color:"#0078D4"},
+  {name:"Azure Australia Southeast",provider:"Azure",region:"亚太",city:"Melbourne",country:"澳大利亚",lat:-37.8136,lng:144.9631,tier:"T3",size:"中型",year:2014,color:"#0078D4"},
+  {name:"Azure Central India",provider:"Azure",region:"亚太",city:"Pune",country:"印度",lat:18.5204,lng:73.8567,tier:"T3+",size:"大型",year:2015,color:"#0078D4"},
+  {name:"Azure South India",provider:"Azure",region:"亚太",city:"Chennai",country:"印度",lat:12.9822,lng:80.1636,tier:"T3",size:"中型",year:2015,color:"#0078D4"},
+  {name:"Azure Indonesia Central",provider:"Azure",region:"亚太",city:"Jakarta",country:"印度尼西亚",lat:-6.2088,lng:106.8456,tier:"T3",size:"中型",year:2023,color:"#0078D4"},
+  {name:"Azure Malaysia West",provider:"Azure",region:"亚太",city:"Kuala Lumpur",country:"马来西亚",lat:3.139,lng:101.6869,tier:"T3",size:"中型",year:2024,color:"#0078D4"},
+  {name:"Azure UAE North",provider:"Azure",region:"中东",city:"Dubai",country:"阿联酋",lat:25.2666,lng:55.3166,tier:"T3",size:"中型",year:2019,color:"#0078D4"},
+  {name:"Azure Qatar Central",provider:"Azure",region:"中东",city:"Doha",country:"卡塔尔",lat:25.2854,lng:51.531,tier:"T3",size:"中型",year:2022,color:"#0078D4"},
+  {name:"Azure South Africa North",provider:"Azure",region:"非洲",city:"Johannesburg",country:"南非",lat:-25.7312,lng:28.2184,tier:"T3",size:"中型",year:2019,color:"#0078D4"},
+  {name:"Azure China East (Shanghai)",provider:"Azure",region:"中国",city:"上海",country:"中国",lat:31.2304,lng:121.4737,tier:"T3+",size:"大型",year:2014,color:"#0078D4"},
+  {name:"Azure China North (Beijing)",provider:"Azure",region:"中国",city:"北京",country:"中国",lat:39.9042,lng:116.4074,tier:"T3+",size:"大型",year:2014,color:"#0078D4"},
+  {name:"Azure China North 3 (Langfang)",provider:"Azure",region:"中国",city:"廊坊",country:"中国",lat:39.5383,lng:116.7027,tier:"T3+",size:"大型",year:2022,color:"#0078D4"},
+
+  // ===== Google Cloud =====
+  {name:"Google us-east1 (S. Carolina)",provider:"Google",region:"美国东部",city:"Moncks Corner, SC",country:"美国",lat:33.0642,lng:-80.0434,tier:"T3+",size:"超大型",year:2007,color:"#4285F4"},
+  {name:"Google us-east4 (N. Virginia)",provider:"Google",region:"美国东部",city:"Ashburn, VA",country:"美国",lat:39.0438,lng:-77.4874,tier:"T3+",size:"超大型",year:2017,color:"#4285F4"},
+  {name:"Google us-central1 (Iowa)",provider:"Google",region:"美国中部",city:"Council Bluffs, IA",country:"美国",lat:41.2619,lng:-95.8638,tier:"T3+",size:"超大型",year:2009,color:"#4285F4"},
+  {name:"Google us-west1 (Oregon)",provider:"Google",region:"美国西部",city:"The Dalles, OR",country:"美国",lat:45.6325,lng:-121.2023,tier:"T3+",size:"超大型",year:2006,color:"#4285F4"},
+  {name:"Google us-west2 (Los Angeles)",provider:"Google",region:"美国西部",city:"Los Angeles, CA",country:"美国",lat:34.0522,lng:-118.2437,tier:"T3",size:"大型",year:2018,color:"#4285F4"},
+  {name:"Google us-south1 (Dallas)",provider:"Google",region:"美国中部",city:"Midlothian, TX",country:"美国",lat:32.4432,lng:-97.0623,tier:"T3",size:"大型",year:2022,color:"#4285F4"},
+  {name:"Google northamerica-northeast1 (Montreal)",provider:"Google",region:"加拿大",city:"Montreal",country:"加拿大",lat:45.5017,lng:-73.5673,tier:"T3",size:"大型",year:2018,color:"#4285F4"},
+  {name:"Google northamerica-northeast2 (Toronto)",provider:"Google",region:"加拿大",city:"Toronto",country:"加拿大",lat:43.6532,lng:-79.3832,tier:"T3",size:"大型",year:2021,color:"#4285F4"},
+  {name:"Google southamerica-east1 (São Paulo)",provider:"Google",region:"南美",city:"São Paulo",country:"巴西",lat:-23.5505,lng:-46.6333,tier:"T3",size:"大型",year:2017,color:"#4285F4"},
+  {name:"Google southamerica-west1 (Santiago)",provider:"Google",region:"南美",city:"Santiago",country:"智利",lat:-33.4489,lng:-70.6693,tier:"T3",size:"中型",year:2021,color:"#4285F4"},
+  {name:"Google europe-west1 (Belgium)",provider:"Google",region:"欧洲",city:"Saint-Ghislain",country:"比利时",lat:50.4699,lng:3.8654,tier:"T3+",size:"超大型",year:2010,color:"#4285F4"},
+  {name:"Google europe-west2 (London)",provider:"Google",region:"欧洲",city:"London",country:"英国",lat:51.5074,lng:-0.1278,tier:"T3+",size:"大型",year:2017,color:"#4285F4"},
+  {name:"Google europe-west3 (Frankfurt)",provider:"Google",region:"欧洲",city:"Frankfurt",country:"德国",lat:50.1109,lng:8.6821,tier:"T3+",size:"大型",year:2017,color:"#4285F4"},
+  {name:"Google europe-west4 (Netherlands)",provider:"Google",region:"欧洲",city:"Eemshaven",country:"荷兰",lat:53.4252,lng:6.8623,tier:"T3+",size:"大型",year:2016,color:"#4285F4"},
+  {name:"Google europe-north1 (Finland)",provider:"Google",region:"欧洲",city:"Hamina",country:"芬兰",lat:60.5366,lng:27.117,tier:"T3+",size:"大型",year:2011,color:"#4285F4"},
+  {name:"Google europe-west6 (Zurich)",provider:"Google",region:"欧洲",city:"Zurich",country:"瑞士",lat:47.4459,lng:8.2109,tier:"T3",size:"中型",year:2019,color:"#4285F4"},
+  {name:"Google europe-west9 (Paris)",provider:"Google",region:"欧洲",city:"Paris",country:"法国",lat:48.8566,lng:2.3522,tier:"T3",size:"中型",year:2022,color:"#4285F4"},
+  {name:"Google europe-southwest1 (Madrid)",provider:"Google",region:"欧洲",city:"Madrid",country:"西班牙",lat:40.5195,lng:-3.3409,tier:"T3",size:"中型",year:2022,color:"#4285F4"},
+  {name:"Google europe-west8 (Milan)",provider:"Google",region:"欧洲",city:"Milan",country:"意大利",lat:45.4654,lng:9.1859,tier:"T3",size:"中型",year:2022,color:"#4285F4"},
+  {name:"Google europe-central2 (Warsaw)",provider:"Google",region:"欧洲",city:"Warsaw",country:"波兰",lat:52.2297,lng:21.0122,tier:"T3",size:"中型",year:2021,color:"#4285F4"},
+  {name:"Google asia-east1 (Taiwan)",provider:"Google",region:"亚太",city:"Changhua",country:"中国台湾",lat:24.0522,lng:120.5165,tier:"T3+",size:"大型",year:2013,color:"#4285F4"},
+  {name:"Google asia-east2 (Hong Kong)",provider:"Google",region:"亚太",city:"Hong Kong",country:"中国香港",lat:22.3193,lng:114.1694,tier:"T3+",size:"大型",year:2018,color:"#4285F4"},
+  {name:"Google asia-northeast1 (Tokyo)",provider:"Google",region:"亚太",city:"Tokyo",country:"日本",lat:35.6762,lng:139.6503,tier:"T3+",size:"超大型",year:2016,color:"#4285F4"},
+  {name:"Google asia-northeast2 (Osaka)",provider:"Google",region:"亚太",city:"Osaka",country:"日本",lat:34.6937,lng:135.5023,tier:"T3",size:"大型",year:2019,color:"#4285F4"},
+  {name:"Google asia-northeast3 (Seoul)",provider:"Google",region:"亚太",city:"Seoul",country:"韩国",lat:37.5665,lng:126.978,tier:"T3+",size:"大型",year:2020,color:"#4285F4"},
+  {name:"Google asia-southeast1 (Singapore)",provider:"Google",region:"亚太",city:"Singapore",country:"新加坡",lat:1.3521,lng:103.8198,tier:"T3+",size:"超大型",year:2013,color:"#4285F4"},
+  {name:"Google asia-southeast2 (Jakarta)",provider:"Google",region:"亚太",city:"Jakarta",country:"印度尼西亚",lat:-6.2088,lng:106.8456,tier:"T3",size:"大型",year:2020,color:"#4285F4"},
+  {name:"Google asia-south1 (Mumbai)",provider:"Google",region:"亚太",city:"Mumbai",country:"印度",lat:19.076,lng:72.8777,tier:"T3+",size:"大型",year:2017,color:"#4285F4"},
+  {name:"Google asia-south2 (Delhi)",provider:"Google",region:"亚太",city:"Delhi",country:"印度",lat:28.7041,lng:77.1025,tier:"T3",size:"大型",year:2021,color:"#4285F4"},
+  {name:"Google australia-southeast1 (Sydney)",provider:"Google",region:"亚太",city:"Sydney",country:"澳大利亚",lat:-33.8688,lng:151.2093,tier:"T3+",size:"大型",year:2017,color:"#4285F4"},
+  {name:"Google australia-southeast2 (Melbourne)",provider:"Google",region:"亚太",city:"Melbourne",country:"澳大利亚",lat:-37.8136,lng:144.9631,tier:"T3",size:"中型",year:2021,color:"#4285F4"},
+  {name:"Google me-west1 (Tel Aviv)",provider:"Google",region:"中东",city:"Tel Aviv",country:"以色列",lat:32.0853,lng:34.7818,tier:"T3",size:"中型",year:2022,color:"#4285F4"},
+  {name:"Google me-central1 (Doha)",provider:"Google",region:"中东",city:"Doha",country:"卡塔尔",lat:25.2854,lng:51.531,tier:"T3",size:"中型",year:2023,color:"#4285F4"},
+  {name:"Google africa-south1 (Johannesburg)",provider:"Google",region:"非洲",city:"Johannesburg",country:"南非",lat:-26.2041,lng:28.0473,tier:"T3",size:"中型",year:2024,color:"#4285F4"},
+
+  // ===== 阿里云 =====
+  {name:"阿里云 华东1 (杭州)",provider:"Alibaba",region:"华东",city:"杭州",country:"中国",lat:30.2741,lng:120.1551,tier:"T3+",size:"超大型",year:2011,color:"#FF6A00"},
+  {name:"阿里云 华东2 (上海)",provider:"Alibaba",region:"华东",city:"上海",country:"中国",lat:31.2304,lng:121.4737,tier:"T3+",size:"超大型",year:2015,color:"#FF6A00"},
+  {name:"阿里云 华北2 (北京)",provider:"Alibaba",region:"华北",city:"北京",country:"中国",lat:39.9042,lng:116.4074,tier:"T3+",size:"超大型",year:2013,color:"#FF6A00"},
+  {name:"阿里云 华北1 (青岛)",provider:"Alibaba",region:"华北",city:"青岛",country:"中国",lat:36.0671,lng:120.3826,tier:"T3",size:"大型",year:2012,color:"#FF6A00"},
+  {name:"阿里云 华北3 (张家口)",provider:"Alibaba",region:"华北",city:"张家口",country:"中国",lat:40.8676,lng:114.8877,tier:"T3+",size:"超大型",year:2014,color:"#FF6A00"},
+  {name:"阿里云 华北5 (呼和浩特)",provider:"Alibaba",region:"华北",city:"呼和浩特",country:"中国",lat:40.8426,lng:111.7497,tier:"T3",size:"大型",year:2017,color:"#FF6A00"},
+  {name:"阿里云 华北6 (乌兰察布)",provider:"Alibaba",region:"华北",city:"乌兰察布",country:"中国",lat:41.0223,lng:113.1133,tier:"T3+",size:"超大型",year:2020,color:"#FF6A00"},
+  {name:"阿里云 华南1 (深圳)",provider:"Alibaba",region:"华南",city:"深圳",country:"中国",lat:22.5431,lng:114.0579,tier:"T3+",size:"大型",year:2014,color:"#FF6A00"},
+  {name:"阿里云 华南2 (河源)",provider:"Alibaba",region:"华南",city:"河源",country:"中国",lat:23.7454,lng:114.6977,tier:"T3",size:"中型",year:2020,color:"#FF6A00"},
+  {name:"阿里云 华南3 (广州)",provider:"Alibaba",region:"华南",city:"广州",country:"中国",lat:23.1291,lng:113.2644,tier:"T3",size:"大型",year:2020,color:"#FF6A00"},
+  {name:"阿里云 西南1 (成都)",provider:"Alibaba",region:"西南",city:"成都",country:"中国",lat:30.5728,lng:104.0668,tier:"T3",size:"大型",year:2020,color:"#FF6A00"},
+  {name:"阿里云 香港",provider:"Alibaba",region:"中国香港",city:"香港",country:"中国香港",lat:22.3193,lng:114.1694,tier:"T3+",size:"大型",year:2014,color:"#FF6A00"},
+  {name:"阿里云 新加坡",provider:"Alibaba",region:"亚太",city:"Singapore",country:"新加坡",lat:1.3521,lng:103.8198,tier:"T3+",size:"大型",year:2015,color:"#FF6A00"},
+  {name:"阿里云 日本 (东京)",provider:"Alibaba",region:"亚太",city:"Tokyo",country:"日本",lat:35.6762,lng:139.6503,tier:"T3",size:"中型",year:2016,color:"#FF6A00"},
+  {name:"阿里云 澳大利亚 (悉尼)",provider:"Alibaba",region:"亚太",city:"Sydney",country:"澳大利亚",lat:-33.8688,lng:151.2093,tier:"T3",size:"中型",year:2016,color:"#FF6A00"},
+  {name:"阿里云 马来西亚 (吉隆坡)",provider:"Alibaba",region:"亚太",city:"Kuala Lumpur",country:"马来西亚",lat:3.139,lng:101.6869,tier:"T3",size:"中型",year:2017,color:"#FF6A00"},
+  {name:"阿里云 印度尼西亚 (雅加达)",provider:"Alibaba",region:"亚太",city:"Jakarta",country:"印度尼西亚",lat:-6.2088,lng:106.8456,tier:"T3",size:"中型",year:2018,color:"#FF6A00"},
+  {name:"阿里云 印度 (孟买)",provider:"Alibaba",region:"亚太",city:"Mumbai",country:"印度",lat:19.076,lng:72.8777,tier:"T3",size:"中型",year:2018,color:"#FF6A00"},
+  {name:"阿里云 菲律宾 (马尼拉)",provider:"Alibaba",region:"亚太",city:"Manila",country:"菲律宾",lat:14.5995,lng:120.9842,tier:"T3",size:"中型",year:2021,color:"#FF6A00"},
+  {name:"阿里云 泰国 (曼谷)",provider:"Alibaba",region:"亚太",city:"Bangkok",country:"泰国",lat:13.7563,lng:100.5018,tier:"T3",size:"中型",year:2022,color:"#FF6A00"},
+  {name:"阿里云 韩国 (首尔)",provider:"Alibaba",region:"亚太",city:"Seoul",country:"韩国",lat:37.5665,lng:126.978,tier:"T3",size:"中型",year:2022,color:"#FF6A00"},
+  {name:"阿里云 美国 (硅谷)",provider:"Alibaba",region:"北美",city:"Silicon Valley, CA",country:"美国",lat:37.3861,lng:-122.0839,tier:"T3",size:"中型",year:2014,color:"#FF6A00"},
+  {name:"阿里云 美国 (弗吉尼亚)",provider:"Alibaba",region:"北美",city:"Ashburn, VA",country:"美国",lat:39.0438,lng:-77.4874,tier:"T3",size:"中型",year:2015,color:"#FF6A00"},
+  {name:"阿里云 德国 (法兰克福)",provider:"Alibaba",region:"欧洲",city:"Frankfurt",country:"德国",lat:50.1109,lng:8.6821,tier:"T3",size:"中型",year:2016,color:"#FF6A00"},
+  {name:"阿里云 英国 (伦敦)",provider:"Alibaba",region:"欧洲",city:"London",country:"英国",lat:51.5074,lng:-0.1278,tier:"T3",size:"中型",year:2018,color:"#FF6A00"},
+  {name:"阿里云 阿联酋 (迪拜)",provider:"Alibaba",region:"中东",city:"Dubai",country:"阿联酋",lat:25.2048,lng:55.2708,tier:"T3",size:"中型",year:2016,color:"#FF6A00"},
+  {name:"阿里云 沙特 (利雅得)",provider:"Alibaba",region:"中东",city:"Riyadh",country:"沙特阿拉伯",lat:24.7136,lng:46.6753,tier:"T3",size:"中型",year:2022,color:"#FF6A00"},
+  {name:"阿里云 墨西哥",provider:"Alibaba",region:"北美",city:"Mexico City",country:"墨西哥",lat:19.4326,lng:-99.1332,tier:"T3",size:"中型",year:2023,color:"#FF6A00"},
+
+  // ===== 腾讯云 =====
+  {name:"腾讯云 华南1 (广州)",provider:"Tencent",region:"华南",city:"广州",country:"中国",lat:23.1291,lng:113.2644,tier:"T3+",size:"超大型",year:2013,color:"#00C5FF"},
+  {name:"腾讯云 华东1 (上海)",provider:"Tencent",region:"华东",city:"上海",country:"中国",lat:31.2304,lng:121.4737,tier:"T3+",size:"超大型",year:2014,color:"#00C5FF"},
+  {name:"腾讯云 华北1 (北京)",provider:"Tencent",region:"华北",city:"北京",country:"中国",lat:39.9042,lng:116.4074,tier:"T3+",size:"超大型",year:2014,color:"#00C5FF"},
+  {name:"腾讯云 华东2 (南京)",provider:"Tencent",region:"华东",city:"南京",country:"中国",lat:32.0603,lng:118.7969,tier:"T3",size:"大型",year:2020,color:"#00C5FF"},
+  {name:"腾讯云 西南1 (成都)",provider:"Tencent",region:"西南",city:"成都",country:"中国",lat:30.5728,lng:104.0668,tier:"T3",size:"大型",year:2018,color:"#00C5FF"},
+  {name:"腾讯云 西南2 (重庆)",provider:"Tencent",region:"西南",city:"重庆",country:"中国",lat:29.5631,lng:106.5516,tier:"T3",size:"大型",year:2019,color:"#00C5FF"},
+  {name:"腾讯云 西北1 (中卫)",provider:"Tencent",region:"西北",city:"中卫",country:"中国",lat:37.5004,lng:105.197,tier:"T3+",size:"超大型",year:2021,color:"#00C5FF"},
+  {name:"腾讯云 香港",provider:"Tencent",region:"中国香港",city:"香港",country:"中国香港",lat:22.3193,lng:114.1694,tier:"T3+",size:"大型",year:2014,color:"#00C5FF"},
+  {name:"腾讯云 亚太1 (新加坡)",provider:"Tencent",region:"亚太",city:"Singapore",country:"新加坡",lat:1.3521,lng:103.8198,tier:"T3+",size:"大型",year:2018,color:"#00C5FF"},
+  {name:"腾讯云 亚太2 (首尔)",provider:"Tencent",region:"亚太",city:"Seoul",country:"韩国",lat:37.5665,lng:126.978,tier:"T3",size:"中型",year:2020,color:"#00C5FF"},
+  {name:"腾讯云 亚太3 (东京)",provider:"Tencent",region:"亚太",city:"Tokyo",country:"日本",lat:35.6762,lng:139.6503,tier:"T3",size:"中型",year:2020,color:"#00C5FF"},
+  {name:"腾讯云 亚太4 (曼谷)",provider:"Tencent",region:"亚太",city:"Bangkok",country:"泰国",lat:13.7563,lng:100.5018,tier:"T3",size:"中型",year:2020,color:"#00C5FF"},
+  {name:"腾讯云 亚太5 (雅加达)",provider:"Tencent",region:"亚太",city:"Jakarta",country:"印度尼西亚",lat:-6.2088,lng:106.8456,tier:"T3",size:"中型",year:2021,color:"#00C5FF"},
+  {name:"腾讯云 欧洲1 (法兰克福)",provider:"Tencent",region:"欧洲",city:"Frankfurt",country:"德国",lat:50.1109,lng:8.6821,tier:"T3",size:"中型",year:2019,color:"#00C5FF"},
+  {name:"腾讯云 北美1 (硅谷)",provider:"Tencent",region:"北美",city:"Silicon Valley, CA",country:"美国",lat:37.3861,lng:-122.0839,tier:"T3",size:"中型",year:2018,color:"#00C5FF"},
+  {name:"腾讯云 北美2 (弗吉尼亚)",provider:"Tencent",region:"北美",city:"Ashburn, VA",country:"美国",lat:38.9072,lng:-77.0369,tier:"T3",size:"中型",year:2020,color:"#00C5FF"},
+  {name:"腾讯云 南美1 (圣保罗)",provider:"Tencent",region:"南美",city:"São Paulo",country:"巴西",lat:-23.5505,lng:-46.6333,tier:"T3",size:"中型",year:2020,color:"#00C5FF"},
+  {name:"腾讯云 中东 (沙特)",provider:"Tencent",region:"中东",city:"Riyadh",country:"沙特阿拉伯",lat:24.7136,lng:46.6753,tier:"T3",size:"中型",year:2023,color:"#00C5FF"},
+
+  // ===== 华为云 =====
+  {name:"华为云 华北-北京四",provider:"Huawei",region:"华北",city:"北京",country:"中国",lat:40.0583,lng:116.5735,tier:"T3+",size:"超大型",year:2015,color:"#E31937"},
+  {name:"华为云 华东-上海一",provider:"Huawei",region:"华东",city:"上海",country:"中国",lat:31.2304,lng:121.4737,tier:"T3+",size:"超大型",year:2015,color:"#E31937"},
+  {name:"华为云 华南-广州",provider:"Huawei",region:"华南",city:"广州",country:"中国",lat:23.1291,lng:113.2644,tier:"T3+",size:"超大型",year:2016,color:"#E31937"},
+  {name:"华为云 西南-贵阳一",provider:"Huawei",region:"西南",city:"贵阳",country:"中国",lat:26.6477,lng:106.6302,tier:"T3+",size:"超大型",year:2014,color:"#E31937"},
+  {name:"华为云 中国-香港",provider:"Huawei",region:"中国香港",city:"香港",country:"中国香港",lat:22.3193,lng:114.1694,tier:"T3+",size:"大型",year:2016,color:"#E31937"},
+  {name:"华为云 亚太-新加坡",provider:"Huawei",region:"亚太",city:"Singapore",country:"新加坡",lat:1.3521,lng:103.8198,tier:"T3+",size:"大型",year:2016,color:"#E31937"},
+  {name:"华为云 亚太-曼谷",provider:"Huawei",region:"亚太",city:"Bangkok",country:"泰国",lat:13.7563,lng:100.5018,tier:"T3",size:"中型",year:2020,color:"#E31937"},
+  {name:"华为云 亚太-吉隆坡",provider:"Huawei",region:"亚太",city:"Kuala Lumpur",country:"马来西亚",lat:3.139,lng:101.6869,tier:"T3",size:"中型",year:2020,color:"#E31937"},
+  {name:"华为云 亚太-雅加达",provider:"Huawei",region:"亚太",city:"Jakarta",country:"印度尼西亚",lat:-6.2088,lng:106.8456,tier:"T3",size:"中型",year:2021,color:"#E31937"},
+  {name:"华为云 欧洲-爱尔兰",provider:"Huawei",region:"欧洲",city:"Dublin",country:"爱尔兰",lat:53.3498,lng:-6.2603,tier:"T3",size:"中型",year:2019,color:"#E31937"},
+  {name:"华为云 欧洲-巴黎",provider:"Huawei",region:"欧洲",city:"Paris",country:"法国",lat:48.8566,lng:2.3522,tier:"T3",size:"中型",year:2019,color:"#E31937"},
+  {name:"华为云 欧洲-德国",provider:"Huawei",region:"欧洲",city:"Munich",country:"德国",lat:48.1351,lng:11.582,tier:"T3",size:"中型",year:2017,color:"#E31937"},
+  {name:"华为云 拉美-圣保罗",provider:"Huawei",region:"南美",city:"São Paulo",country:"巴西",lat:-23.5505,lng:-46.6333,tier:"T3",size:"中型",year:2022,color:"#E31937"},
+  {name:"华为云 中东-利雅得",provider:"Huawei",region:"中东",city:"Riyadh",country:"沙特阿拉伯",lat:24.7136,lng:46.6753,tier:"T3",size:"中型",year:2022,color:"#E31937"},
+  {name:"华为云 非洲-约翰内斯堡",provider:"Huawei",region:"非洲",city:"Johannesburg",country:"南非",lat:-26.2041,lng:28.0473,tier:"T3",size:"中型",year:2019,color:"#E31937"},
+  {name:"华为云 非洲-开罗",provider:"Huawei",region:"非洲",city:"Cairo",country:"埃及",lat:30.0444,lng:31.2357,tier:"T3",size:"中型",year:2022,color:"#E31937"},
+  {name:"华为云 非洲-内罗毕",provider:"Huawei",region:"非洲",city:"Nairobi",country:"肯尼亚",lat:-1.2921,lng:36.8219,tier:"T3",size:"中型",year:2023,color:"#E31937"},
+  {name:"华为云 北美-圣地亚哥",provider:"Huawei",region:"北美",city:"Mexico City",country:"墨西哥",lat:19.4326,lng:-99.1332,tier:"T3",size:"中型",year:2023,color:"#E31937"},
+
+  // ===== Equinix =====
+  {name:"Equinix DC1-DC15 Ashburn",provider:"Equinix",region:"美国东部",city:"Ashburn, VA",country:"美国",lat:39.0438,lng:-77.4874,tier:"T3+",size:"超大型",year:2000,color:"#9B59B6"},
+  {name:"Equinix NY1-NY13 New York",provider:"Equinix",region:"美国东部",city:"New York, NY",country:"美国",lat:40.7128,lng:-74.006,tier:"T3+",size:"超大型",year:1999,color:"#9B59B6"},
+  {name:"Equinix SV1-SV16 Silicon Valley",provider:"Equinix",region:"美国西部",city:"San Jose, CA",country:"美国",lat:37.3382,lng:-121.8863,tier:"T3+",size:"超大型",year:1998,color:"#9B59B6"},
+  {name:"Equinix DA1-DA11 Dallas",provider:"Equinix",region:"美国中部",city:"Dallas, TX",country:"美国",lat:32.7767,lng:-96.797,tier:"T3+",size:"大型",year:2002,color:"#9B59B6"},
+  {name:"Equinix CH1-CH4 Chicago",provider:"Equinix",region:"美国中部",city:"Chicago, IL",country:"美国",lat:41.8781,lng:-87.6298,tier:"T3+",size:"大型",year:2001,color:"#9B59B6"},
+  {name:"Equinix LA1-LA4 Los Angeles",provider:"Equinix",region:"美国西部",city:"Los Angeles, CA",country:"美国",lat:34.0522,lng:-118.2437,tier:"T3+",size:"大型",year:1999,color:"#9B59B6"},
+  {name:"Equinix SE1-SE4 Seattle",provider:"Equinix",region:"美国西部",city:"Seattle, WA",country:"美国",lat:47.6062,lng:-122.3321,tier:"T3",size:"大型",year:2002,color:"#9B59B6"},
+  {name:"Equinix AT1-AT5 Atlanta",provider:"Equinix",region:"美国东部",city:"Atlanta, GA",country:"美国",lat:33.749,lng:-84.388,tier:"T3",size:"大型",year:2004,color:"#9B59B6"},
+  {name:"Equinix MI1-MI3 Miami",provider:"Equinix",region:"美国东部",city:"Miami, FL",country:"美国",lat:25.7617,lng:-80.1918,tier:"T3",size:"中型",year:2003,color:"#9B59B6"},
+  {name:"Equinix TR1-TR2 Toronto",provider:"Equinix",region:"加拿大",city:"Toronto",country:"加拿大",lat:43.6532,lng:-79.3832,tier:"T3+",size:"大型",year:2001,color:"#9B59B6"},
+  {name:"Equinix SP1-SP4 São Paulo",provider:"Equinix",region:"南美",city:"São Paulo",country:"巴西",lat:-23.5505,lng:-46.6333,tier:"T3+",size:"大型",year:2011,color:"#9B59B6"},
+  {name:"Equinix LD1-LD9 London",provider:"Equinix",region:"欧洲",city:"London",country:"英国",lat:51.5074,lng:-0.1278,tier:"T3+",size:"超大型",year:2001,color:"#9B59B6"},
+  {name:"Equinix AM1-AM8 Amsterdam",provider:"Equinix",region:"欧洲",city:"Amsterdam",country:"荷兰",lat:52.3676,lng:4.9041,tier:"T3+",size:"超大型",year:2002,color:"#9B59B6"},
+  {name:"Equinix FR1-FR10 Frankfurt",provider:"Equinix",region:"欧洲",city:"Frankfurt",country:"德国",lat:50.1109,lng:8.6821,tier:"T3+",size:"超大型",year:2001,color:"#9B59B6"},
+  {name:"Equinix PA1-PA8 Paris",provider:"Equinix",region:"欧洲",city:"Paris",country:"法国",lat:48.8566,lng:2.3522,tier:"T3+",size:"大型",year:2001,color:"#9B59B6"},
+  {name:"Equinix ZH1-ZH4 Zurich",provider:"Equinix",region:"欧洲",city:"Zurich",country:"瑞士",lat:47.3769,lng:8.5417,tier:"T3+",size:"大型",year:2008,color:"#9B59B6"},
+  {name:"Equinix SK1-SK3 Stockholm",provider:"Equinix",region:"欧洲",city:"Stockholm",country:"瑞典",lat:59.3293,lng:18.0686,tier:"T3",size:"中型",year:2006,color:"#9B59B6"},
+  {name:"Equinix HE1-HE4 Helsinki",provider:"Equinix",region:"欧洲",city:"Helsinki",country:"芬兰",lat:60.1699,lng:24.9384,tier:"T3",size:"中型",year:2007,color:"#9B59B6"},
+  {name:"Equinix WA1-WA3 Warsaw",provider:"Equinix",region:"欧洲",city:"Warsaw",country:"波兰",lat:52.2297,lng:21.0122,tier:"T3",size:"中型",year:2019,color:"#9B59B6"},
+  {name:"Equinix MA1-MA5 Madrid",provider:"Equinix",region:"欧洲",city:"Madrid",country:"西班牙",lat:40.4168,lng:-3.7038,tier:"T3",size:"中型",year:2011,color:"#9B59B6"},
+  {name:"Equinix GV1-GV2 Geneva",provider:"Equinix",region:"欧洲",city:"Geneva",country:"瑞士",lat:46.2044,lng:6.1432,tier:"T3",size:"中型",year:2011,color:"#9B59B6"},
+  {name:"Equinix DX1 Dubai",provider:"Equinix",region:"中东",city:"Dubai",country:"阿联酋",lat:25.2048,lng:55.2708,tier:"T3",size:"中型",year:2016,color:"#9B59B6"},
+  {name:"Equinix TY1-TY12 Tokyo",provider:"Equinix",region:"亚太",city:"Tokyo",country:"日本",lat:35.6762,lng:139.6503,tier:"T3+",size:"超大型",year:2002,color:"#9B59B6"},
+  {name:"Equinix OS1-OS2 Osaka",provider:"Equinix",region:"亚太",city:"Osaka",country:"日本",lat:34.6937,lng:135.5023,tier:"T3",size:"大型",year:2009,color:"#9B59B6"},
+  {name:"Equinix SG1-SG5 Singapore",provider:"Equinix",region:"亚太",city:"Singapore",country:"新加坡",lat:1.3521,lng:103.8198,tier:"T3+",size:"超大型",year:2003,color:"#9B59B6"},
+  {name:"Equinix SY1-SY6 Sydney",provider:"Equinix",region:"亚太",city:"Sydney",country:"澳大利亚",lat:-33.8688,lng:151.2093,tier:"T3+",size:"大型",year:2006,color:"#9B59B6"},
+  {name:"Equinix ME1-ME2 Melbourne",provider:"Equinix",region:"亚太",city:"Melbourne",country:"澳大利亚",lat:-37.8136,lng:144.9631,tier:"T3",size:"中型",year:2011,color:"#9B59B6"},
+  {name:"Equinix HK1-HK5 Hong Kong",provider:"Equinix",region:"亚太",city:"Hong Kong",country:"中国香港",lat:22.3193,lng:114.1694,tier:"T3+",size:"大型",year:2006,color:"#9B59B6"},
+  {name:"Equinix MB1 Mumbai",provider:"Equinix",region:"亚太",city:"Mumbai",country:"印度",lat:19.076,lng:72.8777,tier:"T3",size:"中型",year:2017,color:"#9B59B6"},
+  {name:"Equinix JK1-JK2 Jakarta",provider:"Equinix",region:"亚太",city:"Jakarta",country:"印度尼西亚",lat:-6.2088,lng:106.8456,tier:"T3",size:"中型",year:2020,color:"#9B59B6"},
+  {name:"Equinix JNB1 Johannesburg",provider:"Equinix",region:"非洲",city:"Johannesburg",country:"南非",lat:-26.2041,lng:28.0473,tier:"T3",size:"中型",year:2020,color:"#9B59B6"},
+
+  // ===== Digital Realty =====
+  {name:"Digital Realty IAD Ashburn Campus",provider:"Digital",region:"美国东部",city:"Ashburn, VA",country:"美国",lat:39.065,lng:-77.4896,tier:"T3+",size:"超大型",year:2005,color:"#2ECC71"},
+  {name:"Digital Realty DFW Dallas Campus",provider:"Digital",region:"美国中部",city:"Dallas, TX",country:"美国",lat:32.8148,lng:-96.9487,tier:"T3+",size:"大型",year:2007,color:"#2ECC71"},
+  {name:"Digital Realty ORD Chicago",provider:"Digital",region:"美国中部",city:"Chicago, IL",country:"美国",lat:41.8781,lng:-87.6298,tier:"T3",size:"大型",year:2006,color:"#2ECC71"},
+  {name:"Digital Realty SFO Silicon Valley",provider:"Digital",region:"美国西部",city:"Santa Clara, CA",country:"美国",lat:37.3541,lng:-121.9552,tier:"T3+",size:"超大型",year:2004,color:"#2ECC71"},
+  {name:"Digital Realty LAX Los Angeles",provider:"Digital",region:"美国西部",city:"Los Angeles, CA",country:"美国",lat:34.0522,lng:-118.2437,tier:"T3",size:"大型",year:2005,color:"#2ECC71"},
+  {name:"Digital Realty NYC New York",provider:"Digital",region:"美国东部",city:"New York, NY",country:"美国",lat:40.7128,lng:-74.006,tier:"T3+",size:"大型",year:2004,color:"#2ECC71"},
+  {name:"Digital Realty YYZ Toronto",provider:"Digital",region:"加拿大",city:"Toronto",country:"加拿大",lat:43.6532,lng:-79.3832,tier:"T3",size:"大型",year:2008,color:"#2ECC71"},
+  {name:"Digital Realty GRU São Paulo",provider:"Digital",region:"南美",city:"São Paulo",country:"巴西",lat:-23.5505,lng:-46.6333,tier:"T3",size:"大型",year:2012,color:"#2ECC71"},
+  {name:"Digital Realty LHR London",provider:"Digital",region:"欧洲",city:"London",country:"英国",lat:51.5074,lng:-0.1278,tier:"T3+",size:"超大型",year:2004,color:"#2ECC71"},
+  {name:"Digital Realty FRA Frankfurt",provider:"Digital",region:"欧洲",city:"Frankfurt",country:"德国",lat:50.1109,lng:8.6821,tier:"T3+",size:"大型",year:2007,color:"#2ECC71"},
+  {name:"Digital Realty AMS Amsterdam",provider:"Digital",region:"欧洲",city:"Amsterdam",country:"荷兰",lat:52.3676,lng:4.9041,tier:"T3",size:"大型",year:2006,color:"#2ECC71"},
+  {name:"Digital Realty CDG Paris",provider:"Digital",region:"欧洲",city:"Paris",country:"法国",lat:48.8566,lng:2.3522,tier:"T3",size:"大型",year:2008,color:"#2ECC71"},
+  {name:"Digital Realty MRS Marseille",provider:"Digital",region:"欧洲",city:"Marseille",country:"法国",lat:43.2965,lng:5.3698,tier:"T3",size:"中型",year:2019,color:"#2ECC71"},
+  {name:"Digital Realty ZRH Zurich",provider:"Digital",region:"欧洲",city:"Zurich",country:"瑞士",lat:47.3769,lng:8.5417,tier:"T3",size:"中型",year:2010,color:"#2ECC71"},
+  {name:"Digital Realty ARN Stockholm",provider:"Digital",region:"欧洲",city:"Stockholm",country:"瑞典",lat:59.3293,lng:18.0686,tier:"T3",size:"中型",year:2012,color:"#2ECC71"},
+  {name:"Digital Realty SIN Singapore",provider:"Digital",region:"亚太",city:"Singapore",country:"新加坡",lat:1.3521,lng:103.8198,tier:"T3+",size:"超大型",year:2012,color:"#2ECC71"},
+  {name:"Digital Realty NRT Tokyo",provider:"Digital",region:"亚太",city:"Tokyo",country:"日本",lat:35.6762,lng:139.6503,tier:"T3+",size:"大型",year:2014,color:"#2ECC71"},
+  {name:"Digital Realty SYD Sydney",provider:"Digital",region:"亚太",city:"Sydney",country:"澳大利亚",lat:-33.8688,lng:151.2093,tier:"T3",size:"大型",year:2010,color:"#2ECC71"},
+  {name:"Digital Realty MEL Melbourne",provider:"Digital",region:"亚太",city:"Melbourne",country:"澳大利亚",lat:-37.8136,lng:144.9631,tier:"T3",size:"中型",year:2012,color:"#2ECC71"},
+  {name:"Digital Realty HKG Hong Kong",provider:"Digital",region:"亚太",city:"Hong Kong",country:"中国香港",lat:22.3193,lng:114.1694,tier:"T3",size:"大型",year:2016,color:"#2ECC71"},
+  {name:"Digital Realty KUL Kuala Lumpur",provider:"Digital",region:"亚太",city:"Kuala Lumpur",country:"马来西亚",lat:3.139,lng:101.6869,tier:"T3",size:"中型",year:2018,color:"#2ECC71"},
+  {name:"Digital Realty JNB Johannesburg",provider:"Digital",region:"非洲",city:"Johannesburg",country:"南非",lat:-26.2041,lng:28.0473,tier:"T3",size:"中型",year:2019,color:"#2ECC71"},
+  {name:"Digital Realty NBO Nairobi",provider:"Digital",region:"非洲",city:"Nairobi",country:"肯尼亚",lat:-1.2921,lng:36.8219,tier:"T3",size:"中型",year:2022,color:"#2ECC71"},
+
+  // ===== IBM Cloud =====
+  {name:"IBM Cloud Dallas (US South)",provider:"IBM",region:"美国中部",city:"Dallas, TX",country:"美国",lat:32.7767,lng:-96.797,tier:"T3+",size:"大型",year:2006,color:"#F39C12"},
+  {name:"IBM Cloud Washington DC (US East)",provider:"IBM",region:"美国东部",city:"Washington, DC",country:"美国",lat:38.9072,lng:-77.0369,tier:"T3+",size:"大型",year:2010,color:"#F39C12"},
+  {name:"IBM Cloud Toronto",provider:"IBM",region:"加拿大",city:"Toronto",country:"加拿大",lat:43.6532,lng:-79.3832,tier:"T3",size:"中型",year:2018,color:"#F39C12"},
+  {name:"IBM Cloud São Paulo",provider:"IBM",region:"南美",city:"São Paulo",country:"巴西",lat:-23.5505,lng:-46.6333,tier:"T3",size:"中型",year:2012,color:"#F39C12"},
+  {name:"IBM Cloud London",provider:"IBM",region:"欧洲",city:"London",country:"英国",lat:51.5074,lng:-0.1278,tier:"T3+",size:"大型",year:2007,color:"#F39C12"},
+  {name:"IBM Cloud Frankfurt",provider:"IBM",region:"欧洲",city:"Frankfurt",country:"德国",lat:50.1109,lng:8.6821,tier:"T3+",size:"大型",year:2014,color:"#F39C12"},
+  {name:"IBM Cloud Amsterdam",provider:"IBM",region:"欧洲",city:"Amsterdam",country:"荷兰",lat:52.3676,lng:4.9041,tier:"T3",size:"中型",year:2008,color:"#F39C12"},
+  {name:"IBM Cloud Paris",provider:"IBM",region:"欧洲",city:"Paris",country:"法国",lat:48.8566,lng:2.3522,tier:"T3",size:"中型",year:2019,color:"#F39C12"},
+  {name:"IBM Cloud Milan",provider:"IBM",region:"欧洲",city:"Milan",country:"意大利",lat:45.4654,lng:9.1859,tier:"T3",size:"中型",year:2022,color:"#F39C12"},
+  {name:"IBM Cloud Tokyo",provider:"IBM",region:"亚太",city:"Tokyo",country:"日本",lat:35.6762,lng:139.6503,tier:"T3+",size:"大型",year:2011,color:"#F39C12"},
+  {name:"IBM Cloud Osaka",provider:"IBM",region:"亚太",city:"Osaka",country:"日本",lat:34.6937,lng:135.5023,tier:"T3",size:"中型",year:2022,color:"#F39C12"},
+  {name:"IBM Cloud Singapore",provider:"IBM",region:"亚太",city:"Singapore",country:"新加坡",lat:1.3521,lng:103.8198,tier:"T3+",size:"大型",year:2009,color:"#F39C12"},
+  {name:"IBM Cloud Sydney",provider:"IBM",region:"亚太",city:"Sydney",country:"澳大利亚",lat:-33.8688,lng:151.2093,tier:"T3",size:"中型",year:2009,color:"#F39C12"},
+  {name:"IBM Cloud Chennai",provider:"IBM",region:"亚太",city:"Chennai",country:"印度",lat:13.0827,lng:80.2707,tier:"T3",size:"中型",year:2014,color:"#F39C12"},
+
+  // ===== Oracle Cloud =====
+  {name:"Oracle Cloud Ashburn (US East)",provider:"Oracle",region:"美国东部",city:"Ashburn, VA",country:"美国",lat:39.0438,lng:-77.4874,tier:"T3+",size:"大型",year:2016,color:"#E74C3C"},
+  {name:"Oracle Cloud Phoenix (US West)",provider:"Oracle",region:"美国西部",city:"Phoenix, AZ",country:"美国",lat:33.4484,lng:-112.074,tier:"T3+",size:"大型",year:2016,color:"#E74C3C"},
+  {name:"Oracle Cloud Chicago",provider:"Oracle",region:"美国中部",city:"Chicago, IL",country:"美国",lat:41.8781,lng:-87.6298,tier:"T3",size:"大型",year:2020,color:"#E74C3C"},
+  {name:"Oracle Cloud San Jose",provider:"Oracle",region:"美国西部",city:"San Jose, CA",country:"美国",lat:37.3382,lng:-121.8863,tier:"T3",size:"中型",year:2022,color:"#E74C3C"},
+  {name:"Oracle Cloud Toronto",provider:"Oracle",region:"加拿大",city:"Toronto",country:"加拿大",lat:43.6532,lng:-79.3832,tier:"T3",size:"大型",year:2019,color:"#E74C3C"},
+  {name:"Oracle Cloud Montreal",provider:"Oracle",region:"加拿大",city:"Montreal",country:"加拿大",lat:45.5017,lng:-73.5673,tier:"T3",size:"中型",year:2020,color:"#E74C3C"},
+  {name:"Oracle Cloud Sao Paulo",provider:"Oracle",region:"南美",city:"São Paulo",country:"巴西",lat:-23.5505,lng:-46.6333,tier:"T3",size:"中型",year:2019,color:"#E74C3C"},
+  {name:"Oracle Cloud Santiago",provider:"Oracle",region:"南美",city:"Santiago",country:"智利",lat:-33.4489,lng:-70.6693,tier:"T3",size:"中型",year:2022,color:"#E74C3C"},
+  {name:"Oracle Cloud London",provider:"Oracle",region:"欧洲",city:"London",country:"英国",lat:51.5074,lng:-0.1278,tier:"T3+",size:"大型",year:2017,color:"#E74C3C"},
+  {name:"Oracle Cloud Frankfurt",provider:"Oracle",region:"欧洲",city:"Frankfurt",country:"德国",lat:50.1109,lng:8.6821,tier:"T3+",size:"大型",year:2017,color:"#E74C3C"},
+  {name:"Oracle Cloud Amsterdam",provider:"Oracle",region:"欧洲",city:"Amsterdam",country:"荷兰",lat:52.3676,lng:4.9041,tier:"T3",size:"中型",year:2021,color:"#E74C3C"},
+  {name:"Oracle Cloud Paris",provider:"Oracle",region:"欧洲",city:"Paris",country:"法国",lat:48.8566,lng:2.3522,tier:"T3",size:"中型",year:2022,color:"#E74C3C"},
+  {name:"Oracle Cloud Stockholm",provider:"Oracle",region:"欧洲",city:"Stockholm",country:"瑞典",lat:59.3293,lng:18.0686,tier:"T3",size:"中型",year:2022,color:"#E74C3C"},
+  {name:"Oracle Cloud Milan",provider:"Oracle",region:"欧洲",city:"Milan",country:"意大利",lat:45.4654,lng:9.1859,tier:"T3",size:"中型",year:2023,color:"#E74C3C"},
+  {name:"Oracle Cloud Marseille",provider:"Oracle",region:"欧洲",city:"Marseille",country:"法国",lat:43.2965,lng:5.3698,tier:"T3",size:"中型",year:2022,color:"#E74C3C"},
+  {name:"Oracle Cloud Tokyo",provider:"Oracle",region:"亚太",city:"Tokyo",country:"日本",lat:35.6762,lng:139.6503,tier:"T3+",size:"大型",year:2019,color:"#E74C3C"},
+  {name:"Oracle Cloud Osaka",provider:"Oracle",region:"亚太",city:"Osaka",country:"日本",lat:34.6937,lng:135.5023,tier:"T3",size:"大型",year:2021,color:"#E74C3C"},
+  {name:"Oracle Cloud Seoul",provider:"Oracle",region:"亚太",city:"Seoul",country:"韩国",lat:37.5665,lng:126.978,tier:"T3",size:"中型",year:2020,color:"#E74C3C"},
+  {name:"Oracle Cloud Singapore",provider:"Oracle",region:"亚太",city:"Singapore",country:"新加坡",lat:1.3521,lng:103.8198,tier:"T3+",size:"大型",year:2018,color:"#E74C3C"},
+  {name:"Oracle Cloud Sydney",provider:"Oracle",region:"亚太",city:"Sydney",country:"澳大利亚",lat:-33.8688,lng:151.2093,tier:"T3",size:"大型",year:2019,color:"#E74C3C"},
+  {name:"Oracle Cloud Melbourne",provider:"Oracle",region:"亚太",city:"Melbourne",country:"澳大利亚",lat:-37.8136,lng:144.9631,tier:"T3",size:"中型",year:2021,color:"#E74C3C"},
+  {name:"Oracle Cloud Mumbai",provider:"Oracle",region:"亚太",city:"Mumbai",country:"印度",lat:19.076,lng:72.8777,tier:"T3",size:"大型",year:2019,color:"#E74C3C"},
+  {name:"Oracle Cloud Hyderabad",provider:"Oracle",region:"亚太",city:"Hyderabad",country:"印度",lat:17.385,lng:78.4867,tier:"T3",size:"中型",year:2021,color:"#E74C3C"},
+  {name:"Oracle Cloud Dubai",provider:"Oracle",region:"中东",city:"Dubai",country:"阿联酋",lat:25.2048,lng:55.2708,tier:"T3",size:"中型",year:2019,color:"#E74C3C"},
+  {name:"Oracle Cloud Abu Dhabi",provider:"Oracle",region:"中东",city:"Abu Dhabi",country:"阿联酋",lat:24.4539,lng:54.3773,tier:"T3",size:"中型",year:2020,color:"#E74C3C"},
+  {name:"Oracle Cloud Riyadh",provider:"Oracle",region:"中东",city:"Riyadh",country:"沙特阿拉伯",lat:24.7136,lng:46.6753,tier:"T3",size:"中型",year:2021,color:"#E74C3C"},
+  {name:"Oracle Cloud Johannesburg",provider:"Oracle",region:"非洲",city:"Johannesburg",country:"南非",lat:-26.2041,lng:28.0473,tier:"T3",size:"中型",year:2022,color:"#E74C3C"},
+];
+
+// ============ 地图初始化 ============
+const map = L.map('map', {
+  center: [25, 15],
+  zoom: 2,
+  minZoom: 2,
+  maxZoom: 18,
+  zoomControl: true
+});
+
+// 地图图层
+const layers = {
+  standard: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors',
+    maxZoom: 19
+  }),
+  satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles © Esri &mdash; Source: Esri, USGS',
+    maxZoom: 19
+  }),
+  terrain: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+    attribution: 'Map data: © OpenStreetMap contributors, SRTM | Map style: © OpenTopoMap (CC-BY-SA)',
+    maxZoom: 17
+  }),
+  dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© OpenStreetMap contributors © CARTO',
+    maxZoom: 19
+  })
+};
+
+let currentLayer = layers.standard;
+currentLayer.addTo(map);
+
+function switchLayer(type) {
+  map.removeLayer(currentLayer);
+  currentLayer = layers[type];
+  currentLayer.addTo(map);
+  document.querySelectorAll('.map-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-' + type).classList.add('active');
+}
+
+// ============ 标记点 ============
+let clusterGroup = L.markerClusterGroup({
+  maxClusterRadius: 50,
+  spiderfyOnMaxZoom: true,
+  showCoverageOnHover: false,
+  iconCreateFunction: function(cluster) {
+    const count = cluster.getChildCount();
+    let size = count < 10 ? 'small' : count < 50 ? 'medium' : 'large';
+    const sz = size === 'small' ? 32 : size === 'medium' ? 40 : 50;
+    return L.divIcon({
+      html: `<div style="
+        width:${sz}px;height:${sz}px;border-radius:50%;
+        background:rgba(77,184,255,0.85);
+        border:2px solid #4db8ff;
+        display:flex;align-items:center;justify-content:center;
+        color:#fff;font-weight:700;font-size:${sz>40?14:12}px;
+        box-shadow:0 0 12px rgba(77,184,255,0.5);
+      ">${count}</div>`,
+      className: '',
+      iconSize: [sz, sz]
+    });
+  }
+});
+
+let noClusterGroup = L.layerGroup();
+let useCluster = true;
+let currentFilter = 'all';
+let allMarkers = [];
+
+function createMarker(dc) {
+  const icon = L.divIcon({
+    html: `<div style="
+      width:12px;height:12px;border-radius:50%;
+      background:${dc.color};
+      border:2px solid rgba(255,255,255,0.8);
+      box-shadow:0 0 8px ${dc.color}88;
+    "></div>`,
+    className: '',
+    iconSize: [12, 12],
+    iconAnchor: [6, 6]
+  });
+
+  const marker = L.marker([dc.lat, dc.lng], {icon});
+
+  const sizeColor = dc.size === '超大型' ? '#ff6b6b' : dc.size === '大型' ? '#ffd93d' : '#6bcb77';
+  const tierColor = dc.tier === 'T3+' ? '#4db8ff' : '#acd';
+
+  marker.bindPopup(`
+    <div class="popup-title">🏢 ${dc.name}</div>
+    <div class="popup-row"><span class="popup-key">云服务商</span><span class="popup-val">${dc.provider}</span></div>
+    <div class="popup-row"><span class="popup-key">城市</span><span class="popup-val">📍 ${dc.city}</span></div>
+    <div class="popup-row"><span class="popup-key">国家/地区</span><span class="popup-val">${dc.country}</span></div>
+    <div class="popup-row"><span class="popup-key">区域</span><span class="popup-val">${dc.region}</span></div>
+    <div class="popup-row"><span class="popup-key">规模</span><span class="popup-val" style="color:${sizeColor}">${dc.size}</span></div>
+    <div class="popup-row"><span class="popup-key">等级</span><span class="popup-val" style="color:${tierColor}">${dc.tier}</span></div>
+    <div class="popup-row"><span class="popup-key">建立年份</span><span class="popup-val">${dc.year}年</span></div>
+    <div class="popup-row"><span class="popup-key">坐标</span><span class="popup-val">${dc.lat.toFixed(4)}, ${dc.lng.toFixed(4)}</span></div>
+  `, {maxWidth: 280});
+
+  marker.on('click', () => showInfoPanel(dc));
+  marker.dcData = dc;
+  return marker;
+}
+
+function showInfoPanel(dc) {
+  document.getElementById('ip-title').textContent = dc.name;
+  const sizeColor = dc.size === '超大型' ? '#ff6b6b' : dc.size === '大型' ? '#ffd93d' : '#6bcb77';
+  document.getElementById('ip-body').innerHTML = `
+    <div class="info-row"><span class="key">☁️ 云服务商</span><span class="val" style="color:${dc.color};font-weight:700">${dc.provider}</span></div>
+    <div class="info-row"><span class="key">📍 城市</span><span class="val">${dc.city}</span></div>
+    <div class="info-row"><span class="key">🌍 国家/地区</span><span class="val">${dc.country}</span></div>
+    <div class="info-row"><span class="key">🗺️ 所属区域</span><span class="val">${dc.region}</span></div>
+    <div class="info-row"><span class="key">📏 数据中心规模</span><span class="val" style="color:${sizeColor}">${dc.size}</span></div>
+    <div class="info-row"><span class="key">⭐ Tier等级</span><span class="val">${dc.tier}</span></div>
+    <div class="info-row"><span class="key">📅 建立年份</span><span class="val">${dc.year}年</span></div>
+    <div class="info-row"><span class="key">🧭 GPS坐标</span><span class="val">${dc.lat.toFixed(4)}°N, ${dc.lng.toFixed(4)}°E</span></div>
+  `;
+  document.getElementById('info-panel').style.display = 'block';
+}
+
+function buildMarkers() {
+  clusterGroup.clearLayers();
+  noClusterGroup.clearLayers();
+  allMarkers = [];
+
+  const filtered = DC_DATA.filter(dc => {
+    if (currentFilter === 'all') return true;
+    return dc.provider.includes(currentFilter);
+  });
+
+  filtered.forEach(dc => {
+    const m = createMarker(dc);
+    allMarkers.push(m);
+    clusterGroup.addLayer(m);
+    noClusterGroup.addLayer(m);
+  });
+
+  document.getElementById('s-shown').textContent = filtered.length;
+}
+
+function toggleCluster(on) {
+  useCluster = on;
+  document.getElementById('btn-cluster').classList.toggle('active', on);
+  document.getElementById('btn-nocluster').classList.toggle('active', !on);
+  if (on) {
+    map.removeLayer(noClusterGroup);
+    map.addLayer(clusterGroup);
+  } else {
+    map.removeLayer(clusterGroup);
+    map.addLayer(noClusterGroup);
+  }
+}
+
+function filterProvider(prov, btn) {
+  currentFilter = prov;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  buildMarkers();
+  if (useCluster) {
+    map.removeLayer(noClusterGroup);
+    map.addLayer(clusterGroup);
+  } else {
+    map.removeLayer(clusterGroup);
+    map.addLayer(noClusterGroup);
+  }
+}
+
+function searchDC(val) {
+  val = val.trim().toLowerCase();
+  clusterGroup.clearLayers();
+  noClusterGroup.clearLayers();
+  let count = 0;
+  allMarkers.forEach(m => {
+    const dc = m.dcData;
+    if (!val || dc.name.toLowerCase().includes(val) || dc.city.toLowerCase().includes(val) || dc.country.toLowerCase().includes(val) || dc.provider.toLowerCase().includes(val)) {
+      clusterGroup.addLayer(m);
+      noClusterGroup.addLayer(m);
+      count++;
+    }
+  });
+  document.getElementById('s-shown').textContent = count;
+}
+
+// ============ 统计排行 ============
+function buildStats() {
+  const total = DC_DATA.length;
+  const countries = {};
+  DC_DATA.forEach(dc => {
+    countries[dc.country] = (countries[dc.country] || 0) + 1;
+  });
+  const sorted = Object.entries(countries).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const max = sorted[0][1];
+
+  document.getElementById('s-total').textContent = total;
+  document.getElementById('s-country').textContent = Object.keys(countries).length;
+  document.getElementById('s-shown').textContent = total;
+
+  const html = sorted.map(([c,n],i) => `
+    <div class="rank-item">
+      <span class="rank-num">${i+1}</span>
+      <span class="rank-label" title="${c}">${c}</span>
+      <div class="rank-bar-wrap"><div class="rank-bar" style="width:${Math.round(n/max*100)}%"></div></div>
+      <span class="rank-count">${n}</span>
+    </div>
+  `).join('');
+  document.getElementById('rank-list').innerHTML = html;
+}
+
+// ============ 初始化 ============
+buildMarkers();
+map.addLayer(clusterGroup);
+buildStats();
+
+// 卫星图按钮标签文字优化（卫星模式下加标注图层）
+let labelLayer = null;
+map.on('baselayerchange', function() {});
+
+function switchLayer(type) {
+  map.removeLayer(currentLayer);
+  // 卫星模式叠加地名标注
+  if (labelLayer) { map.removeLayer(labelLayer); labelLayer = null; }
+  currentLayer = layers[type];
+  currentLayer.addTo(map);
+  if (type === 'satellite') {
+    labelLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png', {
+      attribution: '© CARTO',
+      maxZoom: 19,
+      pane: 'overlayPane'
+    });
+    labelLayer.addTo(map);
+  }
+  document.querySelectorAll('.map-btn[id^="btn-"]').forEach(b => b.classList.remove('active'));
+  const btnEl = document.getElementById('btn-' + type);
+  if (btnEl) btnEl.classList.add('active');
+}
+
+// 移动端地图高度修正
+function fixMapHeight() {
+  const header = document.getElementById('header').offsetHeight;
+  const controls = document.getElementById('controls').offsetHeight;
+  document.getElementById('map').style.height = (window.innerHeight - header - controls) + 'px';
+}
+window.addEventListener('resize', fixMapHeight);
+fixMapHeight();
+</script>
+</body>
+</html>
