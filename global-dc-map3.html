@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a0e1a">
+<title>全球数据中心地图 · v7.0 精准版</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:#0a0e1a;color:#e0e6f0;overflow:hidden;height:100vh}
+#header{position:fixed;top:0;left:0;right:0;z-index:1000;height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;background:rgba(10,14,26,.94);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,.08)}
+#header h1{font-size:17px;font-weight:600;letter-spacing:.5px;white-space:nowrap}
+#header h1 span{color:#4facfe}
+#header .hstats{font-size:12px;color:#8892a4;display:flex;gap:16px;flex-shrink:0}
+#header .hstats b{color:#4facfe;font-weight:700}
+.data-source{font-size:11px;color:#5a6478;position:absolute;bottom:2px;right:20px}
+#map{width:100%;height:100vh}
+#sidebar{position:fixed;top:54px;left:0;bottom:0;width:350px;z-index:999;background:rgba(10,14,26,.95);backdrop-filter:blur(12px);border-right:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;transition:transform .3s}
+#sidebar.collapsed{transform:translateX(-350px)}
+#sidebar-toggle{position:fixed;top:68px;left:350px;z-index:1001;width:26px;height:52px;border:none;cursor:pointer;background:rgba(10,14,26,.9);border-radius:0 8px 8px 0;color:#8892a4;font-size:13px;border:1px solid rgba(255,255,255,.08);border-left:none;transition:left .3s}
+#sidebar.collapsed~#sidebar-toggle{left:0}
+.search-box{padding:14px 14px 10px;border-bottom:1px solid rgba(255,255,255,.06);position:relative}
+.search-box input{width:100%;padding:9px 12px 9px 34px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#e0e6f0;font-size:13px;outline:none;transition:border-color .2s}
+.search-box input:focus{border-color:#4facfe}
+.search-box::before{content:'🔍';position:absolute;left:26px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none}
+.filter-bar{padding:10px 12px;display:flex;flex-wrap:wrap;gap:5px;border-bottom:1px solid rgba(255,255,255,.06)}
+.filter-btn{padding:4px 10px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:transparent;color:#8892a4;font-size:11px;cursor:pointer;transition:all .2s;white-space:nowrap}
+.filter-btn:hover{border-color:#4facfe;color:#4facfe}
+.filter-btn.active{background:#4facfe;color:#fff;border-color:#4facfe}
+.continent-bar{padding:7px 12px;gap:4px;display:flex;flex-wrap:nowrap;overflow-x:auto;border-bottom:1px solid rgba(255,255,255,.06);scrollbar-width:none}
+.continent-bar::-webkit-scrollbar{display:none}
+.continent-btn{padding:3px 9px;border-radius:10px;border:1px solid rgba(255,255,255,.10);background:transparent;color:#8892a4;font-size:11px;cursor:pointer;transition:all .2s;white-space:nowrap;flex-shrink:0}
+.continent-btn:hover{border-color:#00e676;color:#00e676}
+.continent-btn.active{background:rgba(0,230,118,.15);color:#00e676;border-color:#00e676}
+#dc-list{flex:1;overflow-y:auto;padding:6px 0}
+#dc-list::-webkit-scrollbar{width:4px}
+#dc-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:2px}
+.dc-item{padding:10px 14px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.04);transition:background .15s}
+.dc-item:hover{background:rgba(79,172,254,.08)}
+.dc-item.active{background:rgba(79,172,254,.15);border-left:3px solid #4facfe}
+.dc-item .dc-name{font-size:13px;font-weight:600;margin-bottom:3px;line-height:1.3}
+.dc-item .dc-operator{font-size:11px;color:#8892a4}
+.dc-item .dc-tags{display:flex;gap:3px;margin-top:5px;flex-wrap:wrap}
+.dc-tag{padding:1px 7px;border-radius:8px;font-size:10px;background:rgba(255,255,255,.06);color:#8892a4}
+.dc-tag.hyper{background:rgba(0,230,118,.15);color:#00e676}
+.dc-tag.ai{background:rgba(255,145,0,.15);color:#ff9100}
+.dc-tag.liquid{background:rgba(0,188,212,.15);color:#00bcd4}
+.list-count{padding:7px 14px;font-size:11px;color:#5a6478;border-bottom:1px solid rgba(255,255,255,.06);display:flex;justify-content:space-between;align-items:center}
+.export-link{font-size:11px;color:#4facfe;cursor:pointer;opacity:.8}
+.export-link:hover{opacity:1}
+.stats-panel{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.06);display:none}
+.stats-panel.visible{display:block}
+.stats-title{font-size:10px;color:#5a6478;text-transform:uppercase;letter-spacing:1px;margin-bottom:7px;font-weight:600}
+.type-stats{display:flex;flex-wrap:wrap;gap:5px}
+.type-stat-item{display:flex;align-items:center;gap:3px;font-size:11px;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,.04)}
+.type-stat-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.country-stats{display:flex;flex-direction:column;gap:3px;margin-top:8px}
+.country-bar{display:flex;align-items:center;gap:6px;font-size:10px;cursor:pointer;padding:2px 4px;border-radius:4px;transition:background .15s}
+.country-bar:hover,.country-bar.active-country{background:rgba(79,172,254,.1)}
+.country-bar-name{width:56px;text-align:right;color:#8892a4;flex-shrink:0;font-size:10px}
+.country-bar-track{flex:1;height:12px;background:rgba(255,255,255,.04);border-radius:6px;overflow:hidden}
+.country-bar-fill{height:100%;border-radius:6px;background:linear-gradient(90deg,#4facfe,#00f2fe);transition:width .5s}
+.country-bar-count{width:22px;font-weight:600;color:#e0e6f0;font-size:10px}
+.country-filter-bar{padding:5px 14px;display:flex;align-items:center;justify-content:space-between;background:rgba(79,172,254,.08);border-bottom:1px solid rgba(79,172,254,.2);display:none}
+.country-filter-label{font-size:11px;color:#8892a4}
+.country-filter-label b{color:#4facfe}
+.country-filter-clear{background:none;border:1px solid rgba(79,172,254,.3);color:#4facfe;font-size:10px;padding:1px 8px;border-radius:10px;cursor:pointer}
+#detail-panel{position:fixed;top:54px;right:-440px;bottom:0;width:440px;z-index:999;background:rgba(10,14,26,.97);backdrop-filter:blur(16px);border-left:1px solid rgba(255,255,255,.08);transition:right .3s;overflow-y:auto;padding:22px}
+#detail-panel.open{right:0}
+#detail-panel::-webkit-scrollbar{width:4px}
+#detail-panel::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:2px}
+.detail-close{position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:50%;border:none;background:rgba(255,255,255,.08);color:#8892a4;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.detail-close:hover{background:rgba(255,255,255,.15);color:#fff}
+.detail-h2{font-size:18px;font-weight:700;margin-bottom:7px;padding-right:36px;line-height:1.3}
+.operator-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:14px;font-size:12px;margin-bottom:18px}
+.detail-section{margin-bottom:18px}
+.detail-section h3{font-size:11px;color:#5a6478;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:600}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.detail-field{background:rgba(255,255,255,.04);border-radius:8px;padding:10px}
+.detail-field .label{font-size:10px;color:#5a6478;margin-bottom:3px}
+.detail-field .value{font-size:13px;font-weight:500}
+.detail-field.full{grid-column:1/-1}
+.map-link{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:7px;font-size:12px;background:rgba(79,172,254,.1);color:#4facfe;text-decoration:none;margin-top:4px;margin-right:6px;transition:background .2s}
+.map-link:hover{background:rgba(79,172,254,.22)}
+.accuracy-badge{display:inline-block;padding:2px 8px;border-radius:8px;font-size:10px;margin-left:6px}
+.acc-official{background:rgba(0,230,118,.15);color:#00e676}
+.acc-public{background:rgba(79,172,254,.15);color:#4facfe}
+.acc-estimated{background:rgba(255,193,7,.15);color:#ffc107}
+#map-type-switch{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:998;display:flex;gap:3px;padding:4px;background:rgba(10,14,26,.92);backdrop-filter:blur(12px);border-radius:10px;border:1px solid rgba(255,255,255,.08)}
+#map-type-switch button{padding:5px 14px;border-radius:7px;border:none;background:transparent;color:#8892a4;font-size:12px;cursor:pointer;transition:all .2s}
+#map-type-switch button.active{background:#4facfe;color:#fff}
+#legend{position:fixed;bottom:22px;right:22px;z-index:998;background:rgba(10,14,26,.92);backdrop-filter:blur(12px);border-radius:10px;padding:14px;min-width:170px;border:1px solid rgba(255,255,255,.08)}
+#legend h4{font-size:11px;color:#5a6478;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px}
+.legend-item{display:flex;align-items:center;gap:7px;margin-bottom:5px;font-size:12px}
+.legend-dot{width:11px;height:11px;border-radius:50%}
+.data-notice{font-size:10px;color:#5a6478;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06);line-height:1.5}
+.dc-marker-container{background:none!important;border:none!important}
+.dc-marker{border-radius:50%;border:2px solid rgba(255,255,255,.85);cursor:pointer;position:relative;transition:transform .2s;box-shadow:0 2px 8px rgba(0,0,0,.45)}
+.dc-marker:hover{transform:scale(1.35);z-index:10!important}
+.dc-marker-label{position:absolute;bottom:-17px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:10px;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.85),0 0 8px rgba(0,0,0,.7);pointer-events:none;font-weight:500}
+.dc-marker.pulse-green::after{content:'';position:absolute;top:-4px;left:-4px;width:calc(100% + 8px);height:calc(100% + 8px);border-radius:50%;border:2px solid #00e676;animation:pulse-g 2s infinite}
+.dc-marker.pulse-orange::after{content:'';position:absolute;top:-4px;left:-4px;width:calc(100% + 8px);height:calc(100% + 8px);border-radius:50%;border:2px solid #ff9100;animation:pulse-o 2s infinite}
+@keyframes pulse-g{0%{transform:scale(1);opacity:.8}100%{transform:scale(1.8);opacity:0}}
+@keyframes pulse-o{0%{transform:scale(1);opacity:.8}100%{transform:scale(1.8);opacity:0}}
+#loading{position:fixed;inset:0;z-index:9999;background:#0a0e1a;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .5s}
+#loading.hide{opacity:0;pointer-events:none}
+.loader{width:44px;height:44px;border:3px solid rgba(255,255,255,.1);border-top-color:#4facfe;border-radius:50%;animation:spin .8s linear infinite}
+#loading p{margin-top:14px;color:#5a6478;font-size:13px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.leaflet-tooltip{background:rgba(10,14,26,.93)!important;border:1px solid rgba(255,255,255,.15)!important;color:#e0e6f0!important;border-radius:8px!important;padding:7px 11px!important;font-size:11px!important;box-shadow:0 4px 16px rgba(0,0,0,.4)!important}
+@media(max-width:768px){
+  #header{height:46px;padding:0 10px}
+  #header h1{font-size:14px}
+  #header .hstats{font-size:10px;gap:8px}
+  #header .hstats span:nth-child(n+4){display:none}
+  #sidebar{top:auto;bottom:0;left:0;right:0;width:100%;height:68vh;border-right:none;border-top:1px solid rgba(255,255,255,.12);border-radius:18px 18px 0 0;transform:translateY(calc(100% - 160px));transition:transform .35s cubic-bezier(.4,0,.2,1);box-shadow:0 -8px 32px rgba(0,0,0,.5);z-index:1000}
+  #sidebar::before{content:'';position:absolute;top:7px;left:50%;transform:translateX(-50%);width:36px;height:3px;border-radius:2px;background:rgba(255,255,255,.3);pointer-events:none;z-index:2}
+  #sidebar.mobile-expanded{transform:translateY(0)}
+  #sidebar-toggle{display:none}
+  .filter-bar{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+  .filter-bar::-webkit-scrollbar{display:none}
+  .filter-btn{flex-shrink:0}
+  #detail-panel{top:auto;bottom:0;right:0;left:0;width:100%;height:83vh;transform:translateY(100%);border-left:none;border-top:1px solid rgba(255,255,255,.12);border-radius:18px 18px 0 0;padding:22px 14px 14px;transition:transform .35s;z-index:1005}
+  #detail-panel.open{transform:translateY(0);right:0}
+  #detail-panel::before{content:'';position:absolute;top:7px;left:50%;transform:translateX(-50%);width:36px;height:3px;border-radius:2px;background:rgba(255,255,255,.3)}
+  #map-type-switch{bottom:14px}
+  #legend{display:none}
+}
+</style>
+</head>
+<body>
+<div id="loading"><div class="loader"></div><p>正在加载精准数据中心数据 (v7.0)...</p></div>
+<div id="header">
+  <h1>🌍 全球数据中心<span>地图</span> <small style="font-size:11px;color:#5a6478;font-weight:400;margin-left:6px">v7.0 · 精准版 · 2026.04</small></h1>
+  <div class="hstats">
+    <span>数据中心 <b id="stat-total">0</b></span>
+    <span>国家/地区 <b id="stat-countries">0</b></span>
+    <span>城市 <b id="stat-cities">0</b></span>
+    <span>运营商 <b id="stat-operators">0</b></span>
+  </div>
+  <div class="data-source">数据来源：AWS/Azure/GCP官网·Synergy Research·IDC圈·工信部·官方披露 | 2026.04更新</div>
+</div>
+<div id="sidebar">
+  <div class="search-box"><input type="text" id="search-input" placeholder="搜索名称、城市、国家、运营商..."/></div>
+  <div class="filter-bar" id="filter-bar">
+    <button class="filter-btn active" data-type="all">全部</button>
+    <button class="filter-btn" data-type="cloud-giant">云厂商</button>
+    <button class="filter-btn" data-type="third-party">第三方IDC</button>
+    <button class="filter-btn" data-type="telecom">运营商</button>
+    <button class="filter-btn" data-type="national-hub">国家枢纽</button>
+    <button class="filter-btn" data-type="ai-computing">智算中心</button>
+    <button class="filter-btn" data-type="gov-enterprise">政企</button>
+  </div>
+  <div class="continent-bar" id="continent-bar">
+    <button class="continent-btn active" data-continent="all">🌐 全部</button>
+    <button class="continent-btn" data-continent="亚洲">亚洲</button>
+    <button class="continent-btn" data-continent="北美洲">北美洲</button>
+    <button class="continent-btn" data-continent="欧洲">欧洲</button>
+    <button class="continent-btn" data-continent="南美洲">南美洲</button>
+    <button class="continent-btn" data-continent="非洲">非洲</button>
+    <button class="continent-btn" data-continent="大洋洲">大洋洲</button>
+  </div>
+  <div class="list-count" id="list-count"><span>共 0 个数据中心</span><span class="export-link" id="export-csv">📥 导出CSV</span></div>
+  <div id="country-filter-bar" class="country-filter-bar">
+    <span class="country-filter-label">筛选: <b id="cf-name"></b></span>
+    <button class="country-filter-clear" onclick="clearCountryFilter()">✕</button>
+  </div>
+  <div id="stats-panel" class="stats-panel">
+    <div class="stats-title">类型分布</div>
+    <div id="type-stats" class="type-stats"></div>
+    <div class="stats-title" style="margin-top:8px">TOP 10 国家/地区</div>
+    <div id="country-stats" class="country-stats"></div>
+  </div>
+  <div id="dc-list"></div>
+</div>
+<button id="sidebar-toggle" onclick="toggleSidebar()">◀</button>
+<div id="detail-panel">
+  <button class="detail-close" onclick="closeDetail()">✕</button>
+  <div id="detail-content"></div>
+</div>
+<div id="map"></div>
+<div id="map-type-switch">
+  <button class="active" onclick="switchMapType('satellite',this)">🛰 卫星</button>
+  <button onclick="switchMapType('standard',this)">🗺 标准</button>
+  <button onclick="switchMapType('dark',this)">🌙 暗色</button>
+</div>
+<div id="legend">
+  <h4>图例</h4>
+  <div class="legend-item"><div class="legend-dot" style="background:#4facfe"></div>云厂商</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#ff6b6b"></div>第三方IDC</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#ffd93d"></div>运营商</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#00e676"></div>国家枢纽</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#ff9100"></div>智算中心</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#b388ff"></div>政企</div>
+  <div class="data-notice">📍 坐标来源：官方披露·维基百科<br>·卫星影像·公开记录<br>🟢 精确 🔵 公开 🟡 估算</div>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script>
+// ========================================================
+// 全球数据中心地图 v7.0 — 精准数据版
+// 数据来源：AWS/Azure/GCP/阿里云/腾讯云/华为云官方文档
+//   + Synergy Research Group (2025 Q3,Q4)
+//   + DC Byte Hyperscale Maps 2025
+//   + IDC圈·工信部2025年通信业统计公报
+//   + Wikipedia坐标·baxtel.com·aidatacenterindex.com
+//   + 官方新闻稿·卫星影像确认
+// 坐标精度标注：official=官方披露, public=公开记录, estimated=估算
+// 更新时间：2026-04-20
+// ========================================================
+const DC = [
+
+// ==================== AWS — 39个大区（截至2026.04）====================
+// 数据来源：https://aws.amazon.com/about-aws/global-infrastructure/regions_az/
+// AZ坐标来源：AWS Geography Information公告 + gist.github.com/atyachin
+{id:'aws-use1',name:'AWS US East (N. Virginia)',op:'Amazon Web Services',type:'cloud-giant',lat:38.994,lng:-77.452,city:'Ashburn',province:'Virginia',country:'美国',continent:'北美洲',scale:'超大规模',pue:'1.20',area:'100万㎡+',servers:'数百万台',features:['全球最大云区域','us-east-1','2006年首发','6 AZ'],acc:'official',status:'运营中',desc:'AWS全球最大、最早的云区域，承载全球大量互联网流量。Data Center Alley核心。',addr:'Ashburn / Sterling, Virginia, USA'},
+{id:'aws-use2',name:'AWS US East (Ohio)',op:'Amazon Web Services',type:'cloud-giant',lat:39.906,lng:-82.776,city:'Columbus',province:'Ohio',country:'美国',continent:'北美洲',scale:'超大规模',pue:'1.20',area:'多园区',servers:'百万台级',features:['us-east-2','2016年','3 AZ'],acc:'official',status:'运营中',desc:'AWS俄亥俄区域。',addr:'Columbus region, Ohio, USA'},
+{id:'aws-usw2',name:'AWS US West (Oregon)',op:'Amazon Web Services',type:'cloud-giant',lat:45.917,lng:-119.268,city:'The Dalles / Boardman',province:'Oregon',country:'美国',continent:'北美洲',scale:'超大规模',pue:'1.12',area:'多园区',servers:'百万台级',features:['us-west-2','水电绿电','4 AZ','AI训练核心'],acc:'official',status:'运营中',desc:'AWS俄勒冈区域，利用哥伦比亚河水电，AI/ML训练核心。',addr:'The Dalles & Boardman, Oregon, USA'},
+{id:'aws-usw1',name:'AWS US West (N. California)',op:'Amazon Web Services',type:'cloud-giant',lat:37.338,lng:-121.886,city:'San Jose',province:'California',country:'美国',continent:'北美洲',scale:'大型',pue:'1.25',area:'多园区',servers:'大型集群',features:['us-west-1','2009年','3 AZ'],acc:'official',status:'运营中',desc:'AWS北加州区域。',addr:'San Jose, CA, USA'},
+{id:'aws-cac1',name:'AWS Canada (Central)',op:'Amazon Web Services',type:'cloud-giant',lat:45.5,lng:-73.6,city:'Montreal',province:'Quebec',country:'加拿大',continent:'北美洲',scale:'超大规模',pue:'1.15',area:'多园区',servers:'大型集群',features:['ca-central-1','2016年','3 AZ','水电绿电'],acc:'official',status:'运营中',desc:'AWS加拿大蒙特利尔区域。',addr:'Montreal region, Quebec, Canada'},
+{id:'aws-caw1',name:'AWS Canada West (Calgary)',op:'Amazon Web Services',type:'cloud-giant',lat:51.048,lng:-114.071,city:'Calgary',province:'Alberta',country:'加拿大',continent:'北美洲',scale:'大型',pue:'1.18',area:'多园区',servers:'大型集群',features:['ca-west-1','2023年','3 AZ'],acc:'official',status:'运营中',desc:'AWS卡尔加里区域。',addr:'Calgary, Alberta, Canada'},
+{id:'aws-mxc1',name:'AWS Mexico (Central)',op:'Amazon Web Services',type:'cloud-giant',lat:20.588,lng:-100.388,city:'Queretaro',province:'Queretaro',country:'墨西哥',continent:'北美洲',scale:'大型',pue:'1.25',area:'多园区',servers:'大型集群',features:['mx-central-1','2025年1月','3 AZ'],acc:'official',status:'运营中',desc:'AWS墨西哥克雷塔罗区域，2025年1月开服。',addr:'Queretaro, Mexico'},
+{id:'aws-sae1',name:'AWS South America (São Paulo)',op:'Amazon Web Services',type:'cloud-giant',lat:-23.493,lng:-46.811,city:'São Paulo',province:'São Paulo',country:'巴西',continent:'南美洲',scale:'超大规模',pue:'1.25',area:'多园区',servers:'大型集群',features:['sa-east-1','2011年','3 AZ'],acc:'official',status:'运营中',desc:'AWS圣保罗区域，南美唯一独立大区。',addr:'São Paulo, Brazil'},
+{id:'aws-euw1',name:'AWS EU West (Ireland)',op:'Amazon Web Services',type:'cloud-giant',lat:53.406,lng:-6.225,city:'Dublin',province:'Leinster',country:'爱尔兰',continent:'欧洲',scale:'超大规模',pue:'1.16',area:'多园区',servers:'百万台级',features:['eu-west-1','2007年AWS欧洲首发','3 AZ'],acc:'official',status:'运营中',desc:'AWS欧洲最早最大区域。',addr:'Dublin region, Ireland'},
+{id:'aws-euw2',name:'AWS EU West (London)',op:'Amazon Web Services',type:'cloud-giant',lat:51.507,lng:-0.127,city:'London',province:'England',country:'英国',continent:'欧洲',scale:'大型',pue:'1.22',area:'多园区',servers:'大型集群',features:['eu-west-2','2016年','3 AZ'],acc:'official',status:'运营中',desc:'AWS伦敦区域。',addr:'London, UK'},
+{id:'aws-euw3',name:'AWS EU West (Paris)',op:'Amazon Web Services',type:'cloud-giant',lat:48.856,lng:2.352,city:'Paris',province:'Île-de-France',country:'法国',continent:'欧洲',scale:'大型',pue:'1.22',area:'多园区',servers:'大型集群',features:['eu-west-3','2017年','3 AZ'],acc:'official',status:'运营中',desc:'AWS巴黎区域。',addr:'Paris, France'},
+{id:'aws-euc1',name:'AWS EU Central (Frankfurt)',op:'Amazon Web Services',type:'cloud-giant',lat:50.099,lng:8.634,city:'Frankfurt',province:'Hessen',country:'德国',continent:'欧洲',scale:'超大规模',pue:'1.20',area:'多园区',servers:'百万台级',features:['eu-central-1','2014年','3 AZ','GDPR合规'],acc:'official',status:'运营中',desc:'AWS法兰克福区域，欧洲大陆核心。',addr:'Frankfurt am Main, Germany'},
+{id:'aws-euc2',name:'AWS EU Central (Zurich)',op:'Amazon Web Services',type:'cloud-giant',lat:47.376,lng:8.548,city:'Zurich',province:'Zurich',country:'瑞士',continent:'欧洲',scale:'大型',pue:'1.18',area:'多园区',servers:'大型集群',features:['eu-central-2','2022年','3 AZ'],acc:'official',status:'运营中',desc:'AWS苏黎世区域。',addr:'Zurich, Switzerland'},
+{id:'aws-eun1',name:'AWS EU North (Stockholm)',op:'Amazon Web Services',type:'cloud-giant',lat:59.326,lng:18.072,city:'Stockholm',province:'Stockholm',country:'瑞典',continent:'欧洲',scale:'大型',pue:'1.10',area:'多园区',servers:'大型集群',features:['eu-north-1','2018年','3 AZ','水电绿电'],acc:'official',status:'运营中',desc:'AWS斯德哥尔摩区域，可再生能源100%。',addr:'Stockholm, Sweden'},
+{id:'aws-eus1',name:'AWS EU South (Milan)',op:'Amazon Web Services',type:'cloud-giant',lat:45.464,lng:9.19,city:'Milan',province:'Lombardy',country:'意大利',continent:'欧洲',scale:'大型',pue:'1.22',area:'多园区',servers:'大型集群',features:['eu-south-1','2020年','3 AZ'],acc:'official',status:'运营中',desc:'AWS米兰区域。',addr:'Milan, Italy'},
+{id:'aws-eus2',name:'AWS EU South (Spain)',op:'Amazon Web Services',type:'cloud-giant',lat:40.416,lng:-3.703,city:'Madrid',province:'Madrid',country:'西班牙',continent:'欧洲',scale:'大型',pue:'1.20',area:'多园区',servers:'大型集群',features:['eu-south-2','2022年','3 AZ'],acc:'official',status:'运营中',desc:'AWS马德里区域。',addr:'Madrid, Spain'},
+{id:'aws-eusc',name:'AWS EU Sovereign Cloud (Germany)',op:'Amazon Web Services',type:'cloud-giant',lat:52.516,lng:13.377,city:'Brandenburg',province:'Brandenburg',country:'德国',continent:'欧洲',scale:'大型',pue:'1.20',area:'多园区',servers:'大型集群',features:['2026年1月开服','EU主权云','GDPR隔离'],acc:'official',status:'运营中',desc:'AWS欧洲主权云，2026年1月15日开服，满足EU Data Act要求。',addr:'Brandenburg an der Havel, Germany'},
+{id:'aws-afs1',name:'AWS Africa (Cape Town)',op:'Amazon Web Services',type:'cloud-giant',lat:-33.915,lng:18.376,city:'Cape Town',province:'Western Cape',country:'南非',continent:'非洲',scale:'大型',pue:'1.25',area:'多园区',servers:'大型集群',features:['af-south-1','2020年','3 AZ','非洲首个'],acc:'official',status:'运营中',desc:'AWS开普敦区域，非洲大陆首个AWS区域。',addr:'Cape Town, South Africa'},
+{id:'aws-mes1',name:'AWS Middle East (Bahrain)',op:'Amazon Web Services',type:'cloud-giant',lat:25.941,lng:50.307,city:'Manama',province:'Capital',country:'巴林',continent:'亚洲',scale:'大型',pue:'1.30',area:'多园区',servers:'大型集群',features:['me-south-1','2019年','3 AZ'],acc:'official',status:'运营中',desc:'AWS巴林区域，中东首个AWS区域。',addr:'Manama, Bahrain'},
+{id:'aws-meu1',name:'AWS Middle East (UAE)',op:'Amazon Web Services',type:'cloud-giant',lat:25.204,lng:55.27,city:'Dubai',province:'Dubai',country:'阿联酋',continent:'亚洲',scale:'大型',pue:'1.30',area:'多园区',servers:'大型集群',features:['me-central-1','2022年','3 AZ'],acc:'official',status:'运营中',desc:'AWS迪拜区域。',addr:'Dubai, UAE'},
+{id:'aws-ape1',name:'AWS AP (Hong Kong)',op:'Amazon Web Services',type:'cloud-giant',lat:22.291,lng:114.272,city:'Hong Kong',province:'Hong Kong',country:'中国香港',continent:'亚洲',scale:'大型',pue:'1.30',area:'多园区',servers:'大型集群',features:['ap-east-1','2019年','3 AZ'],acc:'official',status:'运营中',desc:'AWS香港区域。',addr:'Hong Kong'},
+{id:'aws-ape2',name:'AWS AP (Taipei)',op:'Amazon Web Services',type:'cloud-giant',lat:25.033,lng:121.565,city:'Taipei',province:'Taiwan',country:'中国台湾',continent:'亚洲',scale:'大型',pue:'1.22',area:'多园区',servers:'大型集群',features:['ap-east-2','2025年','3 AZ'],acc:'official',status:'运营中',desc:'AWS台北区域，2025年开服。',addr:'Taipei, Taiwan'},
+{id:'aws-apne1',name:'AWS AP Northeast (Tokyo)',op:'Amazon Web Services',type:'cloud-giant',lat:35.617,lng:139.746,city:'Tokyo',province:'Tokyo',country:'日本',continent:'亚洲',scale:'超大规模',pue:'1.20',area:'多园区',servers:'大型集群',features:['ap-northeast-1','2011年','4 AZ'],acc:'official',status:'运营中',desc:'AWS东京区域，日本核心。',addr:'Tokyo, Japan'},
+{id:'aws-apne3',name:'AWS AP Northeast (Osaka)',op:'Amazon Web Services',type:'cloud-giant',lat:34.693,lng:135.502,city:'Osaka',province:'Osaka',country:'日本',continent:'亚洲',scale:'大型',pue:'1.20',area:'多园区',servers:'大型集群',features:['ap-northeast-3','2021年','3 AZ'],acc:'official',status:'运营中',desc:'AWS大阪区域。',addr:'Osaka, Japan'},
+{id:'aws-apne2',name:'AWS AP Northeast (Seoul)',op:'Amazon Web Services',type:'cloud-giant',lat:37.562,lng:126.874,city:'Seoul',province:'Seoul',country:'韩国',continent:'亚洲',scale:'超大规模',pue:'1.22',area:'多园区',servers:'大型集群',features:['ap-northeast-2','2016年','4 AZ'],acc:'official',status:'运营中',desc:'AWS首尔区域。',addr:'Seoul, South Korea'},
+{id:'aws-aps1',name:'AWS AP South (Mumbai)',op:'Amazon Web Services',type:'cloud-giant',lat:19.242,lng:72.967,city:'Mumbai',province:'Maharashtra',country:'印度',continent:'亚洲',scale:'超大规模',pue:'1.30',area:'多园区',servers:'大型集群',features:['ap-south-1','2016年','3 AZ'],acc:'official',status:'运营中',desc:'AWS孟买区域，印度核心。',addr:'Mumbai, India'},
+{id:'aws-aps2',name:'AWS AP South (Hyderabad)',op:'Amazon Web Services',type:'cloud-giant',lat:17.385,lng:78.487,city:'Hyderabad',province:'Telangana',country:'印度',continent:'亚洲',scale:'大型',pue:'1.28',area:'多园区',servers:'大型集群',features:['ap-south-2','2022年','3 AZ'],acc:'official',status:'运营中',desc:'AWS海得拉巴区域。',addr:'Hyderabad, India'},
+{id:'aws-apse1',name:'AWS AP Southeast (Singapore)',op:'Amazon Web Services',type:'cloud-giant',lat:1.322,lng:103.694,city:'Singapore',province:'Singapore',country:'新加坡',continent:'亚洲',scale:'超大规模',pue:'1.30',area:'多园区',servers:'大型集群',features:['ap-southeast-1','2010年','3 AZ'],acc:'official',status:'运营中',desc:'AWS新加坡区域，东南亚最早区域。',addr:'Singapore'},
+{id:'aws-apse2',name:'AWS AP Southeast (Sydney)',op:'Amazon Web Services',type:'cloud-giant',lat:-33.912,lng:151.191,city:'Sydney',province:'NSW',country:'澳大利亚',continent:'大洋洲',scale:'超大规模',pue:'1.20',area:'多园区',servers:'大型集群',features:['ap-southeast-2','2012年','3 AZ'],acc:'official',status:'运营中',desc:'AWS悉尼区域，澳洲核心。',addr:'Sydney, NSW, Australia'},
+{id:'aws-apse4',name:'AWS AP Southeast (Melbourne)',op:'Amazon Web Services',type:'cloud-giant',lat:-37.814,lng:144.963,city:'Melbourne',province:'Victoria',country:'澳大利亚',continent:'大洋洲',scale:'大型',pue:'1.20',area:'多园区',servers:'大型集群',features:['ap-southeast-4','2023年','3 AZ'],acc:'official',status:'运营中',desc:'AWS墨尔本区域。',addr:'Melbourne, Victoria, Australia'},
+{id:'aws-apse3',name:'AWS AP Southeast (Jakarta)',op:'Amazon Web Services',type:'cloud-giant',lat:-6.214,lng:106.845,city:'Jakarta',province:'Jakarta',country:'印度尼西亚',continent:'亚洲',scale:'大型',pue:'1.30',area:'多园区',servers:'大型集群',features:['ap-southeast-3','2021年','3 AZ'],acc:'official',status:'运营中',desc:'AWS雅加达区域。',addr:'Jakarta, Indonesia'},
+{id:'aws-apse5',name:'AWS AP Southeast (Malaysia)',op:'Amazon Web Services',type:'cloud-giant',lat:3.148,lng:101.686,city:'Kuala Lumpur',province:'Kuala Lumpur',country:'马来西亚',continent:'亚洲',scale:'大型',pue:'1.28',area:'多园区',servers:'大型集群',features:['ap-southeast-5','2024年','3 AZ'],acc:'official',status:'运营中',desc:'AWS马来西亚吉隆坡区域，2024年开服。',addr:'Kuala Lumpur, Malaysia'},
+{id:'aws-apse6',name:'AWS AP Southeast (New Zealand)',op:'Amazon Web Services',type:'cloud-giant',lat:-36.85,lng:174.763,city:'Auckland',province:'Auckland',country:'新西兰',continent:'大洋洲',scale:'大型',pue:'1.20',area:'多园区',servers:'大型集群',features:['ap-southeast-6','2025年','3 AZ'],acc:'official',status:'运营中',desc:'AWS新西兰奥克兰区域，2025年开服。',addr:'Auckland, New Zealand'},
+{id:'aws-apse7',name:'AWS AP Southeast (Thailand)',op:'Amazon Web Services',type:'cloud-giant',lat:13.756,lng:100.502,city:'Bangkok',province:'Bangkok',country:'泰国',continent:'亚洲',scale:'大型',pue:'1.28',area:'多园区',servers:'大型集群',features:['ap-southeast-7','2025年1月','3 AZ','美系云商泰国首发'],acc:'official',status:'运营中',desc:'AWS曼谷区域，2025年1月开服，美系超大规模云商在泰国首发。',addr:'Bangkok, Thailand'},
+{id:'aws-cnn1',name:'AWS China (Beijing)',op:'光环新网/Amazon Web Services',type:'cloud-giant',lat:39.809,lng:116.578,city:'北京',province:'北京',country:'中国',continent:'亚洲',scale:'大型',pue:'1.30',area:'约5万㎡',servers:'大型集群',features:['cn-north-1','光环新网运营','等保合规','3 AZ'],acc:'official',status:'运营中',desc:'AWS中国北京区域，由光环新网运营，独立于全球账号体系。',addr:'北京市昌平区 (光环新网)'},
+{id:'aws-cnnw1',name:'AWS China (Ningxia)',op:'西云数据/Amazon Web Services',type:'cloud-giant',lat:37.502,lng:106.226,city:'中卫',province:'宁夏',country:'中国',continent:'亚洲',scale:'大型',pue:'1.22',area:'约5万㎡',servers:'大型集群',features:['cn-northwest-1','西云数据运营','清洁能源','3 AZ'],acc:'official',status:'运营中',desc:'AWS中国宁夏区域，由西云数据运营，东数西算中卫集群节点。',addr:'宁夏回族自治区中卫市'},
+
+// AWS — 在建/即将开服
+{id:'aws-mesa1',name:'AWS Middle East (Saudi Arabia)',op:'Amazon Web Services',type:'cloud-giant',lat:24.688,lng:46.722,city:'Riyadh',province:'Riyadh',country:'沙特阿拉伯',continent:'亚洲',scale:'大型',pue:'1.30',area:'多园区',servers:'大型集群',features:['53亿美元投资','2026年开服'],acc:'public',status:'建设中',desc:'AWS沙特阿拉伯利雅得区域，承诺53亿美元投资，2026年开服。',addr:'Riyadh, Saudi Arabia'},
+{id:'aws-sa-chile',name:'AWS South America (Chile)',op:'Amazon Web Services',type:'cloud-giant',lat:-33.459,lng:-70.648,city:'Santiago',province:'Santiago',country:'智利',continent:'南美洲',scale:'大型',pue:'1.20',area:'多园区',servers:'大型集群',features:['40亿美元投资','2026年底开服'],acc:'public',status:'建设中',desc:'AWS智利圣地亚哥区域，承诺40亿美元投资，预计2026年底开服。',addr:'Santiago, Chile'},
+
+// AWS — Project Rainier (最大AI超级集群)
+{id:'aws-rainier',name:'AWS Project Rainier (Indiana AI Campus)',op:'Amazon Web Services / Anthropic',type:'ai-computing',lat:41.541,lng:-86.259,city:'New Carlisle',province:'Indiana',country:'美国',continent:'北美洲',scale:'超大规模',pue:'1.18',area:'486万㎡(1200英亩)',servers:'AI计算集群',features:['2.2GW容量','$110亿','2025年10月投产','全球最大AI集群之一','30栋数据中心'],acc:'public',status:'运营中',desc:'AWS与Anthropic合作的Project Rainier，全球最大AI超级集群之一，2025年10月正式投产。',addr:'New Carlisle, St. Joseph County, Indiana, USA'},
+
+// ==================== Azure — 70+区域 ====================
+// 数据来源：azure.microsoft.com/en-us/global-infrastructure/geographies/
+{id:'az-use',name:'Azure East US (Virginia)',op:'Microsoft',type:'cloud-giant',lat:36.668,lng:-78.388,city:'Boydton',province:'Virginia',country:'美国',continent:'北美洲',scale:'超大规模',pue:'1.20',area:'多园区',servers:'百万台级',features:['Azure East US核心','Virginia超大规模园区'],acc:'official',status:'运营中',desc:'Microsoft Azure弗吉尼亚超大规模数据中心。',addr:'Boydton, Virginia, USA'},
+{id:'az-use2',name:'Azure East US 2 (Virginia)',op:'Microsoft',type:'cloud-giant',lat:36.6681,lng:-78.3889,city:'Boydton',province:'Virginia',country:'美国',continent:'北美洲',scale:'超大规模',pue:'1.20',area:'多园区',servers:'百万台级',features:['Azure East US 2'],acc:'official',status:'运营中',desc:'Microsoft Azure东美国2区域。',addr:'Virginia, USA'},
+{id:'az-usw2',name:'Azure West US 2 (Washington)',op:'Microsoft',type:'cloud-giant',lat:47.234,lng:-119.852,city:'Quincy',province:'Washington',country:'美国',continent:'北美洲',scale:'超大规模',pue:'1.12',area:'多园区',servers:'百万台级',features:['Quincy超大规模园区','水电直供'],acc:'official',status:'运营中',desc:'Microsoft Quincy超大规模数据中心，622MW容量，Azure West US 2核心。',addr:'Quincy, Washington, USA'},
+{id:'az-ussc',name:'Azure South Central US (Texas)',op:'Microsoft',type:'cloud-giant',lat:29.461,lng:-98.514,city:'San Antonio',province:'Texas',country:'美国',continent:'北美洲',scale:'超大规模',pue:'1.20',area:'多园区',servers:'大型集群',features:['Azure South Central US'],acc:'official',status:'运营中',desc:'Azure德克萨斯圣安东尼奥区域。',addr:'San Antonio, Texas, USA'},
+{id:'az-usnc',name:'Azure North Central US (Illinois)',op:'Microsoft',type:'cloud-giant',lat:41.897,lng:-87.636,city:'Chicago',province:'Illinois',country:'美国',continent:'北美洲',scale:'大型',pue:'1.22',area:'多园区',servers:'大型集群',features:['Azure North Central US'],acc:'official',status:'运营中',desc:'Azure芝加哥区域。',addr:'Chicago, Illinois, USA'},
+{id:'az-usw',name:'Azure West US (California)',op:'Microsoft',type:'cloud-giant',lat:37.783,lng:-122.417,city:'San Francisco',province:'California',country:'美国',continent:'北美洲',scale:'大型',pue:'1.25',area:'多园区',servers:'大型集群',features:['Azure West US'],acc:'official',status:'运营中',desc:'Azure北加州区域。',addr:'San Francisco Bay Area, CA, USA'},
+{id:'az-cac',name:'Azure Canada Central (Toronto)',op:'Microsoft',type:'cloud-giant',lat:43.653,lng:-79.383,city:'Toronto',province:'Ontario',country:'加拿大',continent:'北美洲',scale:'大型',pue:'1.18',area:'多园区',servers:'大型集群',features:['Azure加拿大核心'],acc:'official',status:'运营中',desc:'Azure多伦多区域。',addr:'Toronto, Ontario, Canada'},
+{id:'az-eun',name:'Azure North Europe (Dublin)',op:'Microsoft',type:'cloud-giant',lat:53.349,lng:-6.26,city:'Dublin',province:'Leinster',country:'爱尔兰',continent:'欧洲',scale:'超大规模',pue:'1.20',area:'多园区',servers:'百万台级',features:['Azure North Europe核心'],acc:'official',status:'运营中',desc:'Microsoft Azure北欧核心区域。',addr:'Dublin, Ireland'},
+{id:'az-euw',name:'Azure West Europe (Amsterdam)',op:'Microsoft',type:'cloud-giant',lat:52.29,lng:4.93,city:'Amsterdam',province:'North Holland',country:'荷兰',continent:'欧洲',scale:'超大规模',pue:'1.18',area:'多园区',servers:'百万台级',features:['Azure West Europe核心'],acc:'official',status:'运营中',desc:'Microsoft Azure西欧核心区域。',addr:'Amsterdam, Netherlands'},
+{id:'az-eufc',name:'Azure France Central (Paris)',op:'Microsoft',type:'cloud-giant',lat:48.856,lng:2.352,city:'Paris',province:'Île-de-France',country:'法国',continent:'欧洲',scale:'大型',pue:'1.22',area:'多园区',servers:'大型集群',features:['Azure France核心'],acc:'official',status:'运营中',desc:'Azure巴黎区域。',addr:'Paris, France'},
+{id:'az-eugw',name:'Azure Germany West Central (Frankfurt)',op:'Microsoft',type:'cloud-giant',lat:50.11,lng:8.68,city:'Frankfurt',province:'Hessen',country:'德国',continent:'欧洲',scale:'超大规模',pue:'1.20',area:'多园区',servers:'百万台级',features:['Azure Germany核心'],acc:'official',status:'运营中',desc:'Azure法兰克福区域。',addr:'Frankfurt, Germany'},
+{id:'az-euswiss',name:'Azure Switzerland North (Zurich)',op:'Microsoft',type:'cloud-giant',lat:47.376,lng:8.548,city:'Zurich',province:'Zurich',country:'瑞士',continent:'欧洲',scale:'大型',pue:'1.18',area:'多园区',servers:'大型集群',features:['Azure瑞士核心'],acc:'official',status:'运营中',desc:'Azure苏黎世区域。',addr:'Zurich, Switzerland'},
+{id:'az-euuk',name:'Azure UK South (London)',op:'Microsoft',type:'cloud-giant',lat:51.508,lng:-0.076,city:'London',province:'England',country:'英国',continent:'欧洲',scale:'超大规模',pue:'1.22',area:'多园区',servers:'百万台级',features:['Azure UK核心'],acc:'official',status:'运营中',desc:'Azure伦敦区域。',addr:'London, UK'},
+{id:'az-euno',name:'Azure Norway East (Oslo)',op:'Microsoft',type:'cloud-giant',lat:59.913,lng:10.752,city:'Oslo',province:'Oslo',country:'挪威',continent:'欧洲',scale:'大型',pue:'1.10',area:'多园区',servers:'大型集群',features:['Azure挪威核心'],acc:'official',status:'运营中',desc:'Azure奥斯陆区域，水电直供。',addr:'Oslo, Norway'},
+{id:'az-euse',name:'Azure Sweden Central (Gävle)',op:'Microsoft',type:'cloud-giant',lat:60.675,lng:17.145,city:'Gävle',province:'Gävleborg',country:'瑞典',continent:'欧洲',scale:'大型',pue:'1.10',area:'多园区',servers:'大型集群',features:['Azure瑞典核心','100%可再生'],acc:'official',status:'运营中',desc:'Azure瑞典Gävle区域。',addr:'Gävle, Sweden'},
+{id:'az-eupol',name:'Azure Poland Central (Warsaw)',op:'Microsoft',type:'cloud-giant',lat:52.229,lng:21.012,city:'Warsaw',province:'Masovian',country:'波兰',continent:'欧洲',scale:'大型',pue:'1.22',area:'多园区',servers:'大型集群',features:['Azure波兰核心'],acc:'official',status:'运营中',desc:'Azure华沙区域。',addr:'Warsaw, Poland'},
+{id:'az-euitaly',name:'Azure Italy North (Milan)',op:'Microsoft',type:'cloud-giant',lat:45.464,lng:9.19,city:'Milan',province:'Lombardy',country:'意大利',continent:'欧洲',scale:'大型',pue:'1.22',area:'多园区',servers:'大型集群',features:['Azure意大利核心'],acc:'official',status:'运营中',desc:'Azure米兰区域。',addr:'Milan, Italy'},
+{id:'az-euspain',name:'Azure Spain Central (Madrid)',op:'Microsoft',type:'cloud-giant',lat:40.416,lng:-3.703,city:'Madrid',province:'Madrid',country:'西班牙',continent:'欧洲',scale:'大型',pue:'1.20',area:'多园区',servers:'大型集群',features:['Azure西班牙核心'],acc:'official',status:'运营中',desc:'Azure马德里区域。',addr:'Madrid, Spain'},
+{id:'az-apea',name:'Azure East Asia (Hong Kong)',op:'Microsoft',type:'cloud-giant',lat:22.383,lng:114.195,city:'Hong Kong',province:'Hong Kong',country:'中国香港',continent:'亚洲',scale:'大型',pue:'1.30',area:'多园区',servers:'大型集群',features:['Azure East Asia'],acc:'official',status:'运营中',desc:'Azure香港区域。',addr:'Hong Kong'},
+{id:'az-apse',name:'Azure Southeast Asia (Singapore)',op:'Microsoft',type:'cloud-giant',lat:1.356,lng:103.821,city:'Singapore',province:'Singapore',country:'新加坡',continent:'亚洲',scale:'超大规模',pue:'1.30',area:'多园区',servers:'百万台级',features:['Azure Southeast Asia核心'],acc:'official',status:'运营中',desc:'Azure新加坡区域。',addr:'Singapore'},
+{id:'az-apje',name:'Azure Japan East (Tokyo)',op:'Microsoft',type:'cloud-giant',lat:35.672,lng:139.636,city:'Tokyo',province:'Tokyo',country:'日本',continent:'亚洲',scale:'超大规模',pue:'1.25',area:'多园区',servers:'大型集群',features:['Azure日本核心'],acc:'official',status:'运营中',desc:'Azure东京区域。',addr:'Saitama/Tokyo, Japan'},
+{id:'az-apko',name:'Azure Korea Central (Seoul)',op:'Microsoft',type:'cloud-giant',lat:37.563,lng:126.983,city:'Seoul',province:'Seoul',country:'韩国',continent:'亚洲',scale:'大型',pue:'1.22',area:'多园区',servers:'大型集群',features:['Azure韩国核心'],acc:'official',status:'运营中',desc:'Azure首尔区域。',addr:'Seoul, South Korea'},
+{id:'az-apindia',name:'Azure Central India (Pune)',op:'Microsoft',type:'cloud-giant',lat:18.524,lng:73.851,city:'Pune',province:'Maharashtra',country:'印度',continent:'亚洲',scale:'大型',pue:'1.28',area:'多园区',servers:'大型集群',features:['Azure印度核心'],acc:'official',status:'运营中',desc:'Azure浦那区域。',addr:'Pune, Maharashtra, India'},
+{id:'az-apau',name:'Azure Australia East (Sydney)',op:'Microsoft',type:'cloud-giant',lat:-33.862,lng:151.21,city:'Sydney',province:'NSW',country:'澳大利亚',continent:'大洋洲',scale:'大型',pue:'1.25',area:'多园区',servers:'大型集群',features:['Azure澳洲核心'],acc:'official',status:'运营中',desc:'Azure悉尼区域。',addr:'Sydney, NSW, Australia'},
+{id:'az-appuae',name:'Azure UAE North (Dubai)',op:'Microsoft',type:'cloud-giant',lat:25.204,lng:55.27,city:'Dubai',province:'Dubai',country:'阿联酋',continent:'亚洲',scale:'大型',pue:'1.30',area:'多园区',servers:'大型集群',features:['Azure中东核心'],acc:'official',status:'运营中',desc:'Azure迪拜区域。',addr:'Dubai, UAE'},
+{id:'az-apqatar',name:'Azure Qatar Central (Doha)',op:'Microsoft',type:'cloud-giant',lat:25.286,lng:51.533,city:'Doha',province:'Ad Dawhah',country:'卡塔尔',continent:'亚洲',scale:'大型',pue:'1.30',area:'多园区',servers:'大型集群',features:['Azure卡塔尔核心'],acc:'official',status:'运营中',desc:'Azure多哈区域。',addr:'Doha, Qatar'},
+{id:'az-apindo',name:'Azure Indonesia Central (Jakarta)',op:'Microsoft',type:'cloud-giant',lat:-6.214,lng:106.845,city:'Jakarta',province:'Jakarta',country:'印度尼西亚',continent:'亚洲',scale:'大型',pue:'1.30',area:'多园区',servers:'大型集群',features:['Azure印尼核心','2025年开服'],acc:'official',status:'运营中',desc:'Azure雅加达区域，2025年开服。',addr:'Jakarta, Indonesia'},
+{id:'az-afsa',name:'Azure South Africa North (Johannesburg)',op:'Microsoft',type:'cloud-giant',lat:-26.19,lng:28.03,city:'Johannesburg',province:'Gauteng',country:'南非',continent:'非洲',scale:'大型',pue:'1.28',area:'多园区',servers:'大型集群',features:['Azure南非核心'],acc:'official',status:'运营中',desc:'Azure约翰内斯堡区域，非洲核心节点。',addr:'Johannesburg, South Africa'},
+{id:'az-cnbj',name:'Azure China North (Beijing)',op:'世纪互联/Microsoft',type:'cloud-giant',lat:39.928,lng:116.387,city:'北京',province:'北京',country:'中国',continent:'亚洲',scale:'大型',pue:'1.28',area:'约5万㎡',servers:'大型集群',features:['中国区','世纪互联运营'],acc:'official',status:'运营中',desc:'Azure中国北部，世纪互联运营。',addr:'北京市西城区'},
+{id:'az-cnsh',name:'Azure China East (Shanghai)',op:'世纪互联/Microsoft',type:'cloud-giant',lat:31.233,lng:121.497,city:'上海',province:'上海',country:'中国',continent:'亚洲',scale:'大型',pue:'1.28',area:'约5万㎡',servers:'大型集群',features:['中国区','世纪互联运营'],acc:'official',status:'运营中',desc:'Azure中国东部，世纪互联运营。',addr:'上海市浦东新区'},
+// Azure Fairwater AI Campus
+{id:'az-fairwater-wi',name:'Azure Fairwater AI Campus (Wisconsin)',op:'Microsoft',type:'ai-computing',lat:42.72,lng:-87.82,city:'Mount Pleasant',province:'Wisconsin',country:'美国',continent:'北美洲',scale:'超大规模',pue:'1.08',area:'162万㎡',servers:'百万AI芯片',features:['2GW容量','$73亿','液冷100%','零用水','Azure Maia 100','2026年初全面投产'],acc:'public',status:'建设中',desc:'Microsoft Fairwater AI园区威斯康星站点，全密闭液冷，完全无运营用水，2026年初全面投产。',addr:'Mount Pleasant, Racine County, Wisconsin, USA'},
+{id:'az-fairwater-ga',name:'Azure Fairwater AI Campus (Georgia)',op:'Microsoft',type:'ai-computing',lat:33.749,lng:-84.388,city:'Atlanta',province:'Georgia',country:'美国',continent:'北美洲',scale:'超大规模',pue:'1.10',area:'约100万㎡',servers:'百万AI芯片',features:['Fairwater Georgia','2025年10月投产','液冷为主'],acc:'public',status:'运营中',desc:'Microsoft Fairwater AI园区亚特兰大站点，2025年10月投产。',addr:'Atlanta metropolitan area, Georgia, USA'},
+
+// ==================== Google Cloud — 43个区域 ====================
+// 数据来源：cloud.google.com/about/locations (2026-04-10)
+{id:'gcp-usc1',name:'Google Cloud Iowa (us-central1)',op:'Google',type:'cloud-giant',lat:41.228,lng:-95.852,city:'Council Bluffs',province:'Iowa',country:'美国',continent:'北美洲',scale:'超大规模',pue:'1.10',area:'超15万㎡',servers:'大型集群',features:['us-central1','Low CO2','风电直供','4 zones'],acc:'official',status:'运营中',desc:'Google爱荷华超大规模数据中心，100%可再生能源。',addr:'Council Bluffs, Iowa, USA'},
+{id:'gcp-usw1',name:'Google Cloud Oregon (us-west1)',op:'Google',type:'cloud-giant',lat:45.632,lng:-121.2,city:'The Dalles',province:'Oregon',country:'美国',continent:'北美洲',scale:'超大规模',pue:'1.10',area:'超10万㎡',servers:'大型集群',features:['us-west1','Low CO2','水电冷却','4 zones'],acc:'official',status:'运营中',desc:'Google俄勒冈The Dalles数据中心，2006年建立，利用哥伦比亚河水冷却。',addr:'The Dalles, Oregon, USA'},
+{id:'gcp-usw2',name:'Google Cloud Los Angeles (us-west2)',op:'Google',type:'cloud-giant',lat:33.979,lng:-118.169,city:'Los Angeles',province:'California',country:'美国',continent:'北美洲',scale:'大型',pue:'1.18',area:'多园区',servers:'大型集群',features:['us-west2','4 zones'],acc:'official',status:'运营中',desc:'Google洛杉矶区域。',addr:'Los Angeles, CA, USA'},
+{id:'gcp-usw4',name:'Google Cloud Las Vegas (us-west4)',op:'Google',type:'cloud-giant',lat:36.175,lng:-115.136,city:'Las Vegas',province:'Nevada',country:'美国',continent:'北美洲',scale:'大型',pue:'1.18',area:'多园区',servers:'大型集群',features:['us-west4','4 zones'],acc:'official',status:'运营中',desc:'Google拉斯维加斯区域。',addr:'Las Vegas, Nevada, USA'},
+{id:'gcp-use1',name:'Google Cloud South Carolina (us-east1)',op:'Google',type:'cloud-giant',lat:33.196,lng:-80.012,city:'Moncks Corner',province:'South Carolina',country:'美国',continent:'北美洲',scale:'超大规模',pue:'1.11',area:'超10万㎡',servers:'大型集群',features:['us-east1','100%可再生','4 zones'],acc:'official',status:'运营中',desc:'Google南卡罗来纳州数据中心，Moncks Corner。',addr:'Moncks Corner, SC, USA'},
+{id:'gcp-use4',name:'Google Cloud N. Virginia (us-east4)',op:'Google',type:'cloud-giant',lat:38.994,lng:-77.452,city:'Ashburn',province:'Virginia',country:'美国',continent:'北美洲',scale:'超大规模',pue:'1.15',area:'多园区',servers:'大型集群',features:['us-east4','3 zones'],acc:'official',status:'运营中',desc:'Google北弗吉尼亚区域。',addr:'Ashburn, Virginia, USA'},
+{id:'gcp-nam1',name:'Google Cloud Montreal (northamerica-northeast1)',op:'Google',type:'cloud-giant',lat:45.5,lng:-73.57,city:'Montreal',province:'Quebec',country:'加拿大',continent:'北美洲',scale:'大型',pue:'1.10',area:'多园区',servers:'大型集群',features:['northamerica-northeast1','Low CO2','3 zones'],acc:'official',status:'运营中',desc:'Google蒙特利尔区域。',addr:'Montreal, Quebec, Canada'},
+{id:'gcp-sae1',name:'Google Cloud São Paulo (southamerica-east1)',op:'Google',type:'cloud-giant',lat:-23.55,lng:-46.63,city:'São Paulo',province:'São Paulo',country:'巴西',continent:'南美洲',scale:'大型',pue:'1.25',area:'多园区',servers:'大型集群',features:['southamerica-east1','Low CO2','3 zones'],acc:'official',status:'运营中',desc:'Google圣保罗区域。',addr:'São Paulo, Brazil'},
+{id:'gcp-saw1',name:'Google Cloud Santiago (southamerica-west1)',op:'Google',type:'cloud-giant',lat:-33.459,lng:-70.648,city:'Santiago',province:'Santiago',country:'智利',continent:'南美洲',scale:'大型',pue:'1.18',area:'多园区',servers:'大型集群',features:['southamerica-west1','Low CO2','3 zones'],acc:'official',status:'运营中',desc:'Google圣地亚哥区域。',addr:'Santiago, Chile'},
+{id:'gcp-mex',name:'Google Cloud Mexico (northamerica-south1)',op:'Google',type:'cloud-giant',lat:19.433,lng:-99.133,city:'Mexico City',province:'Mexico City',country:'墨西哥',continent:'北美洲',scale:'大型',pue:'1.25',area:'多园区',servers:'大型集群',features:['northamerica-south1','2025年','3 zones'],acc:'official',status:'运营中',desc:'Google墨西哥城区域，2025年开服。',addr:'Mexico City, Mexico'},
+{id:'gcp-euw1',name:'Google Cloud Belgium (europe-west1)',op:'Google',type:'cloud-giant',lat:50.75,lng:3.44,city:'St. Ghislain',province:'Hainaut',country:'比利时',continent:'欧洲',scale:'超大规模',pue:'1.09',area:'超10万㎡',servers:'大型集群',features:['europe-west1','4 zones','风电直供'],acc:'official',status:'运营中',desc:'Google比利时数据中心。',addr:'St. Ghislain, Belgium'},
+{id:'gcp-euw2',name:'Google Cloud London (europe-west2)',op:'Google',type:'cloud-giant',lat:51.507,lng:-0.127,city:'London',province:'England',country:'英国',continent:'欧洲',scale:'大型',pue:'1.20',area:'多园区',servers:'大型集群',features:['europe-west2','3 zones'],acc:'official',status:'运营中',desc:'Google伦敦区域。',addr:'London, UK'},
+{id:'gcp-euw3',name:'Google Cloud Frankfurt (europe-west3)',op:'Google',type:'cloud-giant',lat:50.115,lng:8.672,city:'Frankfurt',province:'Hessen',country:'德国',continent:'欧洲',scale:'超大规模',pue:'1.15',area:'多园区',servers:'大型集群',features:['europe-west3','3 zones'],acc:'official',status:'运营中',desc:'Google法兰克福区域。',addr:'Frankfurt, Germany'},
+{id:'gcp-euw4',name:'Google Cloud Netherlands (europe-west4)',op:'Google',type:'cloud-giant',lat:53.437,lng:6.833,city:'Eemshaven',province:'Groningen',country:'荷兰',continent:'欧洲',scale:'超大规模',pue:'1.12',area:'超10万㎡',servers:'大型集群',features:['europe-west4','4 zones','风电直供'],acc:'official',status:'运营中',desc:'Google荷兰Eemshaven数据中心，风电直供。',addr:'Eemshaven, Netherlands'},
+{id:'gcp-eun1',name:'Google Cloud Finland (europe-north1)',op:'Google',type:'cloud-giant',lat:60.558,lng:27.168,city:'Hamina',province:'Kymenlaakso',country:'芬兰',continent:'欧洲',scale:'超大规模',pue:'1.10',area:'超10万㎡',servers:'大型集群',features:['europe-north1','海水冷却','3 zones','碳中和'],acc:'official',status:'运营中',desc:'Google芬兰Hamina数据中心，波罗的海海水冷却，PUE极低。',addr:'Hamina, Finland'},
+{id:'gcp-euz1',name:'Google Cloud Zurich (europe-west6)',op:'Google',type:'cloud-giant',lat:47.376,lng:8.548,city:'Zurich',province:'Zurich',country:'瑞士',continent:'欧洲',scale:'大型',pue:'1.12',area:'多园区',servers:'大型集群',features:['europe-west6','3 zones'],acc:'official',status:'运营中',desc:'Google苏黎世区域。',addr:'Zurich, Switzerland'},
+{id:'gcp-eus',name:'Google Cloud Stockholm (europe-north2)',op:'Google',type:'cloud-giant',lat:59.326,lng:18.072,city:'Stockholm',province:'Stockholm',country:'瑞典',continent:'欧洲',scale:'大型',pue:'1.08',area:'多园区',servers:'大型集群',features:['europe-north2','2025年开服','水电直供'],acc:'official',status:'运营中',desc:'Google斯德哥尔摩区域，2025年开服。',addr:'Stockholm, Sweden'},
+{id:'gcp-apis',name:'Google Cloud Singapore (asia-southeast1)',op:'Google',type:'cloud-giant',lat:1.315,lng:103.743,city:'Jurong West',province:'Singapore',country:'新加坡',continent:'亚洲',scale:'超大规模',pue:'1.25',area:'多园区',servers:'大型集群',features:['asia-southeast1','3 zones'],acc:'official',status:'运营中',desc:'Google新加坡数据中心。',addr:'Jurong West, Singapore'},
+{id:'gcp-apjp',name:'Google Cloud Tokyo (asia-northeast1)',op:'Google',type:'cloud-giant',lat:35.689,lng:139.692,city:'Tokyo',province:'Tokyo',country:'日本',continent:'亚洲',scale:'超大规模',pue:'1.15',area:'多园区',servers:'大型集群',features:['asia-northeast1','4 zones'],acc:'official',status:'运营中',desc:'Google东京区域。',addr:'Tokyo, Japan'},
+{id:'gcp-aptw',name:'Google Cloud Taiwan (asia-east1)',op:'Google',type:'cloud-giant',lat:24.07,lng:120.54,city:'Changhua',province:'Taiwan',country:'中国台湾',continent:'亚洲',scale:'超大规模',pue:'1.12',area:'超10万㎡',servers:'大型集群',features:['asia-east1','太阳能','3 zones'],acc:'official',status:'运营中',desc:'Google彰化数据中心，台湾最大。',addr:'Changhua County, Taiwan'},
+{id:'gcp-apko',name:'Google Cloud Seoul (asia-northeast3)',op:'Google',type:'cloud-giant',lat:37.379,lng:127.046,city:'Seoul',province:'Seoul',country:'韩国',continent:'亚洲',scale:'超大规模',pue:'1.18',area:'多园区',servers:'大型集群',features:['asia-northeast3','3 zones'],acc:'official',status:'运营中',desc:'Google首尔区域。',addr:'Seoul, South Korea'},
+{id:'gcp-apin',name:'Google Cloud Mumbai (asia-south1)',op:'Google',type:'cloud-giant',lat:19.08,lng:72.87,city:'Mumbai',province:'Maharashtra',country:'印度',continent:'亚洲',scale:'超大规模',pue:'1.25',area:'多园区',servers:'大型集群',features:['asia-south1','3 zones'],acc:'official',status:'运营中',desc:'Google孟买区域。',addr:'Mumbai, India'},
+{id:'gcp-apau',name:'Google Cloud Sydney (australia-southeast1)',op:'Google',type:'cloud-giant',lat:-33.862,lng:151.215,city:'Sydney',province:'NSW',country:'澳大利亚',continent:'大洋洲',scale:'大型',pue:'1.20',area:'多园区',servers:'大型集群',features:['australia-southeast1','3 zones'],acc:'official',status:'运营中',desc:'Google悉尼区域。',addr:'Sydney, NSW, Australia'},
+{id:'gcp-apbkk',name:'Google Cloud Bangkok (asia-southeast2)',op:'Google',type:'cloud-giant',lat:13.756,lng:100.502,city:'Bangkok',province:'Bangkok',country:'泰国',continent:'亚洲',scale:'大型',pue:'1.25',area:'多园区',servers:'大型集群',features:['asia-southeast2','2025年','3 zones'],acc:'official',status:'运营中',desc:'Google曼谷区域，2025年开服。',addr:'Bangkok, Thailand'},
+{id:'gcp-giga-visakha',name:'Google Visakhapatnam AI Data Center',op:'Google',type:'ai-computing',lat:17.69,lng:83.22,city:'Visakhapatnam',province:'Andhra Pradesh',country:'印度',continent:'亚洲',scale:'超大规模',pue:'1.25',area:'480英亩',servers:'AI集群',features:['$150亿投资','1GW+','Google海外最大','2027投产'],acc:'public',status:'建设中',desc:'Google印度维沙卡帕特南AI数据中心，$150亿投资，Google海外最大单体项目。',addr:'Visakhapatnam, Andhra Pradesh, India'},
+{id:'gcp-texas-ai',name:'Google Texas Panhandle AI Campus',op:'Google',type:'ai-computing',lat:34.96,lng:-101.37,city:'Armstrong County',province:'Texas',country:'美国',continent:'北美洲',scale:'超大规模',pue:'1.15',area:'超大规模',servers:'AI集群',features:['$400亿','太阳能+储能','GCP AI训练核心'],acc:'public',status:'建设中',desc:'Google德州AI超大规模园区，$400亿投资。',addr:'Armstrong County, TX, USA'},
+
+// ==================== Meta — 30个数据中心 ====================
+// 数据来源：datacenters.atmeta.com + Wikipedia坐标
+{id:'meta-altoona',name:'Meta Altoona Data Center (Iowa)',op:'Meta Platforms',type:'cloud-giant',lat:41.634,lng:-93.665,city:'Altoona',province:'Iowa',country:'美国',continent:'北美洲',scale:'超大规模',pue:'1.07',area:'210万㎡',servers:'AI计算集群',features:['1401MW','全球前3大','100%可再生','2013年起建'],acc:'public',status:'运营中',desc:'Meta爱荷华超大规模数据中心，电力容量1401MW，全球最大数据中心之一。',addr:'Altoona, Iowa, USA'},
+{id:'meta-prineville',name:'Meta Prineville Data Center (Oregon)',op:'Meta Platforms',type:'cloud-giant',lat:44.301,lng:-120.831,city:'Prineville',province:'Oregon',country:'美国',continent:'北美洲',scale:'超大规模',pue:'1.07',area:'152万㎡',servers:'AI计算集群',features:['1289MW','风电直供','Open Compute Project首批'],acc:'public',status:'运营中',desc:'Meta俄勒冈普赖恩维尔数据中心，1289MW，Open Compute Project首批站点。',addr:'Prineville, Oregon, USA'},
+{id:'meta-fw',name:'Meta Fort Worth Data Center (Texas)',op:'Meta Platforms',type:'cloud-giant',lat:32.838,lng:-97.353,city:'Fort Worth',province:'Texas',country:'美国',continent:'北美洲',scale:'超大规模',pue:'1.10',area:'69万㎡',servers:'大型集群',features:['729MW','2017年投产'],acc:'public',status:'运营中',desc:'Meta德克萨斯沃思堡数据中心，729MW容量。',addr:'Fort Worth, Texas, USA'},
+{id:'meta-mesa',name:'Meta Mesa Data Center (Arizona)',op:'Meta Platforms',type:'cloud-giant',lat:33.421,lng:-111.834,city:'Mesa',province:'Arizona',country:'美国',continent:'北美洲',scale:'超大规模',pue:'1.10',area:'160万㎡',servers:'大型集群',features:['701MW','2025年全面运营'],acc:'public',status:'运营中',desc:'Meta亚利桑那梅萨数据中心，701MW。',addr:'Mesa, Arizona, USA'},
+{id:'meta-dekalb',name:'Meta DeKalb Data Center (Illinois)',op:'Meta Platforms',type:'cloud-giant',lat:41.929,lng:-88.75,city:'DeKalb',province:'Illinois',country:'美国',continent:'北美洲',scale:'超大规模',pue:'1.10',area:'204万㎡',servers:'大型集群',features:['673MW','2023年投产'],acc:'public',status:'运营中',desc:'Meta伊利诺伊州迪卡尔布数据中心，673MW。',addr:'DeKalb, Illinois, USA'},
+{id:'meta-hyperion',name:'Meta Hyperion AI Campus (Louisiana)',op:'Meta Platforms / Blue Owl Capital',type:'ai-computing',lat:32.477,lng:-91.632,city:'Rayville / Holly Ridge',province:'Louisiana',country:'美国',continent:'北美洲',scale:'超大规模',pue:'1.12',area:'2250英亩(9100英亩规划)',servers:'130万+ GPU',features:['5GW规划(2GW初期)','$270亿','全球最大AI园区之一','130万NVIDIA Blackwell GPU','2028全运营'],acc:'official',status:'建设中',desc:'Meta最大AI数据中心，全球最大AI园区候选，2250英亩（已扩至3650+英亩），5GW规划容量，2028年全面运营。坐标来源：Wikipedia 32°28′38″N 91°37′56″W',addr:'Richland Parish, Louisiana, USA (LA-183 & Wade Rd)'},
+{id:'meta-prometheus',name:'Meta Prometheus Data Center (Ohio)',op:'Meta Platforms',type:'ai-computing',lat:39.961,lng:-82.998,city:'Columbus',province:'Ohio',country:'美国',continent:'北美洲',scale:'超大规模',pue:'1.12',area:'超大规模',servers:'AI计算集群',features:['1GW','全球首批千兆瓦级AI DC','2026年上线'],acc:'public',status:'建设中',desc:'Meta俄亥俄Prometheus超级集群，1GW容量，预计2026年上线，全球首批千兆瓦级AI数据中心之一。',addr:'Columbus region, Ohio, USA'},
+{id:'meta-lulea',name:'Meta Luleå Data Center (Sweden)',op:'Meta Platforms',type:'cloud-giant',lat:65.584,lng:22.154,city:'Luleå',province:'Norrbotten',country:'瑞典',continent:'欧洲',scale:'超大规模',pue:'1.07',area:'超10万㎡',servers:'大型集群',features:['100%水电','北极圈附近','PUE全球最低之一'],acc:'official',status:'运营中',desc:'Meta瑞典北部数据中心，PUE全球最低之一，100%可再生能源。',addr:'Luleå, Norrbotten, Sweden'},
+{id:'meta-clonee',name:'Meta Clonee Data Center (Ireland)',op:'Meta Platforms',type:'cloud-giant',lat:53.407,lng:-6.418,city:'Clonee',province:'Meath',country:'爱尔兰',continent:'欧洲',scale:'超大规模',pue:'1.08',area:'160万sqft(15万㎡)',servers:'大型集群',features:['$15亿投资','100%风电','3栋大楼'],acc:'official',status:'运营中',desc:'Meta爱尔兰Clonee数据中心。',addr:'Clonee, County Meath, Ireland'},
+{id:'meta-sg',name:'Meta Singapore Data Center',op:'Meta Platforms',type:'cloud-giant',lat:1.299,lng:103.742,city:'Singapore',province:'Singapore',country:'新加坡',continent:'亚洲',scale:'超大规模',pue:'1.19',area:'180万sqft(16.7万㎡)',servers:'大型集群',features:['$10亿投资','亚太首个Meta自建DC','11层建筑'],acc:'official',status:'运营中',desc:'Meta新加坡数据中心，亚太首个自建DC，$10亿投资，Tanjong Kling。',addr:'Tanjong Kling Road, Singapore'},
+
+// ==================== 阿里云 — 30个公共云地域 ====================
+// 数据来源：alibabacloud.com/global-locations (2026.04)
+{id:'aliyun-zjk',name:'阿里云 华北3 张家口数据中心',op:'阿里云',type:'cloud-giant',lat:40.995,lng:114.703,city:'张家口',province:'河北',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.19',area:'超20万㎡',servers:'百万台级',features:['cn-zhangjiakou','风电+太阳能','浸没式液冷','京津冀枢纽','绿色5A认证'],acc:'official',status:'运营中',desc:'阿里云张北超大规模绿色数据中心，全球PUE最低之一，首座5A绿色数据中心。',addr:'河北省张家口市张北县'},
+{id:'aliyun-ulancab',name:'阿里云 华北6 乌兰察布数据中心',op:'阿里云',type:'cloud-giant',lat:41.043,lng:113.114,city:'乌兰察布',province:'内蒙古',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.18',area:'超20万㎡',servers:'百万台级',features:['cn-wulanchabu','内蒙古枢纽','风电绿电','2020年'],acc:'official',status:'运营中',desc:'阿里云乌兰察布超大规模绿色数据中心，2020年投产。',addr:'内蒙古自治区乌兰察布市'},
+{id:'aliyun-hohhot',name:'阿里云 华北5 呼和浩特数据中心',op:'阿里云',type:'cloud-giant',lat:40.83,lng:111.76,city:'呼和浩特',province:'内蒙古',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.22',area:'约20万㎡',servers:'百万台级',features:['cn-huhehaote','绿电直供','2017年'],acc:'official',status:'运营中',desc:'阿里云呼和浩特超大规模数据中心。',addr:'内蒙古自治区呼和浩特市'},
+{id:'aliyun-bj',name:'阿里云 华北2 北京数据中心',op:'阿里云',type:'cloud-giant',lat:39.954,lng:116.295,city:'北京',province:'北京',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.28',area:'约15万㎡',servers:'百万台级',features:['cn-beijing','12个可用区','华北核心'],acc:'official',status:'运营中',desc:'阿里云北京核心数据中心，12个可用区，国内最多。',addr:'北京市昌平区/海淀区'},
+{id:'aliyun-hz',name:'阿里云 华东1 杭州数据中心',op:'阿里云',type:'cloud-giant',lat:30.301,lng:120.009,city:'杭州',province:'浙江',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.22',area:'约15万㎡',servers:'百万台级',features:['cn-hangzhou','8个可用区','全球最大浸没液冷','2011年首发'],acc:'official',status:'运营中',desc:'阿里云杭州核心数据中心，仁和数据中心全球最大全浸没液冷，2011年首发。',addr:'浙江省杭州市余杭区仁和'},
+{id:'aliyun-sh',name:'阿里云 华东2 上海数据中心',op:'阿里云',type:'cloud-giant',lat:31.183,lng:121.384,city:'上海',province:'上海',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.25',area:'约10万㎡',servers:'百万台级',features:['cn-shanghai','11个可用区','金融级'],acc:'official',status:'运营中',desc:'阿里云上海核心数据中心，11个可用区。',addr:'上海市松江区'},
+{id:'aliyun-sz',name:'阿里云 华南1 深圳数据中心',op:'阿里云',type:'cloud-giant',lat:22.615,lng:114.057,city:'深圳',province:'广东',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.28',area:'约8万㎡',servers:'百万台级',features:['cn-shenzhen','6个可用区','大湾区核心'],acc:'official',status:'运营中',desc:'阿里云深圳核心数据中心。',addr:'深圳市龙岗区坂田'},
+{id:'aliyun-hy',name:'阿里云 华南2 河源数据中心',op:'阿里云',type:'cloud-giant',lat:23.745,lng:114.7,city:'河源',province:'广东',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.20',area:'约20万㎡',servers:'百万台级',features:['cn-heyuan','2020年','粤港澳枢纽'],acc:'official',status:'运营中',desc:'阿里云河源超大规模数据中心，粤港澳枢纽核心节点。',addr:'广东省河源市'},
+{id:'aliyun-gz',name:'阿里云 华南3 广州数据中心',op:'阿里云',type:'cloud-giant',lat:23.114,lng:113.264,city:'广州',province:'广东',country:'中国',continent:'亚洲',scale:'大型',pue:'1.25',area:'约5万㎡',servers:'大型集群',features:['cn-guangzhou','2个可用区','2020年'],acc:'official',status:'运营中',desc:'阿里云广州数据中心。',addr:'广东省广州市'},
+{id:'aliyun-cd',name:'阿里云 西南1 成都数据中心',op:'阿里云',type:'cloud-giant',lat:30.508,lng:103.825,city:'成都',province:'四川',country:'中国',continent:'亚洲',scale:'大型',pue:'1.25',area:'约5万㎡',servers:'大型集群',features:['cn-chengdu','2个可用区','2020年'],acc:'official',status:'运营中',desc:'阿里云成都数据中心。',addr:'四川省成都市双流区'},
+{id:'aliyun-hk',name:'阿里云 中国香港数据中心',op:'阿里云',type:'cloud-giant',lat:22.383,lng:114.195,city:'香港',province:'香港',country:'中国香港',continent:'亚洲',scale:'大型',pue:'1.30',area:'约3万㎡',servers:'大型集群',features:['cn-hongkong','3个可用区','国际带宽入口'],acc:'official',status:'运营中',desc:'阿里云香港数据中心，主要国际带宽出口节点。',addr:'香港'},
+{id:'aliyun-sg',name:'阿里云 新加坡数据中心',op:'阿里云',type:'cloud-giant',lat:1.355,lng:103.838,city:'Singapore',province:'Singapore',country:'新加坡',continent:'亚洲',scale:'大型',pue:'1.30',area:'约5万㎡',servers:'大型集群',features:['ap-southeast-1','3个可用区','2015年','东南亚首发'],acc:'official',status:'运营中',desc:'阿里云新加坡数据中心，东南亚首发。',addr:'Singapore'},
+{id:'aliyun-jp',name:'阿里云 日本东京数据中心',op:'阿里云',type:'cloud-giant',lat:35.695,lng:139.728,city:'Tokyo',province:'Tokyo',country:'日本',continent:'亚洲',scale:'大型',pue:'1.25',area:'约3万㎡',servers:'大型集群',features:['ap-northeast-1','3个可用区','2016年'],acc:'official',status:'运营中',desc:'阿里云东京数据中心。',addr:'Tokyo, Japan'},
+{id:'aliyun-de',name:'阿里云 德国法兰克福数据中心',op:'阿里云',type:'cloud-giant',lat:50.126,lng:8.634,city:'Frankfurt',province:'Hessen',country:'德国',continent:'欧洲',scale:'大型',pue:'1.22',area:'约3万㎡',servers:'大型集群',features:['eu-central-1','3个可用区','2016年'],acc:'official',status:'运营中',desc:'阿里云法兰克福数据中心。',addr:'Frankfurt, Germany'},
+{id:'aliyun-id',name:'阿里云 印度尼西亚雅加达数据中心',op:'阿里云',type:'cloud-giant',lat:-6.214,lng:106.845,city:'Jakarta',province:'Jakarta',country:'印度尼西亚',continent:'亚洲',scale:'大型',pue:'1.30',area:'约3万㎡',servers:'大型集群',features:['ap-southeast-5','3个可用区','2018年'],acc:'official',status:'运营中',desc:'阿里云雅加达数据中心。',addr:'Jakarta, Indonesia'},
+{id:'aliyun-my',name:'阿里云 马来西亚吉隆坡数据中心',op:'阿里云',type:'cloud-giant',lat:3.148,lng:101.686,city:'Kuala Lumpur',province:'Kuala Lumpur',country:'马来西亚',continent:'亚洲',scale:'大型',pue:'1.28',area:'约2万㎡',servers:'大型集群',features:['ap-southeast-3','2017年'],acc:'official',status:'运营中',desc:'阿里云吉隆坡数据中心。',addr:'Kuala Lumpur, Malaysia'},
+{id:'aliyun-th',name:'阿里云 泰国曼谷数据中心',op:'阿里云',type:'cloud-giant',lat:13.756,lng:100.502,city:'Bangkok',province:'Bangkok',country:'泰国',continent:'亚洲',scale:'大型',pue:'1.28',area:'约2万㎡',servers:'大型集群',features:['ap-southeast-7','2022年'],acc:'official',status:'运营中',desc:'阿里云曼谷数据中心，2022年开服。',addr:'Bangkok, Thailand'},
+{id:'aliyun-us-e',name:'阿里云 美国弗吉尼亚数据中心',op:'阿里云',type:'cloud-giant',lat:38.994,lng:-77.452,city:'Ashburn',province:'Virginia',country:'美国',continent:'北美洲',scale:'中型',pue:'1.25',area:'约2万㎡',servers:'中型集群',features:['us-east-1','2015年'],acc:'official',status:'运营中',desc:'阿里云弗吉尼亚数据中心。',addr:'Ashburn, Virginia, USA'},
+{id:'aliyun-us-w',name:'阿里云 美国硅谷数据中心',op:'阿里云',type:'cloud-giant',lat:37.338,lng:-121.886,city:'San Jose',province:'California',country:'美国',continent:'北美洲',scale:'中型',pue:'1.25',area:'约2万㎡',servers:'中型集群',features:['us-west-1','2014年'],acc:'official',status:'运营中',desc:'阿里云硅谷数据中心。',addr:'San Jose, CA, USA'},
+{id:'aliyun-uk',name:'阿里云 英国伦敦数据中心',op:'阿里云',type:'cloud-giant',lat:51.507,lng:-0.127,city:'London',province:'England',country:'英国',continent:'欧洲',scale:'中型',pue:'1.22',area:'约1万㎡',servers:'中型集群',features:['eu-west-1','2018年'],acc:'official',status:'运营中',desc:'阿里云伦敦数据中心。',addr:'London, UK'},
+{id:'aliyun-uae',name:'阿里云 阿联酋迪拜数据中心',op:'阿里云',type:'cloud-giant',lat:25.204,lng:55.27,city:'Dubai',province:'Dubai',country:'阿联酋',continent:'亚洲',scale:'中型',pue:'1.30',area:'约1万㎡',servers:'中型集群',features:['me-east-1','2016年'],acc:'official',status:'运营中',desc:'阿里云迪拜数据中心。',addr:'Dubai, UAE'},
+
+// ==================== 腾讯云 — 27个地区/71个可用区 ====================
+// 数据来源：buy.cloud.tencent.com + 官方公告
+{id:'tcent-bj',name:'腾讯云 华北 北京数据中心',op:'腾讯云',type:'cloud-giant',lat:40.183,lng:116.278,city:'北京',province:'北京',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.25',area:'约10万㎡',servers:'百万台级',features:['ap-beijing','华北核心','怀来东园/瑞北双园区'],acc:'official',status:'运营中',desc:'腾讯云北京数据中心集群，含怀来东园和瑞北两大超大规模园区，各规划30万台服务器。',addr:'北京市及河北省怀来县'},
+{id:'tcent-sh',name:'腾讯云 华东 上海数据中心',op:'腾讯云',type:'cloud-giant',lat:31.104,lng:121.168,city:'上海',province:'上海',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.25',area:'约8万㎡',servers:'百万台级',features:['ap-shanghai','长三角枢纽','青浦数据中心'],acc:'official',status:'运营中',desc:'腾讯云上海青浦数据中心，长三角枢纽核心节点。',addr:'上海市青浦区'},
+{id:'tcent-gz',name:'腾讯云 华南 广州数据中心',op:'腾讯云',type:'cloud-giant',lat:22.75,lng:113.92,city:'深圳/广州',province:'广东',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.25',area:'约10万㎡',servers:'百万台级',features:['ap-guangzhou','深圳光明园区','大湾区核心'],acc:'official',status:'运营中',desc:'腾讯云华南核心数据中心，深圳光明超大规模园区。',addr:'广东省深圳市光明区'},
+{id:'tcent-cq',name:'腾讯云 西南 重庆数据中心',op:'腾讯云',type:'cloud-giant',lat:29.618,lng:106.521,city:'重庆',province:'重庆',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.25',area:'约15万㎡',servers:'百万台级',features:['ap-chongqing','成渝枢纽','2018年一期'],acc:'official',status:'运营中',desc:'腾讯云重庆超大规模数据中心，成渝枢纽核心，一期2018年投用。',addr:'重庆市渝北区'},
+{id:'tcent-gz-guian',name:'腾讯云 西南 贵安七星数据中心',op:'腾讯云',type:'cloud-giant',lat:26.328,lng:106.267,city:'贵阳',province:'贵州',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.12',area:'约47万㎡',servers:'30万台服务器',features:['贵州枢纽','自然冷却','绿色低碳','2018年一期'],acc:'official',status:'运营中',desc:'腾讯云贵安七星数据中心，总占地47万㎡，规划30万台服务器，PUE仅1.12，国家绿色数据中心。',addr:'贵州省贵安新区'},
+{id:'tcent-neimeng',name:'腾讯云 华北 内蒙古数据中心',op:'腾讯云',type:'cloud-giant',lat:40.793,lng:111.638,city:'呼和浩特',province:'内蒙古',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.22',area:'约20万㎡',servers:'大型集群',features:['内蒙古枢纽','绿电','低PUE'],acc:'official',status:'运营中',desc:'腾讯云内蒙古超大规模数据中心。',addr:'内蒙古呼和浩特'},
+{id:'tcent-nj',name:'腾讯云 华东 南京数据中心',op:'腾讯云',type:'cloud-giant',lat:31.906,lng:118.722,city:'南京',province:'江苏',country:'中国',continent:'亚洲',scale:'大型',pue:'1.25',area:'约5万㎡',servers:'大型集群',features:['ap-nanjing','长三角节点'],acc:'official',status:'运营中',desc:'腾讯云南京数据中心。',addr:'江苏省南京市'},
+{id:'tcent-sg',name:'腾讯云 新加坡数据中心',op:'腾讯云',type:'cloud-giant',lat:1.344,lng:103.706,city:'Singapore',province:'Singapore',country:'新加坡',continent:'亚洲',scale:'大型',pue:'1.30',area:'约3万㎡',servers:'大型集群',features:['ap-singapore','东南亚核心'],acc:'official',status:'运营中',desc:'腾讯云新加坡数据中心。',addr:'Jurong, Singapore'},
+{id:'tcent-jp',name:'腾讯云 日本东京数据中心',op:'腾讯云',type:'cloud-giant',lat:35.689,lng:139.692,city:'Tokyo',province:'Tokyo',country:'日本',continent:'亚洲',scale:'大型',pue:'1.25',area:'约2万㎡',servers:'大型集群',features:['ap-tokyo'],acc:'official',status:'运营中',desc:'腾讯云东京数据中心。',addr:'Tokyo, Japan'},
+{id:'tcent-ko',name:'腾讯云 韩国首尔数据中心',op:'腾讯云',type:'cloud-giant',lat:37.553,lng:126.943,city:'Seoul',province:'Seoul',country:'韩国',continent:'亚洲',scale:'大型',pue:'1.25',area:'约2万㎡',servers:'大型集群',features:['ap-seoul'],acc:'official',status:'运营中',desc:'腾讯云首尔数据中心。',addr:'Seoul, South Korea'},
+{id:'tcent-sp',name:'腾讯云 巴西圣保罗数据中心',op:'腾讯云',type:'cloud-giant',lat:-23.55,lng:-46.63,city:'São Paulo',province:'São Paulo',country:'巴西',continent:'南美洲',scale:'大型',pue:'1.25',area:'约2万㎡',servers:'大型集群',features:['sa-saopaulo'],acc:'official',status:'运营中',desc:'腾讯云圣保罗数据中心。',addr:'São Paulo, Brazil'},
+
+// ==================== 华为云 — 全球30+区域 ====================
+// 数据来源：官方公告 + 腾讯新闻2022年深度报道
+{id:'hw-guian',name:'华为云 贵安数据中心',op:'华为云',type:'cloud-giant',lat:26.274,lng:106.194,city:'贵阳',province:'贵州',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.12',area:'约100万㎡(1521亩)',servers:'100万台服务器',features:['全球最大单体华为云DC','自然冷却','绿色低碳','贵州枢纽'],acc:'official',status:'运营中',desc:'华为贵安超大规模数据中心，用地1521亩，建设规模超100万台服务器，华为云全球最大数据中心。',addr:'贵州省贵安新区'},
+{id:'hw-ulancab',name:'华为云 乌兰察布数据中心',op:'华为云',type:'cloud-giant',lat:41.043,lng:113.114,city:'乌兰察布',province:'内蒙古',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.18',area:'约20万㎡',servers:'大型集群',features:['内蒙古枢纽','全球最大云渲染基地','30万核'],acc:'official',status:'运营中',desc:'华为云乌兰察布数据中心，全球最大云渲染基地。',addr:'内蒙古自治区乌兰察布市'},
+{id:'hw-langfang',name:'华为云 廊坊数据中心',op:'华为云',type:'cloud-giant',lat:39.538,lng:116.684,city:'廊坊',province:'河北',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.25',area:'约15万㎡',servers:'大型集群',features:['京津冀枢纽','国家枢纽节点'],acc:'official',status:'运营中',desc:'华为云廊坊数据中心，京津冀枢纽核心节点。',addr:'河北省廊坊市'},
+{id:'hw-suzhou',name:'华为云 苏州数据中心',op:'华为云',type:'cloud-giant',lat:31.298,lng:120.585,city:'苏州',province:'江苏',country:'中国',continent:'亚洲',scale:'大型',pue:'1.25',area:'约8万㎡',servers:'大型集群',features:['长三角枢纽'],acc:'official',status:'运营中',desc:'华为云苏州数据中心，长三角枢纽节点。',addr:'江苏省苏州市'},
+{id:'hw-dongguan',name:'华为云 东莞数据中心',op:'华为云',type:'cloud-giant',lat:23.043,lng:113.763,city:'东莞',province:'广东',country:'中国',continent:'亚洲',scale:'大型',pue:'1.25',area:'约8万㎡',servers:'大型集群',features:['粤港澳枢纽'],acc:'official',status:'运营中',desc:'华为云东莞数据中心，粤港澳枢纽节点。',addr:'广东省东莞市'},
+{id:'hw-sg',name:'华为云 新加坡数据中心',op:'华为云',type:'cloud-giant',lat:1.324,lng:103.775,city:'Singapore',province:'Singapore',country:'新加坡',continent:'亚洲',scale:'大型',pue:'1.30',area:'约3万㎡',servers:'大型集群',features:['东南亚核心'],acc:'official',status:'运营中',desc:'华为云新加坡数据中心。',addr:'Singapore'},
+{id:'hw-de',name:'华为云 德国法兰克福数据中心',op:'华为云',type:'cloud-giant',lat:50.113,lng:8.676,city:'Frankfurt',province:'Hessen',country:'德国',continent:'欧洲',scale:'大型',pue:'1.25',area:'约3万㎡',servers:'大型集群',features:['欧洲核心'],acc:'official',status:'运营中',desc:'华为云法兰克福数据中心。',addr:'Frankfurt, Germany'},
+
+// ==================== 第三方IDC — Equinix (全球240+ DC) ====================
+// 数据来源：equinix.com/data-centers
+{id:'eqx-ash',name:'Equinix Ashburn Campus (DC10-15)',op:'Equinix',type:'third-party',lat:39.042,lng:-77.474,city:'Ashburn',province:'Virginia',country:'美国',continent:'北美洲',scale:'超大规模',pue:'1.20',area:'超30万sqm',servers:'超5000 cabinets',features:['Data Center Alley旗舰','全球互联网枢纽','IBX DC10/11/12/13/14/15'],acc:'official',status:'运营中',desc:'Equinix Ashburn超大规模园区，全球70%互联网流量在弗吉尼亚北部交换。',addr:'Ashburn, Virginia, USA'},
+{id:'eqx-sv',name:'Equinix Silicon Valley (SV1-5)',op:'Equinix',type:'third-party',lat:37.387,lng:-121.978,city:'San Jose',province:'California',country:'美国',continent:'北美洲',scale:'超大规模',pue:'1.22',area:'约15万sqm',servers:'超3000 cabinets',features:['硅谷旗舰','SV1-5','AI/Cloud核心'],acc:'official',status:'运营中',desc:'Equinix硅谷旗舰IBX集群。',addr:'San Jose, CA, USA'},
+{id:'eqx-ny',name:'Equinix New York (NY1-9)',op:'Equinix',type:'third-party',lat:40.77,lng:-74.073,city:'Secaucus',province:'New Jersey',country:'美国',continent:'北美洲',scale:'超大规模',pue:'1.28',area:'约15万sqm',servers:'超3000 cabinets',features:['纽约都会区旗舰','金融核心'],acc:'official',status:'运营中',desc:'Equinix纽约都会区IBX集群，金融IT核心。',addr:'Secaucus, NJ, USA'},
+{id:'eqx-ld',name:'Equinix London Docklands (LD1-8)',op:'Equinix',type:'third-party',lat:51.511,lng:-0.004,city:'London',province:'England',country:'英国',continent:'欧洲',scale:'超大规模',pue:'1.23',area:'超25万sqm',servers:'超5000 cabinets',features:['欧洲最大互联枢纽','伦敦金融核心','LINX互联'],acc:'official',status:'运营中',desc:'Equinix伦敦Docklands旗舰，欧洲最大互联枢纽。',addr:'Docklands, London, UK'},
+{id:'eqx-fr',name:'Equinix Frankfurt (FR1-9)',op:'Equinix',type:'third-party',lat:50.098,lng:8.632,city:'Frankfurt',province:'Hessen',country:'德国',continent:'欧洲',scale:'超大规模',pue:'1.28',area:'约15万sqm',servers:'超3000 cabinets',features:['欧洲大陆最大IDC','DE-CIX互联'],acc:'official',status:'运营中',desc:'Equinix法兰克福IBX集群，连接DE-CIX，欧洲大陆最大IDC运营商。',addr:'Frankfurt am Main, Germany'},
+{id:'eqx-am',name:'Equinix Amsterdam (AM1-8)',op:'Equinix',type:'third-party',lat:52.342,lng:4.837,city:'Amsterdam',province:'North Holland',country:'荷兰',continent:'欧洲',scale:'大型',pue:'1.18',area:'约12万sqm',servers:'超2000 cabinets',features:['AMS-IX互联'],acc:'official',status:'运营中',desc:'Equinix阿姆斯特丹IBX集群，连接AMS-IX。',addr:'Amsterdam, Netherlands'},
+{id:'eqx-sg',name:'Equinix Singapore (SG1-6)',op:'Equinix',type:'third-party',lat:1.326,lng:103.856,city:'Singapore',province:'Singapore',country:'新加坡',continent:'亚洲',scale:'超大规模',pue:'1.33',area:'约20万sqm',servers:'超4000 cabinets',features:['亚太互联核心','金融服务','SGIX互联'],acc:'official',status:'运营中',desc:'Equinix新加坡旗舰，亚太最重要互联枢纽之一。',addr:'Singapore (Ayer Rajah, Jurong)'},
+{id:'eqx-ty',name:'Equinix Tokyo (TY1-10)',op:'Equinix',type:'third-party',lat:35.628,lng:139.72,city:'Tokyo',province:'Tokyo',country:'日本',continent:'亚洲',scale:'超大规模',pue:'1.25',area:'约15万sqm',servers:'超3000 cabinets',features:['东京核心互联','JPIX互联'],acc:'official',status:'运营中',desc:'Equinix东京旗舰数据中心集群。',addr:'Oi / Shin-kiba, Tokyo, Japan'},
+{id:'eqx-hk',name:'Equinix Hong Kong (HK1-6)',op:'Equinix',type:'third-party',lat:22.265,lng:114.22,city:'Hong Kong',province:'Hong Kong',country:'中国香港',continent:'亚洲',scale:'大型',pue:'1.32',area:'约12万sqm',servers:'超2500 cabinets',features:['亚太金融互联核心'],acc:'official',status:'运营中',desc:'Equinix香港旗舰数据中心集群，亚太金融IT核心。',addr:'Chai Wan / Tseung Kwan O, Hong Kong'},
+{id:'eqx-sp',name:'Equinix São Paulo (SP1-5)',op:'Equinix',type:'third-party',lat:-23.52,lng:-46.69,city:'São Paulo',province:'São Paulo',country:'巴西',continent:'南美洲',scale:'大型',pue:'1.28',area:'约8万sqm',servers:'超2000 cabinets',features:['南美最大互联枢纽'],acc:'official',status:'运营中',desc:'Equinix圣保罗旗舰，南美最大互联枢纽。',addr:'São Paulo, Brazil'},
+{id:'eqx-sy',name:'Equinix Sydney (SY1-5)',op:'Equinix',type:'third-party',lat:-33.87,lng:151.21,city:'Sydney',province:'NSW',country:'澳大利亚',continent:'大洋洲',scale:'大型',pue:'1.25',area:'约8万sqm',servers:'超2000 cabinets',features:['澳洲互联核心'],acc:'official',status:'运营中',desc:'Equinix悉尼IBX集群。',addr:'Sydney, NSW, Australia'},
+
+// ==================== 大型超算 / AI 数据中心 ====================
+{id:'switch-reno',name:'Switch TAHOE RENO (The Citadel)',op:'Switch',type:'third-party',lat:39.554,lng:-119.815,city:'Reno',province:'Nevada',country:'美国',continent:'北美洲',scale:'超大规模',pue:'1.18',area:'809万㎡园区',servers:'大型集群',features:['650MW','$40亿','2017年投产','100%可再生'],acc:'public',status:'运营中',desc:'Switch TAHOE RENO堡垒园区，650MW，全球最大托管数据中心园区之一。',addr:'Reno, Nevada, USA'},
+{id:'switch-lv',name:'Switch SuperNAP Las Vegas',op:'Switch',type:'third-party',lat:36.043,lng:-115.241,city:'Las Vegas',province:'Nevada',country:'美国',continent:'北美洲',scale:'超大规模',pue:'1.18',area:'约25万sqm',servers:'大型集群',features:['100%太阳能','Tier IV','2000+ cabinets'],acc:'public',status:'运营中',desc:'Switch SuperNAP拉斯维加斯，曾为全球最大单体数据中心。',addr:'Las Vegas, Nevada, USA'},
+{id:'stargate-abilene',name:'Stargate AI Campus (Abilene, Texas)',op:'OpenAI / Oracle / SoftBank',type:'ai-computing',lat:32.449,lng:-99.731,city:'Abilene',province:'Texas',country:'美国',continent:'北美洲',scale:'超大规模',pue:'1.20',area:'规划超100万㎡',servers:'450,000+ NVIDIA GB200 GPU',features:['1.2GW容量(初期)','$5000亿计划','Stargate AI基建','2025年9月两栋楼投产'],acc:'public',status:'建设中',desc:'Stargate项目德州Abilene站点，全球最大AI基础设施投资，Oracle/OpenAI/SoftBank联合，2025年9月首批投产。',addr:'Abilene, Taylor County, Texas, USA'},
+{id:'xai-colossus',name:'xAI Colossus Supercluster (Memphis)',op:'xAI (Elon Musk)',type:'ai-computing',lat:35.135,lng:-90.024,city:'Memphis',province:'Tennessee',country:'美国',continent:'北美洲',scale:'超大规模',pue:'1.20',area:'超大规模',servers:'100,000+ NVIDIA H100',features:['Grok训练','全球最大AI训练集群之一','2024年建成'],acc:'public',status:'运营中',desc:'马斯克xAI的Colossus超级集群，Memphis，10万块NVIDIA H100，训练Grok。',addr:'Memphis, Tennessee, USA'},
+{id:'coreweave-plano',name:'CoreWeave AI Data Center (Plano)',op:'CoreWeave',type:'ai-computing',lat:33.02,lng:-96.75,city:'Plano',province:'Texas',country:'美国',continent:'北美洲',scale:'超大规模',pue:'1.20',area:'约5万㎡',servers:'NVIDIA H100/B200集群',features:['AI云计算专用','全球最大GPU云之一'],acc:'public',status:'运营中',desc:'CoreWeave德州AI专用数据中心，全球最大GPU云运营商之一。',addr:'Plano, Texas, USA'},
+{id:'vantage-ashburn',name:'Vantage Ashburn Campus (VA1/VA2/VA3)',op:'Vantage Data Centers',type:'third-party',lat:39.038,lng:-77.472,city:'Ashburn',province:'Virginia',country:'美国',continent:'北美洲',scale:'超大规模',pue:'1.22',area:'83万㎡',servers:'大型集群',features:['590MW','Data Center Alley核心','2025年全面运营'],acc:'public',status:'运营中',desc:'Vantage Data Centers Ashburn多园区，590MW，全球最大数据中心运营商之一。',addr:'Ashburn / Sterling, Virginia, USA'},
+{id:'dr-ashburn',name:'Digital Realty Ashburn Campus',op:'Digital Realty',type:'third-party',lat:39.038,lng:-77.472,city:'Ashburn',province:'Virginia',country:'美国',continent:'北美洲',scale:'超大规模',pue:'1.22',area:'超30万sqm',servers:'超5000 cabinets',features:['PlatformDIGITAL','Data Center Alley核心'],acc:'official',status:'运营中',desc:'Digital Realty Ashburn超大规模园区，PlatformDIGITAL连接枢纽。',addr:'Ashburn, Virginia, USA'},
+{id:'nextdc-s3',name:'NEXTDC S3 Sydney',op:'NEXTDC',type:'third-party',lat:-33.87,lng:151.21,city:'Sydney',province:'NSW',country:'澳大利亚',continent:'大洋洲',scale:'超大规模',pue:'1.25',area:'约25000 sqm',servers:'超3000 racks',features:['澳洲本土最大DC运营商'],acc:'public',status:'运营中',desc:'NEXTDC悉尼超大规模数据中心。',addr:'Sydney, NSW, Australia'},
+{id:'teraco-jb',name:'Teraco JB1 Johannesburg',op:'Teraco',type:'third-party',lat:-26.19,lng:28.03,city:'Johannesburg',province:'Gauteng',country:'南非',continent:'非洲',scale:'超大规模',pue:'1.30',area:'约30000 sqm',servers:'超3500 racks',features:['非洲最大DC运营商','NAP互联'],acc:'public',status:'运营中',desc:'Teraco约翰内斯堡旗舰，非洲最大数据中心运营商。',addr:'Johannesburg, South Africa'},
+{id:'cern',name:'CERN Data Centre (Geneva)',op:'CERN',type:'gov-enterprise',lat:46.233,lng:6.053,city:'Meyrin',province:'Geneva',country:'瑞士',continent:'欧洲',scale:'超大规模',pue:'1.25',area:'约6000 sqm',servers:'100,000+ cores, 1EB存储',features:['LHC大型强子对撞机','全球Tier-0网格计算'],acc:'official',status:'运营中',desc:'欧洲核子研究中心CERN数据中心，处理LHC粒子碰撞实验数据。',addr:'Meyrin, Canton of Geneva, Switzerland'},
+{id:'sakura-ishikari',name:'SAKURA Internet Ishikari DC',op:'SAKURA Internet',type:'third-party',lat:43.17,lng:141.32,city:'Ishikari',province:'Hokkaido',country:'日本',continent:'亚洲',scale:'超大规模',pue:'1.11',area:'超5万㎡',servers:'大型集群',features:['日本最低PUE','北海道寒冷气候','100%水电'],acc:'public',status:'运营中',desc:'SAKURA Internet石狩数据中心，利用北海道寒冷气候，PUE全球最低之一。',addr:'Ishikari City, Hokkaido, Japan'},
+{id:'kolos-no',name:'Kolos Ballangen Data Center',op:'Kolos',type:'third-party',lat:68.34,lng:16.81,city:'Ballangen',province:'Nordland',country:'挪威',continent:'欧洲',scale:'超大规模',pue:'1.08',area:'规划60万sqm',servers:'规划中',features:['世界最北大型DC','峡湾冷却','100%水电','规划中'],acc:'public',status:'规划中',desc:'挪威Kolos项目，利用北极气候和峡湾水冷却，规划60万sqm。',addr:'Ballangen, Nordland, Norway'},
+{id:'africa-dc-nairobi',name:'Africa Data Centres Nairobi',op:'Africa Data Centres',type:'third-party',lat:-1.28,lng:36.82,city:'Nairobi',province:'Nairobi',country:'肯尼亚',continent:'非洲',scale:'大型',pue:'1.35',area:'约5000 sqm',servers:'超1000 racks',features:['东非核心'],acc:'public',status:'运营中',desc:'非洲数据中心集团内罗毕设施，东非核心IDC。',addr:'Nairobi, Kenya'},
+{id:'ytl-johor',name:'YTL Johor Bahru AI Campus',op:'YTL Data Centres',type:'ai-computing',lat:1.485,lng:103.755,city:'Johor Bahru',province:'Johor',country:'马来西亚',continent:'亚洲',scale:'超大规模',pue:'1.28',area:'超20万sqm',servers:'AI计算集群',features:['NVIDIA合作','东南亚最大AI园区','2025在建'],acc:'public',status:'建设中',desc:'YTL马来西亚柔佛AI数据中心，与NVIDIA合作，东南亚最大AI园区。',addr:'Johor Bahru, Johor, Malaysia'},
+{id:'sunevision-hk',name:'SUNeVision MEGA Plus (Hong Kong)',op:'SUNeVision',type:'third-party',lat:22.371,lng:114.109,city:'Hong Kong',province:'Hong Kong',country:'中国香港',continent:'亚洲',scale:'超大规模',pue:'1.30',area:'约30000 sqm',servers:'超5000 racks',features:['香港最大DC之一','新鸿基旗下'],acc:'public',status:'运营中',desc:'SUNeVision MEGA Plus，香港最大数据中心之一。',addr:'Tseung Kwan O Industrial Estate, Hong Kong'},
+{id:'khazna-auh',name:'Khazna Data Centers Abu Dhabi',op:'Khazna',type:'third-party',lat:24.425,lng:54.51,city:'Abu Dhabi',province:'Abu Dhabi',country:'阿联酋',continent:'亚洲',scale:'超大规模',pue:'1.28',area:'约20000 sqm',servers:'超3000 racks',features:['中东最大本土DC运营商','500MW规划'],acc:'public',status:'运营中',desc:'Khazna阿布扎比超大规模数据中心，中东最大本土DC运营商。',addr:'Abu Dhabi, UAE'},
+
+// ==================== 东数西算 国家枢纽 ====================
+{id:'hub-jjj',name:'国家算力枢纽 · 京津冀（廊坊）',op:'国家发改委/多运营商',type:'national-hub',lat:39.538,lng:116.684,city:'廊坊',province:'河北',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.25',area:'规划超100万㎡',servers:'国家枢纽集群',features:['东数西算','廊坊集群','润泽科技/腾讯/阿里','国家一体化大数据中心'],acc:'official',status:'运营中',desc:'东数西算国家算力枢纽节点，京津冀节点，廊坊数据中心集群，润泽科技、腾讯、阿里等均有布局。',addr:'河北省廊坊市'},
+{id:'hub-ysc',name:'国家算力枢纽 · 长三角（上海/苏州）',op:'国家发改委/多运营商',type:'national-hub',lat:31.223,lng:121.475,city:'上海',province:'上海',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.25',area:'规划超100万㎡',servers:'国家枢纽集群',features:['东数西算','长三角枢纽','上海/苏州核心'],acc:'official',status:'运营中',desc:'东数西算国家算力枢纽，长三角节点。',addr:'上海市/江苏省苏州市'},
+{id:'hub-gba',name:'国家算力枢纽 · 粤港澳（韶关）',op:'国家发改委/多运营商',type:'national-hub',lat:24.811,lng:113.597,city:'韶关',province:'广东',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.22',area:'规划超80万㎡',servers:'国家枢纽集群',features:['东数西算','韶关集群','大湾区供应'],acc:'official',status:'运营中',desc:'东数西算国家算力枢纽，粤港澳节点，韶关数据中心集群。',addr:'广东省韶关市'},
+{id:'hub-cyr',name:'国家算力枢纽 · 成渝（重庆/成都）',op:'国家发改委/多运营商',type:'national-hub',lat:29.57,lng:106.55,city:'重庆',province:'重庆',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.22',area:'规划超80万㎡',servers:'国家枢纽集群',features:['东数西算','成渝枢纽','腾讯/移动/阿里'],acc:'official',status:'运营中',desc:'东数西算国家算力枢纽，成渝节点，重庆/成都数据中心集群。',addr:'重庆市/四川省成都市'},
+{id:'hub-gz',name:'国家算力枢纽 · 贵州（贵安）',op:'国家发改委/多运营商',type:'national-hub',lat:26.31,lng:106.22,city:'贵阳',province:'贵州',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.12',area:'规划超150万㎡',servers:'国家枢纽集群',features:['东数西算','全国规模最大枢纽','腾讯/华为/移动/联通/电信/苹果/Apple'],acc:'official',status:'运营中',desc:'东数西算国家算力枢纽，贵州贵安节点，全国规模最大，腾讯、华为、苹果、三大运营商均有超大规模布局。',addr:'贵州省贵安新区'},
+{id:'hub-nm',name:'国家算力枢纽 · 内蒙古（和林格尔）',op:'国家发改委/多运营商',type:'national-hub',lat:40.38,lng:111.82,city:'和林格尔',province:'内蒙古',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.18',area:'规划超100万㎡',servers:'国家枢纽集群',features:['东数西算','绿电直供','阿里/腾讯/秦淮数据'],acc:'official',status:'运营中',desc:'东数西算国家算力枢纽，内蒙古和林格尔节点，PUE低。',addr:'内蒙古自治区和林格尔县'},
+{id:'hub-nx',name:'国家算力枢纽 · 宁夏（中卫）',op:'国家发改委/多运营商',type:'national-hub',lat:37.515,lng:105.194,city:'中卫',province:'宁夏',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.20',area:'规划超80万㎡',servers:'国家枢纽集群',features:['东数西算','AWS中国宁夏','三大运营商','清洁能源'],acc:'official',status:'运营中',desc:'东数西算国家算力枢纽，宁夏中卫节点，AWS中国宁夏区域及三大运营商均在此布局。',addr:'宁夏回族自治区中卫市'},
+{id:'hub-gs',name:'国家算力枢纽 · 甘肃（庆阳）',op:'国家发改委/多运营商',type:'national-hub',lat:35.709,lng:107.641,city:'庆阳',province:'甘肃',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.20',area:'规划超60万㎡',servers:'国家枢纽集群',features:['东数西算','西部风光资源'],acc:'official',status:'建设中',desc:'东数西算国家算力枢纽，甘肃庆阳节点，风光能源丰富。',addr:'甘肃省庆阳市'},
+
+// ==================== 中国三大运营商 (精选核心机房) ====================
+// 数据来源：工信部2025年通信业统计公报 + IDC圈 + 官方披露
+// 2025年底三大运营商对外机架总数93.8万个
+{id:'ctele-bj',name:'中国电信 天翼云 北京核心数据中心',op:'中国电信/天翼云',type:'telecom',lat:40.183,lng:116.278,city:'北京',province:'北京',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.28',area:'约12万㎡',servers:'百万台级',features:['天翼云华北核心','沙河IDC'],acc:'official',status:'运营中',desc:'中国电信天翼云北京核心IDC，沙河园区。',addr:'北京市昌平区沙河'},
+{id:'ctele-sh',name:'中国电信 天翼云 上海核心数据中心',op:'中国电信/天翼云',type:'telecom',lat:31.182,lng:121.368,city:'上海',province:'上海',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.28',area:'约15万㎡',servers:'百万台级',features:['天翼云华东核心','九亭IDC'],acc:'official',status:'运营中',desc:'中国电信天翼云上海华东核心IDC。',addr:'上海市松江区九亭镇'},
+{id:'ctele-gz',name:'中国电信 天翼云 广州数据中心',op:'中国电信/天翼云',type:'telecom',lat:23.048,lng:113.152,city:'广州',province:'广东',country:'中国',continent:'亚洲',scale:'大型',pue:'1.30',area:'约8万㎡',servers:'大型集群',features:['天翼云华南骨干'],acc:'official',status:'运营中',desc:'中国电信广州数据中心。',addr:'广东省广州市荔湾区'},
+{id:'ctele-guian',name:'中国电信 天翼云 贵安数据中心',op:'中国电信/天翼云',type:'telecom',lat:26.648,lng:106.627,city:'贵阳',province:'贵州',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.18',area:'约30万㎡',servers:'大型集群',features:['贵安枢纽','绿色低碳','自然冷却'],acc:'official',status:'运营中',desc:'中国电信贵安超大规模IDC，自然冷却，PUE 1.18。',addr:'贵州省贵安新区'},
+{id:'ctele-neimeng',name:'中国电信 天翼云 内蒙古数据中心',op:'中国电信/天翼云',type:'telecom',lat:40.842,lng:111.749,city:'呼和浩特',province:'内蒙古',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.22',area:'约20万㎡',servers:'大型集群',features:['绿电直供','低成本'],acc:'official',status:'运营中',desc:'中国电信内蒙古超大规模IDC。',addr:'内蒙古呼和浩特'},
+{id:'ctele-nx',name:'中国电信 天翼云 宁夏中卫数据中心',op:'中国电信/天翼云',type:'telecom',lat:37.497,lng:106.228,city:'中卫',province:'宁夏',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.20',area:'约15万㎡',servers:'大型集群',features:['西部枢纽','清洁能源'],acc:'official',status:'运营中',desc:'中国电信宁夏中卫IDC，西部枢纽节点。',addr:'宁夏回族自治区中卫市'},
+{id:'ctele-hk',name:'中国电信 天翼云 香港数据中心',op:'中国电信/天翼云',type:'telecom',lat:22.316,lng:114.191,city:'香港',province:'香港',country:'中国香港',continent:'亚洲',scale:'大型',pue:'1.30',area:'约3万㎡',servers:'大型集群',features:['港澳门户','国际连接'],acc:'official',status:'运营中',desc:'中国电信香港IDC，国际互联出口节点。',addr:'香港将军澳'},
+{id:'cunicom-bj',name:'中国联通 云联网 北京核心数据中心',op:'中国联通/联通云',type:'telecom',lat:40.183,lng:116.281,city:'北京',province:'北京',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.28',area:'约12万㎡',servers:'百万台级',features:['联通云华北核心','北京沙河IDC'],acc:'official',status:'运营中',desc:'中国联通北京沙河核心IDC。',addr:'北京市昌平区沙河'},
+{id:'cunicom-sh',name:'中国联通 云联网 上海核心数据中心',op:'中国联通/联通云',type:'telecom',lat:31.178,lng:121.358,city:'上海',province:'上海',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.28',area:'约10万㎡',servers:'百万台级',features:['联通云华东核心','金融云'],acc:'official',status:'运营中',desc:'中国联通上海核心IDC。',addr:'上海市松江区'},
+{id:'cunicom-guian',name:'中国联通 云联网 贵安数据中心',op:'中国联通/联通云',type:'telecom',lat:26.627,lng:106.574,city:'贵阳',province:'贵州',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.18',area:'约25万㎡',servers:'大型集群',features:['贵安枢纽','低PUE绿色'],acc:'official',status:'运营中',desc:'中国联通贵安超大规模IDC。',addr:'贵州省贵安新区'},
+{id:'cunicom-neimeng',name:'中国联通 云联网 内蒙古数据中心',op:'中国联通/联通云',type:'telecom',lat:40.793,lng:111.749,city:'呼和浩特',province:'内蒙古',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.22',area:'约18万㎡',servers:'大型集群',features:['绿电','低成本'],acc:'official',status:'运营中',desc:'中国联通内蒙古超大规模IDC。',addr:'内蒙古呼和浩特'},
+{id:'cmobile-bj',name:'中国移动 移动云 北京核心数据中心',op:'中国移动/移动云',type:'telecom',lat:40.002,lng:116.307,city:'北京',province:'北京',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.28',area:'约15万㎡',servers:'百万台级',features:['移动云华北核心','海淀后厂村IDC'],acc:'official',status:'运营中',desc:'中国移动北京核心IDC，海淀后厂村。',addr:'北京市海淀区后厂村'},
+{id:'cmobile-sh',name:'中国移动 移动云 上海核心数据中心',op:'中国移动/移动云',type:'telecom',lat:31.211,lng:121.502,city:'上海',province:'上海',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.28',area:'约12万㎡',servers:'百万台级',features:['移动云华东核心','浦东IDC'],acc:'official',status:'运营中',desc:'中国移动上海浦东核心IDC。',addr:'上海市浦东新区'},
+{id:'cmobile-cq',name:'中国移动 移动云 重庆数据中心',op:'中国移动/移动云',type:'telecom',lat:29.583,lng:106.525,city:'重庆',province:'重庆',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.25',area:'约15万㎡',servers:'大型集群',features:['移动云西南核心','成渝枢纽'],acc:'official',status:'运营中',desc:'中国移动重庆超大规模IDC，成渝枢纽核心节点。',addr:'重庆市渝北区'},
+{id:'cmobile-guian',name:'中国移动 移动云 贵安数据中心',op:'中国移动/移动云',type:'telecom',lat:26.559,lng:106.722,city:'贵阳',province:'贵州',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.18',area:'约25万㎡',servers:'大型集群',features:['贵安枢纽','绿色低碳'],acc:'official',status:'运营中',desc:'中国移动贵安超大规模IDC。',addr:'贵州省贵安新区'},
+{id:'cmobile-neimeng',name:'中国移动 移动云 内蒙古数据中心',op:'中国移动/移动云',type:'telecom',lat:40.756,lng:111.632,city:'呼和浩特',province:'内蒙古',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.22',area:'约20万㎡',servers:'大型集群',features:['绿电','低PUE'],acc:'official',status:'运营中',desc:'中国移动内蒙古超大规模IDC。',addr:'内蒙古呼和浩特'},
+{id:'cmobile-nx',name:'中国移动 移动云 宁夏中卫数据中心',op:'中国移动/移动云',type:'telecom',lat:37.521,lng:105.187,city:'中卫',province:'宁夏',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.20',area:'约20万㎡',servers:'大型集群',features:['西部枢纽','清洁能源'],acc:'official',status:'运营中',desc:'中国移动宁夏中卫超大规模IDC。',addr:'宁夏回族自治区中卫市'},
+
+// ==================== 国际电信运营商 ====================
+{id:'ntt-otemachi',name:'NTT Tokyo Otemachi Data Center',op:'NTT Communications',type:'telecom',lat:35.686,lng:139.763,city:'Tokyo',province:'Tokyo',country:'日本',continent:'亚洲',scale:'超大规模',pue:'1.30',area:'约6万㎡',servers:'超10000 racks',features:['日本最大IDC之一','金融核心','Otemachi One'],acc:'public',status:'运营中',desc:'NTT东京大手町超大规模数据中心，日本金融IT核心。',addr:'Otemachi, Chiyoda-ku, Tokyo, Japan'},
+{id:'ntt-sg',name:'NTT Singapore Data Center',op:'NTT Communications',type:'telecom',lat:1.354,lng:103.702,city:'Singapore',province:'Singapore',country:'新加坡',continent:'亚洲',scale:'超大规模',pue:'1.33',area:'约4万㎡',servers:'超5000 racks',features:['亚太互联枢纽'],acc:'public',status:'运营中',desc:'NTT新加坡旗舰数据中心。',addr:'Jurong East, Singapore'},
+{id:'att-ashburn',name:'AT&T Dallas Infomart Data Center',op:'AT&T',type:'telecom',lat:32.791,lng:-96.831,city:'Dallas',province:'Texas',country:'美国',continent:'北美洲',scale:'超大规模',pue:'1.33',area:'约6万㎡',servers:'超2000 cabinets',features:['美国中部互联核心'],acc:'public',status:'运营中',desc:'AT&T达拉斯Infomart数据中心，美国中部电信核心。',addr:'1950 N Stemmons Fwy, Dallas, TX, USA'},
+{id:'verizon-ashburn',name:'Verizon Ashburn Data Center',op:'Verizon',type:'telecom',lat:39.031,lng:-77.503,city:'Ashburn',province:'Virginia',country:'美国',continent:'北美洲',scale:'超大规模',pue:'1.30',area:'约8万㎡',servers:'超3000 cabinets',features:['北美互联核心'],acc:'public',status:'运营中',desc:'Verizon北弗吉尼亚旗舰数据中心。',addr:'Ashburn, Virginia, USA'},
+{id:'softbank-tokyo',name:'SoftBank Tokyo Shiodome Data Center',op:'SoftBank',type:'telecom',lat:35.659,lng:139.758,city:'Tokyo',province:'Tokyo',country:'日本',continent:'亚洲',scale:'超大规模',pue:'1.28',area:'约5万㎡',servers:'大型集群',features:['日本最大商用IDC之一'],acc:'public',status:'运营中',desc:'SoftBank汐留超大规模数据中心，日本最大商用IDC之一。',addr:'Shiodome, Minato-ku, Tokyo, Japan'},
+{id:'singtel-tuas',name:'Singtel Tuas Data Centre',op:'Singtel',type:'telecom',lat:1.325,lng:103.654,city:'Singapore',province:'Singapore',country:'新加坡',continent:'亚洲',scale:'超大规模',pue:'1.30',area:'约6万㎡',servers:'超4000 racks',features:['新加坡最大IDC之一'],acc:'public',status:'运营中',desc:'Singtel大士超大规模数据中心，新加坡最大IDC之一。',addr:'Tuas, Singapore'},
+{id:'pccw-tkotoo',name:'PCCW TKO Data Centre (iAdvantage MEGA)',op:'PCCW/HKT',type:'telecom',lat:22.317,lng:114.269,city:'香港',province:'香港',country:'中国香港',continent:'亚洲',scale:'超大规模',pue:'1.28',area:'约5万㎡',servers:'超6000 racks',features:['香港最大IDC之一','iAdvantage管理'],acc:'public',status:'运营中',desc:'PCCW将军澳超大规模数据中心，香港互联枢纽。',addr:'Tseung Kwan O Industrial Estate, Hong Kong'},
+{id:'dtag-bettenhausen',name:'T-Systems Frankfurt Twin Data Center',op:'Deutsche Telekom/T-Systems',type:'telecom',lat:50.146,lng:8.616,city:'Frankfurt',province:'Hessen',country:'德国',continent:'欧洲',scale:'超大规模',pue:'1.23',area:'约40万㎡',servers:'超大规模集群',features:['欧洲最大电信IDC之一','Open Telekom Cloud核心'],acc:'public',status:'运营中',desc:'德国电信T-Systems法兰克福超大规模双园区，Open Telekom Cloud核心。',addr:'Frankfurt am Main, Germany'},
+{id:'dtag-biere',name:'T-Systems Biere Data Center',op:'Deutsche Telekom/T-Systems',type:'telecom',lat:51.987,lng:11.696,city:'Biere',province:'Saxony-Anhalt',country:'德国',continent:'欧洲',scale:'超大规模',pue:'1.20',area:'约20万㎡',servers:'超大规模集群',features:['Open Telekom Cloud核心','低成本能源'],acc:'public',status:'运营中',desc:'德国电信T-Systems萨克森安哈特Biere超大规模数据中心。',addr:'Biere, Saxony-Anhalt, Germany'},
+
+// ==================== 中国第三方IDC / 政企 ====================
+{id:'gds-sh',name:'万国数据(GDS) 上海数据中心',op:'万国数据GDS',type:'third-party',lat:31.191,lng:121.381,city:'上海',province:'上海',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.25',area:'约20万㎡',servers:'大型集群',features:['中国高端IDC代表','阿里主要供应商','九亭园区'],acc:'official',status:'运营中',desc:'万国数据GDS上海九亭旗舰数据中心。',addr:'上海市松江区九亭镇'},
+{id:'runze-lf',name:'润泽科技 廊坊超大规模数据中心',op:'润泽科技',type:'third-party',lat:39.537,lng:116.693,city:'廊坊',province:'河北',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.23',area:'约50万㎡',servers:'大型集群',features:['华北最大第三方IDC集群','阿里云主要供应商','京津冀枢纽'],acc:'official',status:'运营中',desc:'润泽科技廊坊超大规模数据中心集群，阿里云华北主要供应商。',addr:'河北省廊坊市'},
+{id:'qinhuai-nm',name:'秦淮数据 内蒙古超大规模数据中心',op:'秦淮数据',type:'third-party',lat:40.764,lng:111.618,city:'呼和浩特',province:'内蒙古',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.20',area:'约30万㎡',servers:'大型集群',features:['绿电','腾讯主要供应商','超低PUE'],acc:'official',status:'运营中',desc:'秦淮数据内蒙古超大规模绿色数据中心，腾讯云主要供应商。',addr:'内蒙古呼和浩特'},
+{id:'sj互联-bj',name:'世纪互联 北京亦庄数据中心',op:'世纪互联',type:'third-party',lat:39.804,lng:116.486,city:'北京',province:'北京',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.26',area:'约15万㎡',servers:'大型集群',features:['中国最大第三方IDC运营商','微软/AWS合作','亦庄核心'],acc:'official',status:'运营中',desc:'世纪互联北京亦庄旗舰数据中心，微软Azure/AWS中国运营合作方。',addr:'北京市大兴区亦庄'},
+{id:'bytedance-nj',name:'字节跳动 南京超大规模数据中心',op:'字节跳动',type:'gov-enterprise',lat:31.906,lng:118.722,city:'南京',province:'江苏',country:'中国',continent:'亚洲',scale:'超大规模',pue:'1.22',area:'约20万㎡',servers:'大型集群',features:['抖音/TikTok核心','超大规模'],acc:'public',status:'运营中',desc:'字节跳动南京超大规模数据中心，抖音/TikTok视频业务核心。',addr:'江苏省南京市浦口区'},
+{id:'icbc-bj',name:'中国工商银行 北京数据中心',op:'中国工商银行',type:'gov-enterprise',lat:39.984,lng:116.286,city:'北京',province:'北京',country:'中国',continent:'亚洲',scale:'大型',pue:'1.30',area:'约5万㎡',servers:'大型集群',features:['四大行金融核心','全球最大银行IT'],acc:'public',status:'运营中',desc:'工商银行北京核心数据中心。',addr:'北京市海淀区西北旺'},
+{id:'apple-guian',name:'苹果iCloud中国 贵安数据中心',op:'苹果/云上贵州',type:'gov-enterprise',lat:26.274,lng:106.193,city:'贵阳',province:'贵州',country:'中国',continent:'亚洲',scale:'大型',pue:'1.15',area:'约2万㎡',servers:'iCloud中国用户数据',features:['iCloud中国合规存储','云上贵州运营','数据主权合规'],acc:'official',status:'运营中',desc:'苹果iCloud中国区数据存储于贵安，由云上贵州运营，满足中国数据本地化要求。',addr:'贵州省贵安新区'},
+
+// ==================== 其他重要节点 ====================
+{id:'oracle-ab',name:'Oracle Cloud Abu Dhabi',op:'Oracle Cloud',type:'cloud-giant',lat:24.46,lng:54.365,city:'Abu Dhabi',province:'Abu Dhabi',country:'阿联酋',continent:'亚洲',scale:'大型',pue:'1.30',area:'多园区',servers:'大型集群',features:['Oracle Cloud中东核心'],acc:'official',status:'运营中',desc:'Oracle Cloud阿布扎比区域。',addr:'Abu Dhabi, UAE'},
+{id:'oracle-tokyo',name:'Oracle Cloud Tokyo',op:'Oracle Cloud',type:'cloud-giant',lat:35.689,lng:139.692,city:'Tokyo',province:'Tokyo',country:'日本',continent:'亚洲',scale:'大型',pue:'1.22',area:'多园区',servers:'大型集群',features:['Oracle Cloud亚太核心'],acc:'official',status:'运营中',desc:'Oracle Cloud东京区域。',addr:'Tokyo, Japan'},
+{id:'oracle-london',name:'Oracle Cloud London',op:'Oracle Cloud',type:'cloud-giant',lat:51.507,lng:-0.127,city:'London',province:'England',country:'英国',continent:'欧洲',scale:'大型',pue:'1.22',area:'多园区',servers:'大型集群',features:['Oracle Cloud欧洲核心'],acc:'official',status:'运营中',desc:'Oracle Cloud伦敦区域。',addr:'London, UK'},
+{id:'ibm-dallas',name:'IBM Cloud Dallas',op:'IBM Cloud',type:'cloud-giant',lat:32.896,lng:-97.038,city:'Dallas',province:'Texas',country:'美国',continent:'北美洲',scale:'大型',pue:'1.25',area:'多园区',servers:'大型集群',features:['IBM Cloud核心','us-south'],acc:'official',status:'运营中',desc:'IBM Cloud达拉斯区域核心。',addr:'Dallas/Fort Worth, Texas, USA'},
+{id:'ibm-frankfurt',name:'IBM Cloud Frankfurt',op:'IBM Cloud',type:'cloud-giant',lat:50.115,lng:8.672,city:'Frankfurt',province:'Hessen',country:'德国',continent:'欧洲',scale:'大型',pue:'1.22',area:'多园区',servers:'大型集群',features:['IBM Cloud欧洲核心','eu-de'],acc:'official',status:'运营中',desc:'IBM Cloud法兰克福区域。',addr:'Frankfurt, Germany'},
+{id:'ali-thai',name:'阿里云 泰国曼谷数据中心(2)',op:'阿里云',type:'cloud-giant',lat:13.688,lng:100.507,city:'Bangkok',province:'Bangkok',country:'泰国',continent:'亚洲',scale:'大型',pue:'1.28',area:'约2万㎡',servers:'大型集群',features:['Alibaba Cloud Thailand'],acc:'official',status:'运营中',desc:'阿里云曼谷数据中心，东南亚扩张节点。',addr:'Bangkok, Thailand'},
+
+// 国际AI智算中心
+{id:'ai-india-bangalore',name:'印度班加罗尔AI智算中心',op:'印度政府/Reliance Jio',type:'ai-computing',lat:12.921,lng:77.671,city:'Bangalore',province:'Karnataka',country:'印度',continent:'亚洲',scale:'大型',pue:'1.30',area:'约5万㎡',servers:'AI集群',features:['印度国家AI战略','$10亿+'],acc:'estimated',status:'建设中',desc:'印度班加罗尔AI数据中心项目，印度国家AI战略核心节点。',addr:'Whitefield, Bangalore, India'},
+{id:'ai-dubai',name:'迪拜AI数据中心(G42 HQ)',op:'G42 (UAE)',type:'ai-computing',lat:24.453,lng:54.377,city:'Abu Dhabi',province:'Abu Dhabi',country:'阿联酋',continent:'亚洲',scale:'大型',pue:'1.28',area:'约5万㎡',servers:'AI集群',features:['G42/微软合作','$15亿投资','中东AI战略'],acc:'public',status:'运营中',desc:'G42阿布扎比AI数据中心，与微软合作，中东AI战略核心。',addr:'Abu Dhabi, UAE'},
+
+];
+
+// ========================================================
+// 应用逻辑
+// ========================================================
+const COLOR_MAP = {'cloud-giant':'#4facfe','third-party':'#ff6b6b','telecom':'#ffd93d','national-hub':'#00e676','gov-enterprise':'#b388ff','ai-computing':'#ff9100'};
+const TYPE_NAMES = {'cloud-giant':'云厂商','third-party':'第三方IDC','telecom':'运营商','national-hub':'国家枢纽','gov-enterprise':'政企','ai-computing':'智算中心'};
+const ACC_NAMES = {'official':'🟢 官方披露','public':'🔵 公开记录','estimated':'🟡 估算'};
+const CONTINENT_VIEWS = {'all':{c:[20,0],z:2},'亚洲':{c:[30,105],z:3},'北美洲':{c:[40,-100],z:4},'欧洲':{c:[50,10],z:4},'南美洲':{c:[-15,-55],z:4},'非洲':{c:[5,25],z:4},'大洋洲':{c:[-28,145],z:4}};
+
+let map, markerCluster, allMarkers=[], currentFilter='all', currentContinent='all', currentCountry='';
+
+const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{attribution:'Tiles &copy; Esri',maxZoom:19});
+const labelLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,pane:'overlayPane'});
+const stdLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap',maxZoom:19});
+const darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'&copy; CartoDB',maxZoom:19});
+
+function initMap(){
+  map = L.map('map',{center:[20,0],zoom:3,zoomControl:false,layers:[satLayer,labelLayer],worldCopyJump:true});
+  L.control.zoom({position:'topright'}).addTo(map);
+  markerCluster = L.markerClusterGroup({
+    maxClusterRadius:50,spiderfyOnMaxZoom:true,showCoverageOnHover:false,
+    iconCreateFunction:function(cl){
+      var c=cl.getChildCount(),s=c<10?38:c<30?48:58;
+      return L.divIcon({html:'<div style="width:'+s+'px;height:'+s+'px;border-radius:50%;background:rgba(79,172,254,.72);border:2px solid rgba(255,255,255,.85);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px;box-shadow:0 2px 10px rgba(79,172,254,.5)">'+c+'</div>',className:'',iconSize:[s,s]});
+    }
+  });
+  DC.forEach(function(dc,i){
+    var isLarge=dc.scale==='超大规模',color=COLOR_MAP[dc.type]||'#4facfe',sz=isLarge?16:12;
+    var shortName=dc.name.length>12?dc.name.substring(0,12)+'…':dc.name;
+    var pulseClass=dc.type==='national-hub'?' pulse-green':dc.type==='ai-computing'?' pulse-orange':'';
+    var statusBorder=dc.status==='建设中'?'border:2px dashed rgba(255,255,255,.9)':'border:2px solid rgba(255,255,255,.9)';
+    var icon=L.divIcon({html:'<div class="dc-marker'+pulseClass+'" style="background:'+color+';width:'+(sz*2)+'px;height:'+(sz*2)+'px;'+statusBorder+'"><div class="dc-marker-label">'+shortName+'</div></div>',className:'dc-marker-container',iconSize:[sz*2,sz*2],iconAnchor:[sz,sz]});
+    var marker=L.marker([dc.lat,dc.lng],{icon:icon});
+    marker.dcData=dc; marker.dcIndex=i;
+    marker.on('click',function(){showDetail(dc);});
+    marker.bindTooltip('<b>'+dc.name+'</b><br>'+dc.op+' · '+(dc.country||'')+', '+dc.city+'<br><span style="color:#8892a4">'+dc.scale+'&nbsp;|&nbsp;'+(dc.status||'运营中')+'</span>',{direction:'top',offset:[0,-sz]});
+    allMarkers.push(marker);
+    markerCluster.addLayer(marker);
+  });
+  map.addLayer(markerCluster);
+  updateList(); updateStats();
+  setTimeout(function(){document.getElementById('loading').classList.add('hide');},600);
+  // Mobile swipe
+  var sb=document.getElementById('sidebar'),startY=0;
+  sb.addEventListener('touchstart',function(e){startY=e.touches[0].clientY;},{passive:true});
+  sb.addEventListener('touchend',function(e){
+    var dy=e.changedTouches[0].clientY-startY;
+    if(dy<-40) sb.classList.add('mobile-expanded');
+    else if(dy>40) sb.classList.remove('mobile-expanded');
+  },{passive:true});
+}
+
+function getFiltered(){
+  var q=document.getElementById('search-input').value.toLowerCase();
+  return DC.filter(function(dc){
+    if(currentFilter!=='all'&&dc.type!==currentFilter) return false;
+    if(currentContinent!=='all'&&dc.continent!==currentContinent) return false;
+    if(currentCountry&&dc.country!==currentCountry) return false;
+    if(q){var s=(dc.name+' '+dc.op+' '+dc.city+' '+(dc.province||'')+' '+(dc.country||'')+' '+(dc.continent||'')+' '+(dc.addr||'')+' '+(dc.features||[]).join(' ')).toLowerCase();return s.indexOf(q)!==-1;}
+    return true;
+  });
+}
+
+function updateStats(){
+  var vis=getFiltered(),cities={},ops={},countries={},types={};
+  vis.forEach(function(d){cities[d.city]=1;ops[d.op]=1;countries[d.country||'未知']=(countries[d.country||'未知']||0)+1;types[d.type]=(types[d.type]||0)+1;});
+  document.getElementById('stat-total').textContent=vis.length;
+  document.getElementById('stat-cities').textContent=Object.keys(cities).length;
+  document.getElementById('stat-operators').textContent=Object.keys(ops).length;
+  document.getElementById('stat-countries').textContent=Object.keys(countries).length;
+  var th='';
+  Object.keys(TYPE_NAMES).forEach(function(t){if(types[t]) th+='<div class="type-stat-item"><div class="type-stat-dot" style="background:'+COLOR_MAP[t]+'"></div><span style="font-weight:600">'+types[t]+'</span>&nbsp;<span style="color:#8892a4">'+TYPE_NAMES[t]+'</span></div>';});
+  var ts=document.getElementById('type-stats'); if(ts) ts.innerHTML=th;
+  var ca=Object.keys(countries).map(function(c){return{n:c,v:countries[c]};}).sort(function(a,b){return b.v-a.v;}).slice(0,10);
+  var mx=ca.length?ca[0].v:1,ch='';
+  ca.forEach(function(c){
+    var pct=Math.round(c.v/mx*100),ac=currentCountry===c.n?' active-country':'';
+    ch+='<div class="country-bar'+ac+'" onclick="filterByCountry(\''+c.n.replace(/'/g,"\\'")+'\')" title="点击筛选 '+c.n+'"><span class="country-bar-name">'+c.n+'</span><div class="country-bar-track"><div class="country-bar-fill" style="width:'+pct+'%"></div></div><span class="country-bar-count">'+c.v+'</span></div>';
+  });
+  var cs=document.getElementById('country-stats'); if(cs) cs.innerHTML=ch;
+  var sp=document.getElementById('stats-panel'); if(sp){if(vis.length>0) sp.classList.add('visible'); else sp.classList.remove('visible');}
+}
+
+function highlightText(t,q){if(!q) return t;var i=t.toLowerCase().indexOf(q);if(i===-1) return t;return t.substring(0,i)+'<mark style="background:rgba(79,172,254,.3);border-radius:2px">'+t.substring(i,i+q.length)+'</mark>'+t.substring(i+q.length);}
+
+function updateList(){
+  var filtered=getFiltered(),q=document.getElementById('search-input').value.toLowerCase();
+  var lc=document.getElementById('list-count');
+  lc.innerHTML='<span>共 '+filtered.length+' 个数据中心</span><span class="export-link" id="export-csv">📥 导出CSV</span>';
+  document.getElementById('export-csv').addEventListener('click',exportCSV);
+  var html='';
+  filtered.forEach(function(dc){
+    var idx=DC.indexOf(dc),color=COLOR_MAP[dc.type]||'#4facfe',tn=TYPE_NAMES[dc.type]||dc.type;
+    var tags='<span class="dc-tag" style="background:'+color+'22;color:'+color+'">'+tn+'</span>';
+    if(dc.scale==='超大规模') tags+='<span class="dc-tag hyper">超大</span>';
+    if(dc.type==='ai-computing'||(dc.features&&dc.features.some(function(f){return /AI|GPU|智算/.test(f);}))) tags+='<span class="dc-tag ai">AI</span>';
+    if(dc.features&&dc.features.some(function(f){return /液冷|浸没/.test(f);})) tags+='<span class="dc-tag liquid">液冷</span>';
+    if(dc.status&&dc.status!=='运营中') tags+='<span class="dc-tag" style="background:rgba(255,193,7,.15);color:#ffc107">'+dc.status+'</span>';
+    var dn=dc.name,lo=dc.op+' · '+(dc.country||'')+', '+dc.city;
+    if(q){dn=highlightText(dn,q);lo=highlightText(lo,q);}
+    html+='<div class="dc-item" onclick="selectDC('+idx+')" data-index="'+idx+'"><div class="dc-name">'+dn+'</div><div class="dc-operator">'+lo+'</div><div class="dc-tags">'+tags+'</div></div>';
+  });
+  document.getElementById('dc-list').innerHTML=html;
+  markerCluster.clearLayers();
+  allMarkers.forEach(function(m){if(filtered.indexOf(m.dcData)!==-1) markerCluster.addLayer(m);});
+  updateStats();
+}
+
+function selectDC(i){
+  var dc=DC[i];
+  map.flyTo([dc.lat,dc.lng],11,{duration:1.2});
+  showDetail(dc);
+  document.querySelectorAll('.dc-item').forEach(function(el){el.classList.remove('active');});
+  var item=document.querySelector('.dc-item[data-index="'+i+'"]');
+  if(item){item.classList.add('active');item.scrollIntoView({behavior:'smooth',block:'nearest'});}
+}
+
+function showDetail(dc){
+  var panel=document.getElementById('detail-panel'),color=COLOR_MAP[dc.type]||'#4facfe',tn=TYPE_NAMES[dc.type]||dc.type;
+  var fh='';
+  if(dc.features&&dc.features.length){fh='<div class="detail-section"><h3>核心特征</h3><div style="display:flex;flex-wrap:wrap;gap:5px">';dc.features.forEach(function(f){fh+='<span class="dc-tag" style="padding:3px 9px;font-size:11px">'+f+'</span>';});fh+='</div></div>';}
+  var accBadge=dc.acc?'<span class="accuracy-badge acc-'+dc.acc+'">'+ACC_NAMES[dc.acc]+'</span>':'';
+  var statusColor=dc.status==='建设中'?'#ffc107':dc.status==='规划中'?'#b388ff':'#00e676';
+  var gmUrl='https://www.google.com/maps/search/?api=1&query='+dc.lat+','+dc.lng;
+  var osmUrl='https://www.openstreetmap.org/?mlat='+dc.lat+'&mlon='+dc.lng+'#map=14/'+dc.lat+'/'+dc.lng;
+  document.getElementById('detail-content').innerHTML=
+    '<div class="detail-header"><div class="detail-h2">'+dc.name+'</div><div><span class="operator-badge" style="background:'+color+'22;color:'+color+'">● '+dc.op+'</span>'+accBadge+'</div></div>'+
+    '<div class="detail-section"><h3>基本信息</h3><div class="detail-grid">'+
+    '<div class="detail-field"><div class="label">类型</div><div class="value" style="color:'+color+'">'+tn+'</div></div>'+
+    '<div class="detail-field"><div class="label">规模</div><div class="value">'+dc.scale+'</div></div>'+
+    '<div class="detail-field"><div class="label">城市/地区</div><div class="value">'+dc.city+(dc.province?', '+dc.province:'')+'</div></div>'+
+    '<div class="detail-field"><div class="label">国家/地区</div><div class="value">'+(dc.country||'-')+'</div></div>'+
+    '<div class="detail-field"><div class="label">运营状态</div><div class="value" style="color:'+statusColor+'">'+(dc.status||'运营中')+'</div></div>'+
+    (dc.pue?'<div class="detail-field"><div class="label">PUE</div><div class="value">'+dc.pue+'</div></div>':'')+
+    (dc.area?'<div class="detail-field full"><div class="label">面积/容量</div><div class="value">'+dc.area+'</div></div>':'')+
+    (dc.servers?'<div class="detail-field full"><div class="label">服务器/机柜规模</div><div class="value">'+dc.servers+'</div></div>':'')+
+    (dc.addr?'<div class="detail-field full"><div class="label">精确地址</div><div class="value" style="font-size:12px;color:#8892a4">'+dc.addr+'</div></div>':'')+
+    '</div></div>'+fh+
+    (dc.desc?'<div class="detail-section"><h3>详细描述</h3><p style="font-size:12px;color:#8892a4;line-height:1.75">'+dc.desc+'</p></div>':'')+
+    '<div class="detail-section"><h3>查看地图</h3>'+
+    '<a href="'+gmUrl+'" target="_blank" class="map-link">🌍 Google Maps</a>'+
+    '<a href="'+osmUrl+'" target="_blank" class="map-link">🗺 OpenStreetMap</a></div>'+
+    '<div class="detail-section"><h3>坐标（WGS84）</h3><div style="font-size:11px;color:#5a6478;font-family:monospace">'+dc.lat.toFixed(5)+'°N, '+dc.lng.toFixed(5)+'°E</div></div>';
+  panel.classList.add('open');
+}
+
+function closeDetail(){document.getElementById('detail-panel').classList.remove('open');}
+
+function switchMapType(type,btn){
+  document.querySelectorAll('#map-type-switch button').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  map.eachLayer(function(l){if(l!==markerCluster){try{map.removeLayer(l);}catch(e){}}});
+  if(type==='satellite'){map.addLayer(satLayer);map.addLayer(labelLayer);}
+  else if(type==='standard') map.addLayer(stdLayer);
+  else map.addLayer(darkLayer);
+}
+
+function toggleSidebar(){
+  var sb=document.getElementById('sidebar'),tb=document.getElementById('sidebar-toggle');
+  sb.classList.toggle('collapsed');
+  tb.textContent=sb.classList.contains('collapsed')?'▶':'◀';
+  tb.style.left=sb.classList.contains('collapsed')?'0':'350px';
+}
+
+function filterByType(type,btn){
+  currentFilter=type; currentCountry=''; document.getElementById('country-filter-bar').style.display='none';
+  document.querySelectorAll('.filter-btn').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active'); updateList();
+}
+
+function filterByContinent(continent,btn){
+  currentContinent=continent;
+  document.querySelectorAll('.continent-btn').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  var v=CONTINENT_VIEWS[continent]; if(v) map.flyTo(v.c,v.z,{duration:1});
+  updateList();
+}
+
+function filterByCountry(country){
+  if(currentCountry===country){clearCountryFilter();return;}
+  currentCountry=country;
+  document.getElementById('country-filter-bar').style.display='flex';
+  document.getElementById('cf-name').textContent=country;
+  updateList();
+}
+
+function clearCountryFilter(){
+  currentCountry='';
+  document.getElementById('country-filter-bar').style.display='none';
+  updateList();
+}
+
+function exportCSV(){
+  var filtered=getFiltered();
+  var rows=[['ID','名称','运营商','类型','规模','状态','城市','省份','国家','大洲','PUE','面积','规模','精确地址','纬度','经度','坐标精度','核心特征','描述']];
+  filtered.forEach(function(dc){
+    rows.push([dc.id,dc.name,dc.op,TYPE_NAMES[dc.type]||dc.type,dc.scale,dc.status||'运营中',dc.city,dc.province||'',dc.country||'',dc.continent||'',dc.pue||'',dc.area||'',dc.servers||'',dc.addr||'',dc.lat,dc.lng,ACC_NAMES[dc.acc]||'',(dc.features||[]).join(';'),dc.desc||'']);
+  });
+  var csv=rows.map(function(r){return r.map(function(c){return '"'+(c+'').replace(/"/g,'""')+'"';}).join(',');}).join('\n');
+  var blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
+  var url=URL.createObjectURL(blob); var a=document.createElement('a');
+  a.href=url; a.download='global_dc_map_v7_precise.csv'; a.click(); URL.revokeObjectURL(url);
+  return false;
+}
+
+document.addEventListener('DOMContentLoaded',function(){
+  initMap();
+  document.getElementById('search-input').addEventListener('input',function(){updateList();});
+  document.querySelectorAll('.filter-btn').forEach(function(btn){btn.addEventListener('click',function(){filterByType(btn.dataset.type,btn);});});
+  document.querySelectorAll('.continent-btn').forEach(function(btn){btn.addEventListener('click',function(){filterByContinent(btn.dataset.continent,btn);});});
+});
+</script>
+</body>
+</html>
