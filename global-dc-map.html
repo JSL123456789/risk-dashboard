@@ -84,7 +84,7 @@
   <div class="stats">
     <div class="stat-item"><div class="num" id="s-total">0</div><div class="lab">数据中心总数</div></div>
     <div class="stat-item"><div class="num" id="s-country">0</div><div class="lab">覆盖国家/地区</div></div>
-    <div class="stat-item"><div class="num" id="s-provider">10</div><div class="lab">云服务商</div></div>
+    <div class="stat-item"><div class="num" id="s-provider">20</div><div class="lab">服务商/运营商</div></div>
     <div class="stat-item"><div class="num" id="s-shown">0</div><div class="lab">当前显示</div></div>
   </div>
 </div>
@@ -98,8 +98,8 @@
     <button class="map-btn" id="btn-dark" onclick="switchLayer('dark')">🌙 暗色</button>
   </div>
   <div class="divider"></div>
-  <div class="ctrl-group">
-    <span class="ctrl-label">厂商筛选：</span>
+  <div class="ctrl-group" style="flex-wrap:wrap;max-width:900px;">
+    <span class="ctrl-label">云服务商：</span>
     <button class="filter-btn active" style="--color:#4db8ff" onclick="filterProvider('all',this)">全部</button>
     <button class="filter-btn" style="--color:#FF9900" onclick="filterProvider('AWS',this)">AWS</button>
     <button class="filter-btn" style="--color:#0078D4" onclick="filterProvider('Azure',this)">Azure</button>
@@ -111,6 +111,17 @@
     <button class="filter-btn" style="--color:#2ECC71" onclick="filterProvider('Digital',this)">Digital Realty</button>
     <button class="filter-btn" style="--color:#F39C12" onclick="filterProvider('IBM',this)">IBM</button>
     <button class="filter-btn" style="--color:#E74C3C" onclick="filterProvider('Oracle',this)">Oracle</button>
+    <span class="ctrl-label" style="margin-left:8px;">运营商：</span>
+    <button class="filter-btn" style="--color:#1E90FF" onclick="filterProvider('ChinaTelecom',this)">中国电信</button>
+    <button class="filter-btn" style="--color:#E60012" onclick="filterProvider('ChinaUnicom',this)">中国联通</button>
+    <button class="filter-btn" style="--color:#00A650" onclick="filterProvider('ChinaMobile',this)">中国移动</button>
+    <button class="filter-btn" style="--color:#FF6600" onclick="filterProvider('ATT',this)">AT&T</button>
+    <button class="filter-btn" style="--color:#CD040B" onclick="filterProvider('Verizon',this)">Verizon</button>
+    <button class="filter-btn" style="--color:#FF0000" onclick="filterProvider('NTT',this)">NTT</button>
+    <button class="filter-btn" style="--color:#E2001A" onclick="filterProvider('Deutsche',this)">德电</button>
+    <button class="filter-btn" style="--color:#FF9900" onclick="filterProvider('SingTel',this)">新电信</button>
+    <button class="filter-btn" style="--color:#009FE3" onclick="filterProvider('PCCW',this)">香港电讯</button>
+    <button class="filter-btn" style="--color:#00AEEF" onclick="filterProvider('Softbank',this)">软银</button>
   </div>
   <div class="divider"></div>
   <div class="ctrl-group">
@@ -131,7 +142,7 @@
 </div>
 
 <div id="legend">
-  <h4>图例 — 云服务商</h4>
+  <h4>图例 — 云服务商 & 运营商</h4>
   <div class="legend-item"><div class="legend-dot" style="background:#FF9900"></div>AWS</div>
   <div class="legend-item"><div class="legend-dot" style="background:#0078D4"></div>Azure</div>
   <div class="legend-item"><div class="legend-dot" style="background:#4285F4"></div>Google Cloud</div>
@@ -142,6 +153,17 @@
   <div class="legend-item"><div class="legend-dot" style="background:#2ECC71"></div>Digital Realty</div>
   <div class="legend-item"><div class="legend-dot" style="background:#F39C12"></div>IBM Cloud</div>
   <div class="legend-item"><div class="legend-dot" style="background:#E74C3C"></div>Oracle Cloud</div>
+  <hr style="border-color:#1e3a6e;margin:6px 0;">
+  <div class="legend-item"><div class="legend-dot" style="background:#1E90FF"></div>中国电信</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#E60012"></div>中国联通</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#00A650"></div>中国移动</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#FF6600"></div>AT&T</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#CD040B"></div>Verizon</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#FF0000"></div>NTT</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#E2001A"></div>Deutsche Telekom</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#FF9900"></div>新电信 SingTel</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#009FE3"></div>香港电讯 PCCW</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#00AEEF"></div>软银 SoftBank</div>
 </div>
 
 <div id="info-panel">
@@ -441,6 +463,138 @@ const DC_DATA = [
   {name:"Oracle Cloud Abu Dhabi",provider:"Oracle",region:"中东",city:"Abu Dhabi",country:"阿联酋",lat:24.4539,lng:54.3773,tier:"T3",size:"中型",year:2020,color:"#E74C3C"},
   {name:"Oracle Cloud Riyadh",provider:"Oracle",region:"中东",city:"Riyadh",country:"沙特阿拉伯",lat:24.7136,lng:46.6753,tier:"T3",size:"中型",year:2021,color:"#E74C3C"},
   {name:"Oracle Cloud Johannesburg",provider:"Oracle",region:"非洲",city:"Johannesburg",country:"南非",lat:-26.2041,lng:28.0473,tier:"T3",size:"中型",year:2022,color:"#E74C3C"},
+
+  // ===== 中国电信 =====
+  {name:"中国电信 天翼云 华东（上海）IDC",provider:"ChinaTelecom",region:"华东",city:"上海",country:"中国",lat:31.2304,lng:121.4737,tier:"T3+",size:"超大型",year:2012,color:"#1E90FF"},
+  {name:"中国电信 天翼云 华北（北京）IDC",provider:"ChinaTelecom",region:"华北",city:"北京",country:"中国",lat:39.9042,lng:116.4074,tier:"T3+",size:"超大型",year:2011,color:"#1E90FF"},
+  {name:"中国电信 天翼云 华南（广州）IDC",provider:"ChinaTelecom",region:"华南",city:"广州",country:"中国",lat:23.1291,lng:113.2644,tier:"T3+",size:"大型",year:2013,color:"#1E90FF"},
+  {name:"中国电信 天翼云 西南（成都）IDC",provider:"ChinaTelecom",region:"西南",city:"成都",country:"中国",lat:30.5728,lng:104.0668,tier:"T3+",size:"大型",year:2014,color:"#1E90FF"},
+  {name:"中国电信 天翼云 西南（重庆）IDC",provider:"ChinaTelecom",region:"西南",city:"重庆",country:"中国",lat:29.5631,lng:106.5516,tier:"T3",size:"大型",year:2015,color:"#1E90FF"},
+  {name:"中国电信 天翼云 西北（西安）IDC",provider:"ChinaTelecom",region:"西北",city:"西安",country:"中国",lat:34.3416,lng:108.9398,tier:"T3",size:"中型",year:2016,color:"#1E90FF"},
+  {name:"中国电信 天翼云 西北（贵州）IDC",provider:"ChinaTelecom",region:"西南",city:"贵阳",country:"中国",lat:26.6477,lng:106.6302,tier:"T3+",size:"超大型",year:2015,color:"#1E90FF"},
+  {name:"中国电信 天翼云 华东（南京）IDC",provider:"ChinaTelecom",region:"华东",city:"南京",country:"中国",lat:32.0603,lng:118.7969,tier:"T3",size:"大型",year:2016,color:"#1E90FF"},
+  {name:"中国电信 天翼云 华东（杭州）IDC",provider:"ChinaTelecom",region:"华东",city:"杭州",country:"中国",lat:30.2741,lng:120.1551,tier:"T3",size:"大型",year:2015,color:"#1E90FF"},
+  {name:"中国电信 天翼云 华中（武汉）IDC",provider:"ChinaTelecom",region:"华中",city:"武汉",country:"中国",lat:30.5928,lng:114.3055,tier:"T3",size:"大型",year:2016,color:"#1E90FF"},
+  {name:"中国电信 天翼云 华北（内蒙古）IDC",provider:"ChinaTelecom",region:"华北",city:"呼和浩特",country:"中国",lat:40.8426,lng:111.7497,tier:"T3+",size:"超大型",year:2018,color:"#1E90FF"},
+  {name:"中国电信 天翼云 华北（天津）IDC",provider:"ChinaTelecom",region:"华北",city:"天津",country:"中国",lat:39.3434,lng:117.3616,tier:"T3",size:"大型",year:2014,color:"#1E90FF"},
+  {name:"中国电信 天翼云 华南（深圳）IDC",provider:"ChinaTelecom",region:"华南",city:"深圳",country:"中国",lat:22.5431,lng:114.0579,tier:"T3",size:"大型",year:2014,color:"#1E90FF"},
+  {name:"中国电信 天翼云 东北（沈阳）IDC",provider:"ChinaTelecom",region:"东北",city:"沈阳",country:"中国",lat:41.8057,lng:123.4315,tier:"T3",size:"中型",year:2017,color:"#1E90FF"},
+  {name:"中国电信 天翼云 香港IDC",provider:"ChinaTelecom",region:"中国香港",city:"香港",country:"中国香港",lat:22.3193,lng:114.1694,tier:"T3+",size:"大型",year:2013,color:"#1E90FF"},
+  {name:"中国电信 天翼云 欧洲（法兰克福）",provider:"ChinaTelecom",region:"欧洲",city:"Frankfurt",country:"德国",lat:50.1109,lng:8.6821,tier:"T3",size:"中型",year:2020,color:"#1E90FF"},
+  {name:"中国电信 天翼云 美洲（弗吉尼亚）",provider:"ChinaTelecom",region:"北美",city:"Ashburn, VA",country:"美国",lat:38.9072,lng:-77.0369,tier:"T3",size:"中型",year:2019,color:"#1E90FF"},
+  {name:"中国电信 天翼云 亚太（新加坡）",provider:"ChinaTelecom",region:"亚太",city:"Singapore",country:"新加坡",lat:1.3521,lng:103.8198,tier:"T3",size:"中型",year:2018,color:"#1E90FF"},
+  {name:"中国电信 天翼云 亚太（曼谷）",provider:"ChinaTelecom",region:"亚太",city:"Bangkok",country:"泰国",lat:13.7563,lng:100.5018,tier:"T3",size:"中型",year:2021,color:"#1E90FF"},
+  {name:"中国电信 天翼云 亚太（首尔）",provider:"ChinaTelecom",region:"亚太",city:"Seoul",country:"韩国",lat:37.5665,lng:126.978,tier:"T3",size:"中型",year:2022,color:"#1E90FF"},
+
+  // ===== 中国联通 =====
+  {name:"中国联通 云联网 华北（北京）IDC",provider:"ChinaUnicom",region:"华北",city:"北京",country:"中国",lat:40.1835,lng:116.2779,tier:"T3+",size:"超大型",year:2010,color:"#E60012"},
+  {name:"中国联通 云联网 华东（上海）IDC",provider:"ChinaUnicom",region:"华东",city:"上海",country:"中国",lat:31.1851,lng:121.3644,tier:"T3+",size:"超大型",year:2011,color:"#E60012"},
+  {name:"中国联通 云联网 华南（广州）IDC",provider:"ChinaUnicom",region:"华南",city:"广州",country:"中国",lat:23.0291,lng:113.1644,tier:"T3+",size:"大型",year:2012,color:"#E60012"},
+  {name:"中国联通 云联网 华东（济南）IDC",provider:"ChinaUnicom",region:"华东",city:"济南",country:"中国",lat:36.6512,lng:117.1201,tier:"T3",size:"大型",year:2014,color:"#E60012"},
+  {name:"中国联通 云联网 华中（武汉）IDC",provider:"ChinaUnicom",region:"华中",city:"武汉",country:"中国",lat:30.6928,lng:114.4055,tier:"T3",size:"大型",year:2015,color:"#E60012"},
+  {name:"中国联通 云联网 西南（成都）IDC",provider:"ChinaUnicom",region:"西南",city:"成都",country:"中国",lat:30.6728,lng:104.1668,tier:"T3",size:"大型",year:2015,color:"#E60012"},
+  {name:"中国联通 云联网 西南（贵阳）IDC",provider:"ChinaUnicom",region:"西南",city:"贵阳",country:"中国",lat:26.7477,lng:106.7302,tier:"T3+",size:"超大型",year:2016,color:"#E60012"},
+  {name:"中国联通 云联网 西北（宁夏）IDC",provider:"ChinaUnicom",region:"西北",city:"银川",country:"中国",lat:38.4872,lng:106.2309,tier:"T3+",size:"超大型",year:2017,color:"#E60012"},
+  {name:"中国联通 云联网 华北（内蒙古）IDC",provider:"ChinaUnicom",region:"华北",city:"呼和浩特",country:"中国",lat:40.9426,lng:111.8497,tier:"T3+",size:"超大型",year:2018,color:"#E60012"},
+  {name:"中国联通 云联网 华东（杭州）IDC",provider:"ChinaUnicom",region:"华东",city:"杭州",country:"中国",lat:30.3741,lng:120.2551,tier:"T3",size:"大型",year:2016,color:"#E60012"},
+  {name:"中国联通 云联网 华南（深圳）IDC",provider:"ChinaUnicom",region:"华南",city:"深圳",country:"中国",lat:22.6431,lng:114.1579,tier:"T3",size:"大型",year:2015,color:"#E60012"},
+  {name:"中国联通 云联网 华北（天津）IDC",provider:"ChinaUnicom",region:"华北",city:"天津",country:"中国",lat:39.4434,lng:117.4616,tier:"T3",size:"大型",year:2014,color:"#E60012"},
+  {name:"中国联通 云联网 香港IDC",provider:"ChinaUnicom",region:"中国香港",city:"香港",country:"中国香港",lat:22.4193,lng:114.2694,tier:"T3+",size:"大型",year:2013,color:"#E60012"},
+  {name:"中国联通 云联网 新加坡IDC",provider:"ChinaUnicom",region:"亚太",city:"Singapore",country:"新加坡",lat:1.4521,lng:103.9198,tier:"T3",size:"中型",year:2019,color:"#E60012"},
+  {name:"中国联通 云联网 美国（洛杉矶）IDC",provider:"ChinaUnicom",region:"北美",city:"Los Angeles, CA",country:"美国",lat:34.1522,lng:-118.3437,tier:"T3",size:"中型",year:2018,color:"#E60012"},
+  {name:"中国联通 云联网 欧洲（法兰克福）IDC",provider:"ChinaUnicom",region:"欧洲",city:"Frankfurt",country:"德国",lat:50.2109,lng:8.7821,tier:"T3",size:"中型",year:2021,color:"#E60012"},
+
+  // ===== 中国移动 =====
+  {name:"中国移动 移动云 华北（北京）IDC",provider:"ChinaMobile",region:"华北",city:"北京",country:"中国",lat:40.0042,lng:116.3074,tier:"T3+",size:"超大型",year:2011,color:"#00A650"},
+  {name:"中国移动 移动云 华东（上海）IDC",provider:"ChinaMobile",region:"华东",city:"上海",country:"中国",lat:31.3304,lng:121.5737,tier:"T3+",size:"超大型",year:2012,color:"#00A650"},
+  {name:"中国移动 移动云 华南（广州）IDC",provider:"ChinaMobile",region:"华南",city:"广州",country:"中国",lat:23.2291,lng:113.3644,tier:"T3+",size:"超大型",year:2012,color:"#00A650"},
+  {name:"中国移动 移动云 华南（深圳）IDC",provider:"ChinaMobile",region:"华南",city:"深圳",country:"中国",lat:22.4431,lng:113.9579,tier:"T3+",size:"大型",year:2013,color:"#00A650"},
+  {name:"中国移动 移动云 华东（杭州）IDC",provider:"ChinaMobile",region:"华东",city:"杭州",country:"中国",lat:30.1741,lng:120.0551,tier:"T3",size:"大型",year:2015,color:"#00A650"},
+  {name:"中国移动 移动云 华东（南京）IDC",provider:"ChinaMobile",region:"华东",city:"南京",country:"中国",lat:32.1603,lng:118.8969,tier:"T3",size:"大型",year:2015,color:"#00A650"},
+  {name:"中国移动 移动云 西南（成都）IDC",provider:"ChinaMobile",region:"西南",city:"成都",country:"中国",lat:30.4728,lng:103.9668,tier:"T3+",size:"大型",year:2014,color:"#00A650"},
+  {name:"中国移动 移动云 西南（重庆）IDC",provider:"ChinaMobile",region:"西南",city:"重庆",country:"中国",lat:29.4631,lng:106.4516,tier:"T3",size:"大型",year:2016,color:"#00A650"},
+  {name:"中国移动 移动云 西南（贵阳）IDC",provider:"ChinaMobile",region:"西南",city:"贵阳",country:"中国",lat:26.5477,lng:106.5302,tier:"T3+",size:"超大型",year:2017,color:"#00A650"},
+  {name:"中国移动 移动云 西北（宁夏）IDC",provider:"ChinaMobile",region:"西北",city:"中卫",country:"中国",lat:37.6004,lng:105.297,tier:"T3+",size:"超大型",year:2016,color:"#00A650"},
+  {name:"中国移动 移动云 华北（内蒙古）IDC",provider:"ChinaMobile",region:"华北",city:"呼和浩特",country:"中国",lat:40.7426,lng:111.6497,tier:"T3+",size:"超大型",year:2017,color:"#00A650"},
+  {name:"中国移动 移动云 华北（天津）IDC",provider:"ChinaMobile",region:"华北",city:"天津",country:"中国",lat:39.2434,lng:117.2616,tier:"T3",size:"大型",year:2015,color:"#00A650"},
+  {name:"中国移动 移动云 东北（沈阳）IDC",provider:"ChinaMobile",region:"东北",city:"沈阳",country:"中国",lat:41.9057,lng:123.5315,tier:"T3",size:"中型",year:2017,color:"#00A650"},
+  {name:"中国移动 移动云 华中（郑州）IDC",provider:"ChinaMobile",region:"华中",city:"郑州",country:"中国",lat:34.7466,lng:113.6253,tier:"T3",size:"大型",year:2018,color:"#00A650"},
+  {name:"中国移动 移动云 香港IDC",provider:"ChinaMobile",region:"中国香港",city:"香港",country:"中国香港",lat:22.2193,lng:114.0694,tier:"T3+",size:"大型",year:2014,color:"#00A650"},
+  {name:"中国移动 移动云 亚太（新加坡）IDC",provider:"ChinaMobile",region:"亚太",city:"Singapore",country:"新加坡",lat:1.2521,lng:103.7198,tier:"T3",size:"中型",year:2020,color:"#00A650"},
+
+  // ===== AT&T =====
+  {name:"AT&T Dallas Data Center",provider:"ATT",region:"美国中部",city:"Dallas, TX",country:"美国",lat:32.8767,lng:-96.897,tier:"T3+",size:"超大型",year:2000,color:"#FF6600"},
+  {name:"AT&T New York Data Center",provider:"ATT",region:"美国东部",city:"New York, NY",country:"美国",lat:40.8128,lng:-74.106,tier:"T3+",size:"超大型",year:1998,color:"#FF6600"},
+  {name:"AT&T Atlanta Data Center",provider:"ATT",region:"美国东部",city:"Atlanta, GA",country:"美国",lat:33.849,lng:-84.488,tier:"T3+",size:"大型",year:2001,color:"#FF6600"},
+  {name:"AT&T Los Angeles Data Center",provider:"ATT",region:"美国西部",city:"Los Angeles, CA",country:"美国",lat:34.1522,lng:-118.3437,tier:"T3+",size:"大型",year:1999,color:"#FF6600"},
+  {name:"AT&T Chicago Data Center",provider:"ATT",region:"美国中部",city:"Chicago, IL",country:"美国",lat:41.9781,lng:-87.7298,tier:"T3+",size:"大型",year:2002,color:"#FF6600"},
+  {name:"AT&T Ashburn Data Center",provider:"ATT",region:"美国东部",city:"Ashburn, VA",country:"美国",lat:39.1438,lng:-77.5874,tier:"T3+",size:"大型",year:2004,color:"#FF6600"},
+  {name:"AT&T Miami Data Center",provider:"ATT",region:"美国东部",city:"Miami, FL",country:"美国",lat:25.8617,lng:-80.2918,tier:"T3",size:"大型",year:2003,color:"#FF6600"},
+  {name:"AT&T Seattle Data Center",provider:"ATT",region:"美国西部",city:"Seattle, WA",country:"美国",lat:47.7062,lng:-122.4321,tier:"T3",size:"中型",year:2005,color:"#FF6600"},
+  {name:"AT&T Houston Data Center",provider:"ATT",region:"美国中部",city:"Houston, TX",country:"美国",lat:29.8604,lng:-95.3698,tier:"T3",size:"中型",year:2006,color:"#FF6600"},
+  {name:"AT&T San Jose Data Center",provider:"ATT",region:"美国西部",city:"San Jose, CA",country:"美国",lat:37.4382,lng:-121.9863,tier:"T3",size:"大型",year:2000,color:"#FF6600"},
+
+  // ===== Verizon =====
+  {name:"Verizon Ashburn Data Center",provider:"Verizon",region:"美国东部",city:"Ashburn, VA",country:"美国",lat:39.0938,lng:-77.5374,tier:"T3+",size:"超大型",year:2000,color:"#CD040B"},
+  {name:"Verizon New York Data Center",provider:"Verizon",region:"美国东部",city:"New York, NY",country:"美国",lat:40.6128,lng:-73.906,tier:"T3+",size:"超大型",year:1999,color:"#CD040B"},
+  {name:"Verizon Dallas Data Center",provider:"Verizon",region:"美国中部",city:"Dallas, TX",country:"美国",lat:32.6767,lng:-96.697,tier:"T3+",size:"大型",year:2001,color:"#CD040B"},
+  {name:"Verizon Los Angeles Data Center",provider:"Verizon",region:"美国西部",city:"Los Angeles, CA",country:"美国",lat:33.9522,lng:-118.1437,tier:"T3",size:"大型",year:2002,color:"#CD040B"},
+  {name:"Verizon Chicago Data Center",provider:"Verizon",region:"美国中部",city:"Chicago, IL",country:"美国",lat:41.7781,lng:-87.5298,tier:"T3",size:"大型",year:2003,color:"#CD040B"},
+  {name:"Verizon Atlanta Data Center",provider:"Verizon",region:"美国东部",city:"Atlanta, GA",country:"美国",lat:33.649,lng:-84.288,tier:"T3",size:"中型",year:2004,color:"#CD040B"},
+  {name:"Verizon Miami Data Center",provider:"Verizon",region:"美国东部",city:"Miami, FL",country:"美国",lat:25.6617,lng:-80.0918,tier:"T3",size:"中型",year:2005,color:"#CD040B"},
+
+  // ===== NTT =====
+  {name:"NTT Tokyo Otemachi Data Center",provider:"NTT",region:"亚太",city:"Tokyo",country:"日本",lat:35.6862,lng:139.7603,tier:"T3+",size:"超大型",year:2000,color:"#FF0000"},
+  {name:"NTT Tokyo Musashino Data Center",provider:"NTT",region:"亚太",city:"Tokyo",country:"日本",lat:35.7054,lng:139.5661,tier:"T3+",size:"超大型",year:2002,color:"#FF0000"},
+  {name:"NTT Osaka Data Center",provider:"NTT",region:"亚太",city:"Osaka",country:"日本",lat:34.7937,lng:135.6023,tier:"T3+",size:"大型",year:2004,color:"#FF0000"},
+  {name:"NTT Sapporo Data Center",provider:"NTT",region:"亚太",city:"Sapporo",country:"日本",lat:43.0618,lng:141.3545,tier:"T3",size:"中型",year:2008,color:"#FF0000"},
+  {name:"NTT Singapore Data Center",provider:"NTT",region:"亚太",city:"Singapore",country:"新加坡",lat:1.2521,lng:103.7198,tier:"T3+",size:"超大型",year:2005,color:"#FF0000"},
+  {name:"NTT Hong Kong Data Center",provider:"NTT",region:"亚太",city:"Hong Kong",country:"中国香港",lat:22.4193,lng:114.2694,tier:"T3+",size:"大型",year:2006,color:"#FF0000"},
+  {name:"NTT Sydney Data Center",provider:"NTT",region:"亚太",city:"Sydney",country:"澳大利亚",lat:-33.7688,lng:151.1093,tier:"T3",size:"大型",year:2008,color:"#FF0000"},
+  {name:"NTT London Data Center",provider:"NTT",region:"欧洲",city:"London",country:"英国",lat:51.4074,lng:-0.0278,tier:"T3+",size:"大型",year:2003,color:"#FF0000"},
+  {name:"NTT Frankfurt Data Center",provider:"NTT",region:"欧洲",city:"Frankfurt",country:"德国",lat:50.0109,lng:8.5821,tier:"T3",size:"大型",year:2005,color:"#FF0000"},
+  {name:"NTT Amsterdam Data Center",provider:"NTT",region:"欧洲",city:"Amsterdam",country:"荷兰",lat:52.2676,lng:4.8041,tier:"T3",size:"大型",year:2007,color:"#FF0000"},
+  {name:"NTT Ashburn Data Center",provider:"NTT",region:"美国东部",city:"Ashburn, VA",country:"美国",lat:39.1438,lng:-77.5874,tier:"T3+",size:"大型",year:2002,color:"#FF0000"},
+  {name:"NTT Chicago Data Center",provider:"NTT",region:"美国中部",city:"Chicago, IL",country:"美国",lat:41.9781,lng:-87.7298,tier:"T3",size:"大型",year:2004,color:"#FF0000"},
+  {name:"NTT San Jose Data Center",provider:"NTT",region:"美国西部",city:"San Jose, CA",country:"美国",lat:37.4382,lng:-121.9863,tier:"T3",size:"大型",year:2003,color:"#FF0000"},
+  {name:"NTT Bangalore Data Center",provider:"NTT",region:"亚太",city:"Bangalore",country:"印度",lat:12.9716,lng:77.5946,tier:"T3",size:"中型",year:2015,color:"#FF0000"},
+  {name:"NTT Mumbai Data Center",provider:"NTT",region:"亚太",city:"Mumbai",country:"印度",lat:19.176,lng:72.9777,tier:"T3",size:"中型",year:2016,color:"#FF0000"},
+
+  // ===== Deutsche Telekom =====
+  {name:"Deutsche Telekom Open Telekom Cloud Frankfurt",provider:"Deutsche",region:"欧洲",city:"Frankfurt",country:"德国",lat:50.1009,lng:8.5821,tier:"T3+",size:"超大型",year:2001,color:"#E2001A"},
+  {name:"Deutsche Telekom Open Telekom Cloud Biere",provider:"Deutsche",region:"欧洲",city:"Biere",country:"德国",lat:51.9867,lng:11.6956,tier:"T3+",size:"超大型",year:2001,color:"#E2001A"},
+  {name:"Deutsche Telekom Hamburg Data Center",provider:"Deutsche",region:"欧洲",city:"Hamburg",country:"德国",lat:53.5753,lng:10.0153,tier:"T3",size:"大型",year:2005,color:"#E2001A"},
+  {name:"Deutsche Telekom Munich Data Center",provider:"Deutsche",region:"欧洲",city:"Munich",country:"德国",lat:48.2351,lng:11.682,tier:"T3",size:"大型",year:2004,color:"#E2001A"},
+  {name:"Deutsche Telekom Berlin Data Center",provider:"Deutsche",region:"欧洲",city:"Berlin",country:"德国",lat:52.5200,lng:13.4050,tier:"T3",size:"大型",year:2003,color:"#E2001A"},
+  {name:"T-Systems Amsterdam Data Center",provider:"Deutsche",region:"欧洲",city:"Amsterdam",country:"荷兰",lat:52.4676,lng:5.0041,tier:"T3",size:"大型",year:2006,color:"#E2001A"},
+  {name:"T-Systems London Data Center",provider:"Deutsche",region:"欧洲",city:"London",country:"英国",lat:51.6074,lng:-0.2278,tier:"T3",size:"大型",year:2007,color:"#E2001A"},
+  {name:"T-Systems Budapest Data Center",provider:"Deutsche",region:"欧洲",city:"Budapest",country:"匈牙利",lat:47.4979,lng:19.0402,tier:"T3",size:"中型",year:2010,color:"#E2001A"},
+  {name:"T-Systems Singapore Data Center",provider:"Deutsche",region:"亚太",city:"Singapore",country:"新加坡",lat:1.3021,lng:103.7698,tier:"T3",size:"中型",year:2012,color:"#E2001A"},
+  {name:"T-Systems Johannesburg Data Center",provider:"Deutsche",region:"非洲",city:"Johannesburg",country:"南非",lat:-26.1041,lng:27.9473,tier:"T3",size:"中型",year:2014,color:"#E2001A"},
+
+  // ===== 新加坡电信 SingTel =====
+  {name:"Singtel Comcentre Data Centre Singapore",provider:"SingTel",region:"亚太",city:"Singapore",country:"新加坡",lat:1.2821,lng:103.7998,tier:"T3+",size:"超大型",year:2000,color:"#FF9900"},
+  {name:"Singtel NCS Data Centre Singapore West",provider:"SingTel",region:"亚太",city:"Singapore",country:"新加坡",lat:1.3221,lng:103.7398,tier:"T3+",size:"超大型",year:2005,color:"#FF9900"},
+  {name:"Singtel Braddell Data Centre",provider:"SingTel",region:"亚太",city:"Singapore",country:"新加坡",lat:1.3521,lng:103.8698,tier:"T3",size:"大型",year:2008,color:"#FF9900"},
+  {name:"Singtel Optus Sydney Data Centre",provider:"SingTel",region:"亚太",city:"Sydney",country:"澳大利亚",lat:-33.7688,lng:151.0093,tier:"T3",size:"大型",year:2003,color:"#FF9900"},
+  {name:"Singtel Optus Melbourne Data Centre",provider:"SingTel",region:"亚太",city:"Melbourne",country:"澳大利亚",lat:-37.7136,lng:144.8631,tier:"T3",size:"中型",year:2005,color:"#FF9900"},
+  {name:"Singtel Bangkok Data Centre",provider:"SingTel",region:"亚太",city:"Bangkok",country:"泰国",lat:13.8563,lng:100.6018,tier:"T3",size:"中型",year:2012,color:"#FF9900"},
+  {name:"Singtel Jakarta Data Centre",provider:"SingTel",region:"亚太",city:"Jakarta",country:"印度尼西亚",lat:-6.1088,lng:106.7456,tier:"T3",size:"中型",year:2014,color:"#FF9900"},
+
+  // ===== 香港电讯 PCCW =====
+  {name:"PCCW Tseung Kwan O Data Centre",provider:"PCCW",region:"亚太",city:"Hong Kong",country:"中国香港",lat:22.3043,lng:114.2597,tier:"T3+",size:"超大型",year:2002,color:"#009FE3"},
+  {name:"PCCW Chai Wan Data Centre",provider:"PCCW",region:"亚太",city:"Hong Kong",country:"中国香港",lat:22.2693,lng:114.2394,tier:"T3+",size:"大型",year:2005,color:"#009FE3"},
+  {name:"PCCW Kwai Chung Data Centre",provider:"PCCW",region:"亚太",city:"Hong Kong",country:"中国香港",lat:22.3543,lng:114.1297,tier:"T3",size:"大型",year:2008,color:"#009FE3"},
+  {name:"PCCW Cyberport Data Centre",provider:"PCCW",region:"亚太",city:"Hong Kong",country:"中国香港",lat:22.2603,lng:114.1297,tier:"T3",size:"中型",year:2003,color:"#009FE3"},
+  {name:"PCCW Singapore Data Centre",provider:"PCCW",region:"亚太",city:"Singapore",country:"新加坡",lat:1.3321,lng:103.8498,tier:"T3",size:"中型",year:2015,color:"#009FE3"},
+
+  // ===== 软银 SoftBank =====
+  {name:"SoftBank Tokyo Data Center Shiodome",provider:"Softbank",region:"亚太",city:"Tokyo",country:"日本",lat:35.6592,lng:139.7569,tier:"T3+",size:"超大型",year:2006,color:"#00AEEF"},
+  {name:"SoftBank Tokyo Data Center Shinjuku",provider:"Softbank",region:"亚太",city:"Tokyo",country:"日本",lat:35.6895,lng:139.6917,tier:"T3+",size:"大型",year:2008,color:"#00AEEF"},
+  {name:"SoftBank Osaka Data Center",provider:"Softbank",region:"亚太",city:"Osaka",country:"日本",lat:34.7037,lng:135.4923,tier:"T3",size:"大型",year:2009,color:"#00AEEF"},
+  {name:"SoftBank Nagoya Data Center",provider:"Softbank",region:"亚太",city:"Nagoya",country:"日本",lat:35.1815,lng:136.9066,tier:"T3",size:"中型",year:2010,color:"#00AEEF"},
+  {name:"SoftBank Fukuoka Data Center",provider:"Softbank",region:"亚太",city:"Fukuoka",country:"日本",lat:33.5904,lng:130.4017,tier:"T3",size:"中型",year:2011,color:"#00AEEF"},
+  {name:"SoftBank Singapore Data Center",provider:"Softbank",region:"亚太",city:"Singapore",country:"新加坡",lat:1.3221,lng:103.7998,tier:"T3",size:"中型",year:2018,color:"#00AEEF"},
 ];
 
 // ============ 地图初始化 ============
