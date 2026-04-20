@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>数据中心风险隐患台账</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -236,6 +237,51 @@ td .cell.multiline{white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:2
 .empty-icon{font-size:40px;margin-bottom:12px;}
 .empty-text{font-size:14px;}
 
+/* ===== UPLOAD BUTTON ===== */
+.btn-upload{padding:7px 16px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:5px;transition:all .2s;white-space:nowrap;}
+.btn-upload:hover{background:rgba(255,255,255,.25);}
+.upload-input{display:none;}
+
+/* ===== CHART EXPORT BTN ===== */
+.chart-card{position:relative;}
+.chart-dl-btn{position:absolute;top:16px;right:16px;background:#f1f5f9;border:1px solid #e5e7eb;border-radius:6px;padding:4px 8px;font-size:11px;color:#64748b;cursor:pointer;opacity:0;transition:opacity .2s;z-index:10;}
+.chart-card:hover .chart-dl-btn{opacity:1;}
+.chart-dl-btn:hover{background:#e2e8f0;color:#1e293b;}
+
+/* ===== GLOBAL SEARCH BAR ===== */
+.global-search-bar{background:#fff;border-radius:12px;padding:14px 20px;box-shadow:var(--shadow);margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.gs-icon{font-size:18px;}
+.gs-title{font-size:14px;font-weight:600;color:#0f172a;white-space:nowrap;}
+.gs-wrap{flex:1;min-width:240px;position:relative;}
+.gs-input{width:100%;padding:9px 14px 9px 36px;border:1px solid var(--border);border-radius:10px;font-size:13px;outline:none;background:#f8fafc;transition:all .2s;}
+.gs-input:focus{border-color:var(--primary-light);background:#fff;box-shadow:0 0 0 3px rgba(59,130,246,.1);}
+.gs-search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#9ca3af;}
+.gs-result{font-size:12px;color:#64748b;white-space:nowrap;}
+.gs-results-list{margin-top:12px;display:none;}
+.gs-results-list.show{display:block;}
+.gs-result-item{display:flex;align-items:flex-start;gap:12px;padding:10px 14px;border-radius:8px;cursor:pointer;transition:background .15s;border:1px solid transparent;}
+.gs-result-item:hover{background:#f0f7ff;border-color:#bfdbfe;}
+.gs-ri-badge{flex-shrink:0;margin-top:2px;}
+.gs-ri-main{flex:1;min-width:0;}
+.gs-ri-title{font-size:13px;font-weight:600;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.gs-ri-sub{font-size:11px;color:#64748b;margin-top:2px;}
+.gs-no-result{text-align:center;padding:20px;color:#94a3b8;font-size:13px;}
+
+/* ===== CHART CLICK FILTER INDICATOR ===== */
+.chart-filter-tip{font-size:11px;color:#3b82f6;margin-top:6px;text-align:center;min-height:16px;font-weight:500;}
+.chart-active-filter{background:#eff6ff;border:1px solid #bfdbfe;border-radius:20px;padding:2px 10px;display:inline-flex;align-items:center;gap:5px;}
+.chart-active-filter .clf-close{cursor:pointer;color:#94a3b8;font-size:12px;}
+.chart-active-filter .clf-close:hover{color:#ef4444;}
+
+/* ===== UPLOAD PROGRESS ===== */
+.upload-progress{display:none;position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:9998;align-items:center;justify-content:center;}
+.upload-progress.show{display:flex;}
+.up-box{background:#fff;border-radius:16px;padding:32px 40px;text-align:center;box-shadow:0 25px 50px rgba(0,0,0,.25);min-width:280px;}
+.up-spinner{width:48px;height:48px;border:4px solid #e5e7eb;border-top-color:#3b82f6;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.up-text{font-size:14px;color:#374151;font-weight:500;}
+.up-sub{font-size:12px;color:#94a3b8;margin-top:6px;}
+
 @media(max-width:768px){
   .main{padding:12px 10px;}
   .charts-row{grid-template-columns:1fr;}
@@ -262,7 +308,11 @@ td .cell.multiline{white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:2
     </div>
     <div class="header-actions">
       <div class="header-badge">📍 5个园区</div>
-      <div class="header-badge">📋 448条记录</div>
+      <div class="header-badge" id="totalBadge">📋 448条记录</div>
+      <label class="btn-upload" title="上传新版Excel自动更新数据">
+        📂 更新数据
+        <input class="upload-input" type="file" accept=".xlsx,.xls" onchange="handleExcelUpload(this)">
+      </label>
       <div class="last-update" id="updateTime"></div>
     </div>
   </div>
@@ -272,6 +322,17 @@ td .cell.multiline{white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:2
 <div class="main">
   <!-- Dashboard -->
   <div class="dashboard active" id="panel-__dashboard__">
+    <!-- 全局搜索栏 -->
+    <div class="global-search-bar">
+      <span class="gs-icon">🔍</span>
+      <span class="gs-title">全局搜索</span>
+      <div class="gs-wrap">
+        <span class="gs-search-icon">🔎</span>
+        <input class="gs-input" type="text" placeholder="搜索风险项、描述、设备、责任方、模组..." id="globalSearchInput" oninput="doGlobalSearch(this.value)">
+      </div>
+      <span class="gs-result" id="gsResult"></span>
+    </div>
+    <div class="gs-results-list" id="gsResultsList"></div>
     <div class="overview-cards" id="ovCards"></div>
     <div class="charts-row" id="chartsRow"></div>
     <div class="park-overview">
@@ -300,6 +361,15 @@ td .cell.multiline{white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:2
       <span class="nav-pos" id="mPos"></span>
       <button class="nav-btn" id="mNext" onclick="modalNav(1)">下一条 ›</button>
     </div>
+  </div>
+</div>
+
+<!-- Upload Progress -->
+<div class="upload-progress" id="uploadProgress">
+  <div class="up-box">
+    <div class="up-spinner"></div>
+    <div class="up-text" id="upText">正在解析 Excel 文件...</div>
+    <div class="up-sub" id="upSub">请稍候</div>
   </div>
 </div>
 
@@ -357,12 +427,12 @@ function getFiltered(sheet){
 // ========== TABS ==========
 function buildTabs(){
   const tabs=document.getElementById('navTabs');
-  let h=`<div class="nav-tab active" onclick="switchPanel('__dashboard__',this)">📊 总览</div>`;
+  let h=`<div class="nav-tab active" data-sheet="__dashboard__" onclick="switchPanel('__dashboard__',this)">📊 总览</div>`;
   const icons={重庆:' 🏙️',贵阳:'🌿',成都:'🏔️'};
   for(const sheet in DATA){
     const cnt=DATA[sheet].length;
     const icon=Object.keys(icons).find(k=>sheet.includes(k));
-    h+=`<div class="nav-tab" onclick="switchPanel('${escA(sheet)}',this)">${icon?icons[icon]:''} ${esc(sheet)} <span class="cnt">${cnt}</span></div>`;
+    h+=`<div class="nav-tab" data-sheet="${escA(sheet)}" onclick="switchPanel('${escA(sheet)}',this)">${icon?icons[icon]:''} ${esc(sheet)} <span class="cnt">${cnt}</span></div>`;
   }
   tabs.innerHTML=h;
   document.getElementById('updateTime').textContent='更新于 '+new Date().toLocaleDateString('zh-CN');
@@ -421,22 +491,29 @@ function buildDashboard(){
 
   // 2x2 布局：左上园区甜甜圈 | 右上分类横条 | 左下状态甜甜圈 | 右下处理进度
   document.getElementById('chartsRow').innerHTML=`
-    <div class="chart-card ref-card">
+    <div class="chart-card ref-card" id="cc-park">
       <div class="chart-title-ref"><span class="ct-icon">🕐</span>各园区风险数量对比</div>
+      <button class="chart-dl-btn" onclick="downloadChart('chartPark','各园区风险数量对比')">⬇ 保存图片</button>
       <div class="chart-wrap" style="height:260px;position:relative"><canvas id="chartPark"></canvas></div>
+      <div class="chart-filter-tip" id="tip-park"></div>
       <div class="ref-legend" id="parkLegend"></div>
     </div>
-    <div class="chart-card ref-card">
+    <div class="chart-card ref-card" id="cc-cate">
       <div class="chart-title-ref"><span class="ct-icon">📊</span>风险分类分布</div>
+      <button class="chart-dl-btn" onclick="downloadChart('chartCateBar','风险分类分布')">⬇ 保存图片</button>
       <div class="chart-wrap" style="height:300px"><canvas id="chartCateBar"></canvas></div>
+      <div class="chart-filter-tip" id="tip-cate"></div>
     </div>
-    <div class="chart-card ref-card">
+    <div class="chart-card ref-card" id="cc-status">
       <div class="chart-title-ref"><span class="ct-icon">⭕</span>隐患状态占比</div>
+      <button class="chart-dl-btn" onclick="downloadChart('chartStatusPie','隐患状态占比')">⬇ 保存图片</button>
       <div class="chart-wrap" style="height:280px;position:relative;overflow:visible"><canvas id="chartStatusPie" style="overflow:visible"></canvas></div>
+      <div class="chart-filter-tip" id="tip-status"></div>
       <div class="ref-legend" id="statusLegend"></div>
     </div>
-    <div class="chart-card ref-card">
+    <div class="chart-card ref-card" id="cc-progress">
       <div class="chart-title-ref"><span class="ct-icon">📈</span>各园区隐患处理进度</div>
+      <button class="chart-dl-btn" onclick="downloadChart('chartParkProgress','各园区隐患处理进度')">⬇ 保存图片</button>
       <div class="chart-wrap" style="height:260px"><canvas id="chartParkProgress"></canvas></div>
       <div class="ref-legend ref-legend-row" id="progressLegend"></div>
     </div>
@@ -453,6 +530,14 @@ function buildDashboard(){
     },
     options:{
       responsive:true,maintainAspectRatio:false,cutout:'55%',
+      onClick:function(evt,els){
+        if(!els.length) return;
+        const i=els[0].index;
+        const park=parkKeys[i];
+        showToast(`📍 已跳转到 ${park}`);
+        setTip('tip-park',`筛选：${parkShortLabels[i]}`,()=>setTip('tip-park',''));
+        switchTab(park);
+      },
       plugins:{
         legend:{display:false},
         tooltip:{callbacks:{label:function(item){const pct=Math.round(item.raw/total*100);return ` ${item.label}：${item.raw}项 (${pct}%)`;}}},
@@ -512,6 +597,19 @@ function buildDashboard(){
     options:{
       indexAxis:'y',
       responsive:true,maintainAspectRatio:false,
+      onClick:function(evt,els){
+        if(!els.length) return;
+        const i=els[0].index;
+        const cat=cateKeys[i];
+        // 跳转到第一个有该分类的园区并筛选
+        const targetSheet=Object.keys(DATA).find(s=>DATA[s].some(r=>r['风险分类']===cat))||Object.keys(DATA)[0];
+        switchTab(targetSheet);
+        setTimeout(()=>{
+          onFlt(targetSheet,'cat',cat);
+          setTip('tip-cate',`已筛选分类：${cat}，跳转至 ${targetSheet}`,()=>setTip('tip-cate',''));
+          showToast(`📊 已筛选分类：${cat}`);
+        },150);
+      },
       plugins:{
         legend:{display:false},
         tooltip:{callbacks:{label:function(item){const pct=Math.round(item.raw/total*100);return ` ${item.raw} 项 (${pct}%)`;}}}
@@ -536,6 +634,19 @@ function buildDashboard(){
     options:{
       responsive:true,maintainAspectRatio:false,cutout:'60%',
       layout:{padding:{top:30,bottom:30,left:50,right:50}},
+      onClick:function(evt,els){
+        if(!els.length) return;
+        const i=els[0].index;
+        const st=statuses[i];
+        // 跳转到第一个含该状态的园区并筛选
+        const targetSheet=Object.keys(DATA).find(s=>DATA[s].some(r=>r['隐患状态']===st))||Object.keys(DATA)[0];
+        switchTab(targetSheet);
+        setTimeout(()=>{
+          onFlt(targetSheet,'status',st);
+          setTip('tip-status',`已筛选状态：${st}，跳转至 ${targetSheet}`,()=>setTip('tip-status',''));
+          showToast(`⭕ 已筛选状态：${st}`);
+        },150);
+      },
       plugins:{
         legend:{display:false},
         tooltip:{callbacks:{label:function(item){const pct=(item.raw/total*100).toFixed(2);return ` ${item.label}：${item.raw}项 (${pct}%)`;}}},
@@ -589,6 +700,18 @@ function buildDashboard(){
     data:{labels:parkShortLabels,datasets:progressDatasets},
     options:{
       responsive:true,maintainAspectRatio:false,
+      onClick:function(evt,els){
+        if(!els.length) return;
+        const i=els[0].index;
+        const dsIdx=els[0].datasetIndex;
+        const park=parkKeys[i];
+        const st=statuses[dsIdx];
+        switchTab(park);
+        setTimeout(()=>{
+          onFlt(park,'status',st);
+          showToast(`📈 已跳转 ${park}，筛选：${st}`);
+        },150);
+      },
       plugins:{
         legend:{display:false},
         tooltip:{
@@ -914,6 +1037,161 @@ function exportCSV(sheet){
   a.download=sheet+'_风险台账.csv';
   a.click();
   showToast(`✅ 已导出 ${filtered.length} 条数据`);
+}
+
+// ========== SWITCH TAB ==========
+function switchTab(sheet){
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.dashboard,.sheet-panel').forEach(p=>p.classList.remove('active'));
+  const tab=document.querySelector(`.nav-tab[data-sheet="${CSS.escape(sheet)}"]`);
+  if(tab) tab.classList.add('active');
+  const panel=document.getElementById('panel-'+sheet);
+  if(panel) panel.classList.add('active');
+}
+
+// ========== SET TIP ==========
+function setTip(id,text,clearFn){
+  const el=document.getElementById(id);
+  if(!el) return;
+  if(!text){el.innerHTML='';return;}
+  el.innerHTML=`<span class="chart-active-filter">${text} <span class="clf-close" onclick="clearChartFilter('${id}')">✕</span></span>`;
+  if(clearFn) el._clearFn=clearFn;
+}
+function clearChartFilter(tipId){
+  const el=document.getElementById(tipId);
+  if(el){el.innerHTML='';}
+}
+
+// ========== CHART DOWNLOAD ==========
+function downloadChart(canvasId,name){
+  const canvas=document.getElementById(canvasId);
+  if(!canvas){showToast('图表未找到');return;}
+  const a=document.createElement('a');
+  a.href=canvas.toDataURL('image/png');
+  a.download=name+'_'+new Date().toLocaleDateString('zh-CN').replace(/\//g,'-')+'.png';
+  a.click();
+  showToast('✅ 图片已保存：'+name);
+}
+
+// ========== GLOBAL SEARCH ==========
+function doGlobalSearch(kw){
+  const list=document.getElementById('gsResultsList');
+  const resEl=document.getElementById('gsResult');
+  kw=kw.trim();
+  if(!kw){
+    list.classList.remove('show');
+    list.innerHTML='';
+    resEl.textContent='';
+    return;
+  }
+  const kwL=kw.toLowerCase();
+  const SEARCH_FIELDS=['风险项','风险描述','风险设备','解决方案','备注','待办项','责任方','模组','风险分类','风险发现人'];
+  const results=[];
+  for(const sheet in DATA){
+    DATA[sheet].forEach((row,i)=>{
+      const matched=SEARCH_FIELDS.some(f=>(row[f]||'').toLowerCase().includes(kwL));
+      if(matched) results.push({sheet,idx:i,row});
+    });
+  }
+  resEl.textContent=results.length?`找到 ${results.length} 条`:kw.length>0?'无匹配结果':'';
+  if(!results.length){
+    list.classList.add('show');
+    list.innerHTML=`<div class="gs-no-result">😕 未找到包含"${esc(kw)}"的风险项</div>`;
+    return;
+  }
+  const items=results.slice(0,30).map(({sheet,idx,row})=>{
+    const st=row['隐患状态']||'';
+    const highlight=(s)=>{
+      if(!s) return '';
+      const r=new RegExp(kw.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi');
+      return esc(s).replace(r,m=>`<mark style="background:#fef08a;border-radius:2px">${m}</mark>`);
+    };
+    return `<div class="gs-result-item" onclick="gsJumpTo('${escA(sheet)}',${idx})">
+      <div class="gs-ri-badge">${statusBadge(st)}</div>
+      <div class="gs-ri-main">
+        <div class="gs-ri-title">${highlight(row['风险项']||'')}</div>
+        <div class="gs-ri-sub">${esc(sheet)} · ${esc(row['模组']||'')} · ${esc(row['风险分类']||'')}${row['风险描述']?` · ${esc((row['风险描述']||'').slice(0,40))}...`:''}</div>
+      </div>
+    </div>`;
+  }).join('');
+  list.innerHTML=items+(results.length>30?`<div class="gs-no-result" style="color:#64748b">仅显示前30条，共${results.length}条</div>`:'');
+  list.classList.add('show');
+}
+
+function gsJumpTo(sheet,idx){
+  // 跳转到对应园区tab并打开弹窗
+  switchTab(sheet);
+  // 清空筛选确保能找到该条目
+  state[sheet].search='';state[sheet].cat='';state[sheet].status='';state[sheet].zone='';state[sheet].page=1;
+  renderSheet(sheet);
+  setTimeout(()=>openModal(sheet,idx),150);
+  // 收起搜索结果
+  document.getElementById('gsResultsList').classList.remove('show');
+  document.getElementById('globalSearchInput').value='';
+  document.getElementById('gsResult').textContent='';
+}
+
+// ========== EXCEL UPLOAD ==========
+function handleExcelUpload(input){
+  const file=input.files[0];
+  if(!file) return;
+  const prog=document.getElementById('uploadProgress');
+  const upText=document.getElementById('upText');
+  const upSub=document.getElementById('upSub');
+  prog.classList.add('show');
+  upText.textContent='正在读取 Excel 文件...';
+  upSub.textContent=file.name;
+
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      upText.textContent='正在解析数据...';
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const newData={};
+      let totalRows=0;
+      wb.SheetNames.forEach(name=>{
+        const ws=wb.Sheets[name];
+        const rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+        if(rows.length>0){
+          newData[name]=rows;
+          totalRows+=rows.length;
+        }
+      });
+      if(Object.keys(newData).length===0){
+        prog.classList.remove('show');
+        showToast('❌ 未读取到有效数据，请检查文件');
+        input.value='';
+        return;
+      }
+      upText.textContent='正在更新仪表盘...';
+      // 更新DATA
+      for(const k in DATA) delete DATA[k];
+      Object.assign(DATA,newData);
+      // 重置状态
+      for(const k in state) delete state[k];
+      for(const sheet in DATA) initState(sheet);
+      // 重建UI
+      buildTabs();
+      buildDashboard();
+      buildSheetPanels();
+      // 更新头部徽章
+      document.getElementById('totalBadge').textContent=`📋 ${totalRows}条记录`;
+      document.getElementById('updateTime').textContent='本次更新：'+new Date().toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+      prog.classList.remove('show');
+      showToast(`✅ 已更新！共 ${Object.keys(newData).length} 个园区，${totalRows} 条记录`);
+    }catch(err){
+      prog.classList.remove('show');
+      showToast('❌ 解析失败：'+err.message);
+      console.error(err);
+    }
+    input.value='';
+  };
+  reader.onerror=function(){
+    prog.classList.remove('show');
+    showToast('❌ 文件读取失败');
+    input.value='';
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 // ========== INIT ==========
