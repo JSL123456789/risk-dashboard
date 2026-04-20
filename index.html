@@ -494,7 +494,7 @@ function buildDashboard(){
     <div class="chart-card ref-card" id="cc-park">
       <div class="chart-title-ref"><span class="ct-icon">🕐</span>各园区风险数量对比</div>
       <button class="chart-dl-btn" onclick="downloadChart('chartPark','各园区风险数量对比')">⬇ 保存图片</button>
-      <div class="chart-wrap" style="height:260px;position:relative"><canvas id="chartPark"></canvas></div>
+      <div class="chart-wrap" style="height:300px;position:relative"><canvas id="chartPark"></canvas></div>
       <div class="chart-filter-tip" id="tip-park"></div>
       <div class="ref-legend" id="parkLegend"></div>
     </div>
@@ -530,6 +530,7 @@ function buildDashboard(){
     },
     options:{
       responsive:true,maintainAspectRatio:false,cutout:'55%',
+      layout:{padding:{top:36,bottom:36,left:56,right:56}},
       onClick:function(evt,els){
         if(!els.length) return;
         const i=els[0].index;
@@ -549,23 +550,50 @@ function buildDashboard(){
         const {ctx,chartArea:{width,height,left,top}}=chart;
         const cx=left+width/2, cy=top+height/2;
         const meta=chart.getDatasetMeta(0);
+        const canvasW=chart.canvas.width, canvasH=chart.canvas.height;
         ctx.save();
         meta.data.forEach((arc,i)=>{
+          const arcSpan=arc.endAngle-arc.startAngle;
           const angle=(arc.startAngle+arc.endAngle)/2;
-          const r=arc.outerRadius*1.18;
-          const x=cx+Math.cos(angle)*r;
-          const y=cy+Math.sin(angle)*r;
+          const isSmall=arcSpan<0.35; // 小扇区（<20度）用引导线
+          // 引导线起点（外圆边缘）
+          const r0=arc.outerRadius*1.02;
+          const x0=cx+Math.cos(angle)*r0;
+          const y0=cy+Math.sin(angle)*r0;
+          // 标签位置（大扇区：1.2倍半径；小扇区：1.45倍）
+          const rLabel=arc.outerRadius*(isSmall?1.48:1.20);
+          let lx=cx+Math.cos(angle)*rLabel;
+          let ly=cy+Math.sin(angle)*rLabel;
+          // 边界保护：防止超出canvas
+          const pad=36;
+          lx=Math.max(pad,Math.min(canvasW-pad,lx));
+          ly=Math.max(pad,Math.min(canvasH-pad,ly));
           const lbl=parkShortLabels[i];
           const val=parkVals[i];
+          // 小扇区画引导线
+          if(isSmall){
+            ctx.beginPath();
+            ctx.moveTo(x0,y0);
+            // 折线：先指向外，再水平延伸
+            const midX=cx+Math.cos(angle)*arc.outerRadius*1.28;
+            const midY=cy+Math.sin(angle)*arc.outerRadius*1.28;
+            ctx.lineTo(midX,midY);
+            ctx.lineTo(lx,ly);
+            ctx.strokeStyle=parkColors[i%parkColors.length];
+            ctx.lineWidth=1.2;
+            ctx.setLineDash([3,2]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
           ctx.font='bold 11px sans-serif';
           ctx.fillStyle='#374151';
           ctx.textAlign='center';
           ctx.textBaseline='bottom';
-          ctx.fillText(lbl,x,y);
+          ctx.fillText(lbl,lx,ly);
           ctx.font='bold 12px sans-serif';
           ctx.fillStyle=parkColors[i%parkColors.length];
           ctx.textBaseline='top';
-          ctx.fillText(val+'项',x,y+1);
+          ctx.fillText(val+'项',lx,ly+1);
         });
         ctx.restore();
       }
