@@ -339,23 +339,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
   <!-- 园区/模组选择器 -->
   <div class="selector-bar">
     <span class="sel-label">🏢 园区：</span>
-    <div class="sel-group" id="park-btns">
-      <button class="sel-btn active" data-park="all" onclick="selectPark('all',this)">全部园区</button>
-      <button class="sel-btn" data-park="cq-taihe" onclick="selectPark('cq-taihe',this)">重庆·泰和</button>
-      <button class="sel-btn" data-park="cq-yunfu" onclick="selectPark('cq-yunfu',this)">重庆·云福</button>
-      <button class="sel-btn" data-park="gz-guian" onclick="selectPark('gz-guian',this)">贵阳·贵安</button>
-      <button class="sel-btn" data-park="cd-xiqu" onclick="selectPark('cd-xiqu',this)">成都·西区</button>
-      <button class="sel-btn" data-park="cd-gaoxin" onclick="selectPark('cd-gaoxin',this)">成都·高新</button>
-    </div>
+    <input id="park-input" placeholder="填写园区名称" oninput="onParkInput(this.value)" style="padding:5px 12px;border-radius:16px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.12);color:#fff;font-size:12px;width:140px;outline:none;" />
     <div class="sel-divider"></div>
     <span class="sel-label">📦 模组：</span>
-    <div class="sel-group" id="module-btns">
-      <button class="sel-btn active" data-module="all" onclick="selectModule('all',this)">全部模组</button>
-      <button class="sel-btn" data-module="M1" onclick="selectModule('M1',this)">模组M1</button>
-      <button class="sel-btn" data-module="M2" onclick="selectModule('M2',this)">模组M2</button>
-      <button class="sel-btn" data-module="M3" onclick="selectModule('M3',this)">模组M3</button>
-      <button class="sel-btn" data-module="M4" onclick="selectModule('M4',this)">模组M4</button>
-    </div>
+    <input id="module-input" placeholder="填写模组名称" oninput="onModuleInput(this.value)" style="padding:5px 12px;border-radius:16px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.12);color:#fff;font-size:12px;width:140px;outline:none;" />
+    <button onclick="applyInputSelection()" style="padding:5px 14px;border-radius:16px;border:1px solid rgba(56,189,248,.5);background:rgba(56,189,248,.2);color:#fff;font-size:12px;cursor:pointer;white-space:nowrap;">✅ 确认</button>
     <div class="sel-status" id="sel-status">
       <div class="ss-dot" style="background:#94a3b8"></div>
       <span>未选定具体模组</span>
@@ -759,28 +747,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
 
 <!-- 园区/模组选择引导弹窗（进入页面强制弹出） -->
 <div class="modal-overlay" id="selectGuideModal" style="z-index:2000;">
-  <div class="modal" style="max-width:560px;padding:36px 32px;">
+  <div class="modal" style="max-width:520px;padding:36px 32px;">
     <div class="modal-icon">🏢</div>
-    <div class="modal-title" style="font-size:20px;">请选择您的园区和模组</div>
-    <div class="modal-body" style="margin-bottom:20px;">选择后将跟踪该模组的全生命周期任务进度，数据独立保存，可随时切换。</div>
+    <div class="modal-title" style="font-size:20px;">请填写您的园区和模组</div>
+    <div class="modal-body" style="margin-bottom:20px;">填写后将跟踪该模组的全生命周期任务进度，数据独立保存，可随时修改。</div>
     <div style="margin-bottom:18px;">
-      <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:10px;">🏢 选择园区</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;" id="guide-park-btns">
-        <button class="guide-sel-btn" data-park="cq-taihe" onclick="guideSelectPark('cq-taihe',this)">重庆·泰和</button>
-        <button class="guide-sel-btn" data-park="cq-yunfu" onclick="guideSelectPark('cq-yunfu',this)">重庆·云福</button>
-        <button class="guide-sel-btn" data-park="gz-guian" onclick="guideSelectPark('gz-guian',this)">贵阳·贵安</button>
-        <button class="guide-sel-btn" data-park="cd-xiqu" onclick="guideSelectPark('cd-xiqu',this)">成都·西区</button>
-        <button class="guide-sel-btn" data-park="cd-gaoxin" onclick="guideSelectPark('cd-gaoxin',this)">成都·高新</button>
-      </div>
+      <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:8px;">🏢 园区名称</div>
+      <input id="guide-park-input" class="submit-input" placeholder="请输入园区名称，如：重庆·泰和、成都·高新等" oninput="updateGuideInfo()" style="width:100%;padding:10px 14px;font-size:13px;border:2px solid #e5e7eb;border-radius:10px;outline:none;" />
     </div>
     <div style="margin-bottom:24px;">
-      <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:10px;">📦 选择模组</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;" id="guide-module-btns">
-        <button class="guide-sel-btn" data-module="M1" onclick="guideSelectModule('M1',this)">模组 M1</button>
-        <button class="guide-sel-btn" data-module="M2" onclick="guideSelectModule('M2',this)">模组 M2</button>
-        <button class="guide-sel-btn" data-module="M3" onclick="guideSelectModule('M3',this)">模组 M3</button>
-        <button class="guide-sel-btn" data-module="M4" onclick="guideSelectModule('M4',this)">模组 M4</button>
-      </div>
+      <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:8px;">📦 模组名称</div>
+      <input id="guide-module-input" class="submit-input" placeholder="请输入模组名称，如：模组01、M2区等" oninput="updateGuideInfo()" style="width:100%;padding:10px 14px;font-size:13px;border:2px solid #e5e7eb;border-radius:10px;outline:none;" />
     </div>
     <div id="guide-selected-info" style="display:none;background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:#166534;text-align:center;font-weight:600;"></div>
     <div class="modal-actions">
@@ -1074,16 +1051,29 @@ const PHASE_GROUPS = {
   ops: ['ops-daily-temp','ops-daily-visual','ops-daily-status','ops-water-test','ops-water-treat','ops-cp-install','ops-cp-remove','ops-cdu-check','ops-cdu-maintain','ops-pm-quarterly','ops-pm-annual'],
 };
 
-// 园区和模组配置
+// 园区和模组配置（数据来源：腾讯西南数据中心组内部wiki）
 const PARKS = {
   'all': '全部园区',
   'cq-taihe': '重庆·泰和',
-  'cq-yunfu': '重庆·云福',
-  'gz-guian': '贵阳·贵安',
+  'cq-yunfu': '重庆·云福2栋',
+  'gz-guian': '贵安·七星',
+  'gz-guian32': '贵安·32模组',
   'cd-xiqu': '成都·西区',
   'cd-gaoxin': '成都·高新',
 };
-const MODULES = ['all','M1','M2','M3','M4'];
+
+// 各园区真实模组列表（来源：内部周报数据）
+const PARK_MODULES = {
+  'all':       ['all'],
+  'cq-taihe':  ['all','模组01','模组02','模组04','模组05','模组51'],
+  'cq-yunfu':  ['all','模组01','模组02','模组03'],
+  'gz-guian':  ['all','模组21','模组31'],
+  'gz-guian32':['all','模组32'],
+  'cd-xiqu':   ['all','模组01','模组02'],
+  'cd-gaoxin': ['all','模组01'],
+};
+
+const MODULES = ['all','模组01','模组02','模组03','模组04','模组05','模组21','模组31','模组32','模组51'];
 
 let currentPark = 'all';
 let currentModule = 'all';
@@ -1108,7 +1098,7 @@ function saveTaskState(taskId, state) {
   else localStorage.removeItem(key);
 }
 
-// 渲染任务项（只展示勾选状态，无逐项签名）
+// 渲染任务项（点击可切换完成状态）
 function renderTask(groupId, task) {
   const container = document.getElementById('tasks-' + groupId);
   if (!container) return;
@@ -1129,7 +1119,7 @@ function renderTask(groupId, task) {
 
   const detailHtml = task.detail ? `<div class="task-expand-btn" onclick="toggleTaskDetail(this,event)">▶ 查看详情</div><div class="task-detail">${task.detail.replace(/\n/g,'<br>')}</div>` : '';
 
-  div.innerHTML = `<div class="task-header" style="cursor:default;">
+  div.innerHTML = `<div class="task-header" style="cursor:pointer;" onclick="toggleTask('${task.id}')">
     <div class="task-check"></div>
     <div class="task-content">
       <div class="task-title">${task.title}</div>
@@ -1188,15 +1178,15 @@ function renderAllSectionConfirms() {
           <span style="color:#64748b;font-size:11px;">· 共 ${totalTasks} 项</span>
         </div>
       </div>
-      ${currentPark!=='all'&&currentModule!=='all'?`<button class="scb-btn revoke-btn" onclick="revokeSectionConfirm('${sectionKey}', this)">撤销确认</button>`:''}`;
+      ${currentPark&&currentPark!=='all'&&currentModule&&currentModule!=='all'?`<button class="scb-btn revoke-btn" onclick="revokeSectionConfirm('${sectionKey}', this)">撤销确认</button>`:''}`;
     } else {
       bar.className = 'section-confirm-bar undone';
-      const canConfirm = currentPark !== 'all' && currentModule !== 'all';
+      const canConfirm = currentPark && currentPark !== 'all' && currentModule && currentModule !== 'all';
       bar.innerHTML = `<div class="scb-info">
         <div class="scb-title undone-title">📋 完成上方所有检查项后，点击右侧按钮整体确认</div>
         <div class="scb-sub undone-sub">共 ${totalTasks} 项任务 · 确认后将记录操作人和时间</div>
       </div>
-      ${canConfirm ? `<button class="scb-btn confirm-btn" onclick="openSectionConfirm('${sectionKey}', '${sectionTitle}', this)">✍️ 签名确认本板块</button>` : '<span style="font-size:12px;color:#94a3b8;">请先选择园区和模组</span>'}`;
+      ${canConfirm ? `<button class="scb-btn confirm-btn" onclick="openSectionConfirm('${sectionKey}', '${sectionTitle}', this)">✍️ 签名确认本板块</button>` : '<span style="font-size:12px;color:#94a3b8;">请先填写园区和模组</span>'}`;
     }
     bar.id = 'scbar-' + sectionKey;
     section.appendChild(bar);
@@ -1223,14 +1213,14 @@ let currentSectionTitle = '';
 
 // 打开板块确认弹窗
 function openSectionConfirm(sectionKey, sectionTitle, btnEl) {
-  if (currentPark === 'all' || currentModule === 'all') {
-    showTip('请先选择具体的园区和模组');
+  if (!currentPark || currentPark === 'all' || !currentModule || currentModule === 'all') {
+    showTip('请先填写园区和模组后再操作');
     return;
   }
   currentSectionKey = sectionKey;
   currentSectionTitle = sectionTitle;
   document.getElementById('scModalTitle').textContent = '确认本板块已完成';
-  document.getElementById('scModalBody').innerHTML = `<b>${sectionTitle}</b><br>确认您已逐项检查完毕，点击签名确认后将记录完成人和时间。<br><br>📍 ${PARKS[currentPark]} · 模组 ${currentModule}`;
+  document.getElementById('scModalBody').innerHTML = `<b>${sectionTitle}</b><br>确认您已逐项检查完毕，点击签名确认后将记录完成人和时间。<br><br>📍 ${currentPark} · ${currentModule}`;
   document.getElementById('scUserInput').value = '';
   document.getElementById('sectionConfirmModal').classList.remove('hidden');
   setTimeout(() => document.getElementById('scUserInput').focus(), 100);
@@ -1289,30 +1279,20 @@ function getAllGroupsForSection(firstGroupId) {
   return Array.from(section.querySelectorAll('[id^="tasks-"]')).map(e => e.id.replace('tasks-',''));
 }
 
-// ===== 引导弹窗逻辑 =====
+// ===== 引导弹窗逻辑（自由填写模式）=====
 let guidePark = '';
 let guideModule = '';
 
-function guideSelectPark(park, btn) {
-  guidePark = park;
-  document.querySelectorAll('#guide-park-btns .guide-sel-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  updateGuideInfo();
-}
-
-function guideSelectModule(mod, btn) {
-  guideModule = mod;
-  document.querySelectorAll('#guide-module-btns .guide-sel-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  updateGuideInfo();
-}
-
 function updateGuideInfo() {
+  const parkVal = (document.getElementById('guide-park-input').value || '').trim();
+  const modVal = (document.getElementById('guide-module-input').value || '').trim();
+  guidePark = parkVal;
+  guideModule = modVal;
   const info = document.getElementById('guide-selected-info');
   const btn = document.getElementById('guide-confirm-btn');
   if (guidePark && guideModule) {
     info.style.display = 'block';
-    info.textContent = '✅ 已选择：' + (PARKS[guidePark]||guidePark) + ' · 模组 ' + guideModule;
+    info.textContent = '✅ 已填写：' + guidePark + ' · ' + guideModule;
     btn.disabled = false;
     btn.style.opacity = '1';
     btn.style.cursor = 'pointer';
@@ -1325,16 +1305,16 @@ function updateGuideInfo() {
 }
 
 function confirmGuide() {
-  if (!guidePark || !guideModule) return;
-  currentPark = guidePark;
-  currentModule = guideModule;
-  // 同步顶部选择器
-  document.querySelectorAll('#park-btns .sel-btn').forEach(b => {
-    b.classList.toggle('active', b.dataset.park === currentPark);
-  });
-  document.querySelectorAll('#module-btns .sel-btn').forEach(b => {
-    b.classList.toggle('active', b.dataset.module === currentModule);
-  });
+  const parkVal = (document.getElementById('guide-park-input').value || '').trim();
+  const modVal = (document.getElementById('guide-module-input').value || '').trim();
+  if (!parkVal || !modVal) { showTip('请填写园区和模组名称'); return; }
+  currentPark = parkVal;
+  currentModule = modVal;
+  // 同步顶部输入框
+  const pi = document.getElementById('park-input');
+  const mi = document.getElementById('module-input');
+  if (pi) pi.value = currentPark;
+  if (mi) mi.value = currentModule;
   document.getElementById('selectGuideModal').classList.add('hidden');
   renderAllTasks();
 }
@@ -1372,7 +1352,7 @@ function showProductionComplete() {
   const modal = document.getElementById('modalOverlay');
   document.getElementById('modalIcon').textContent = '🎉';
   document.getElementById('modalTitle').textContent = '恭喜！模组已全部完成投产！';
-  document.getElementById('modalBody').innerHTML = `园区：<b>${PARKS[currentPark]||currentPark}</b> · 模组：<b>${currentModule}</b><br><br>全生命周期四个阶段所有任务均已完成确认，该模组已顺利完成投产，正式进入运维阶段！`;
+  document.getElementById('modalBody').innerHTML = `园区：<b>${currentPark}</b> · 模组：<b>${currentModule}</b><br><br>全生命周期四个阶段所有任务均已完成确认，该模组已顺利完成投产，正式进入运维阶段！`;
   document.getElementById('modalConfirmBtn').textContent = '查看进度看板';
   modalCallback = () => showPage('dashboard');
   modal.classList.remove('hidden');
@@ -1414,8 +1394,8 @@ function updateAllStats() {
 }
 
 function updateHeaderInfo() {
-  const parkName = PARKS[currentPark] || currentPark;
-  const modLabel = currentModule === 'all' ? '全部模组' : '模组' + currentModule;
+  const parkName = currentPark && currentPark !== 'all' ? currentPark : '全部园区';
+  const modLabel = (!currentModule || currentModule === 'all') ? '全部模组' : currentModule;
   document.getElementById('currentModuleLabel').textContent = parkName + ' · ' + modLabel;
   const allStats = ['prep','build','handover','ops'].map(p => calcPhaseStats(p));
   const totalDone = allStats.reduce((s,x) => s+x.done, 0);
@@ -1424,10 +1404,10 @@ function updateHeaderInfo() {
   document.getElementById('headerProgress').textContent = `进度: ${pct}% (${totalDone}/${totalAll})`;
 
   const statusEl = document.getElementById('sel-status');
-  if (currentPark !== 'all' && currentModule !== 'all') {
+  if (currentPark && currentPark !== 'all' && currentModule && currentModule !== 'all') {
     statusEl.innerHTML = `<div class="ss-dot" style="background:#22c55e"></div><span>${parkName} · ${modLabel}</span>`;
   } else {
-    statusEl.innerHTML = `<div class="ss-dot" style="background:#f59e0b"></div><span>请选择具体园区和模组</span>`;
+    statusEl.innerHTML = `<div class="ss-dot" style="background:#f59e0b"></div><span>请填写园区和模组</span>`;
   }
 }
 
@@ -1437,87 +1417,114 @@ function updateDashboard() {
   if (!content) return;
   let html = '';
 
-  // 总览卡片
-  const parks = Object.keys(PARKS).filter(p => p !== 'all');
-  const modules = MODULES.filter(m => m !== 'all');
+  const hasCurrent = currentPark && currentPark !== 'all' && currentModule && currentModule !== 'all';
 
-  // 各园区各模组总览表
-  html += `<div class="table-wrap" style="margin-bottom:20px;">
-    <div class="table-header"><div class="table-title">📊 各园区各模组投产进度总览</div></div>
-    <table class="data-table"><thead><tr><th>园区</th><th>模组</th><th>现场准备</th><th>建设管控</th><th>接维管理</th><th>运维执行</th><th>整体进度</th><th>状态</th></tr></thead><tbody>`;
-
-  parks.forEach(park => {
-    modules.forEach(mod => {
-      // 临时切换计算
-      const savedPark = currentPark, savedMod = currentModule;
-      currentPark = park; currentModule = mod;
-      const stats = ['prep','build','handover','ops'].map(p => calcPhaseStats(p));
-      currentPark = savedPark; currentModule = savedMod;
-
-      const totalDone = stats.reduce((s,x) => s+x.done, 0);
-      const totalAll = stats.reduce((s,x) => s+x.total, 0);
-      const overallPct = totalAll > 0 ? Math.round(totalDone/totalAll*100) : 0;
-
-      let statusBadge = '';
-      if (overallPct === 100) statusBadge = '<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;">✅ 已投产</span>';
-      else if (overallPct >= 75) statusBadge = '<span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;">🔧 接维中</span>';
-      else if (overallPct >= 25) statusBadge = '<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;">🏗️ 建设中</span>';
-      else if (overallPct > 0) statusBadge = '<span style="background:#ede9fe;color:#5b21b6;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;">📋 准备中</span>';
-      else statusBadge = '<span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;">⬜ 未开始</span>';
-
-      html += `<tr>
-        <td><b>${PARKS[park]}</b></td>
-        <td><span style="background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:600;">${mod}</span></td>
-        ${stats.map(s => `<td><span style="font-weight:600;color:${s.pct===100?'#166534':s.pct>0?'#1e40af':'#94a3b8'}">${s.pct}%</span> <span style="font-size:11px;color:#94a3b8">(${s.done}/${s.total})</span></td>`).join('')}
-        <td>
-          <div style="display:flex;align-items:center;gap:6px;">
-            <div style="flex:1;height:6px;background:#f1f5f9;border-radius:3px;overflow:hidden;min-width:60px;"><div style="height:100%;background:linear-gradient(90deg,#3b82f6,#06b6d4);width:${overallPct}%;border-radius:3px;transition:width .5s;"></div></div>
-            <span style="font-size:12px;font-weight:700;min-width:32px;">${overallPct}%</span>
-          </div>
-        </td>
-        <td>${statusBadge}</td>
-      </tr>`;
-    });
-  });
-
-  html += '</tbody></table></div>';
-
-  // 当前选中模组详细进度
-  if (currentPark !== 'all' && currentModule !== 'all') {
+  if (!hasCurrent) {
+    html += `<div style="background:#fff;border-radius:14px;padding:40px;text-align:center;box-shadow:var(--shadow);">
+      <div style="font-size:48px;margin-bottom:16px;">📋</div>
+      <div style="font-size:16px;font-weight:700;color:#374151;margin-bottom:8px;">请先填写园区和模组</div>
+      <div style="font-size:13px;color:#64748b;margin-bottom:20px;">在顶部输入框填写园区和模组名称后，点击"确认"即可查看该模组的详细进度。</div>
+    </div>`;
+  } else {
+    // 当前模组四阶段统计
     const phases = [{key:'prep',name:'现场准备',icon:'📋',color:'#f59e0b'},{key:'build',name:'建设管控',icon:'🏗️',color:'#3b82f6'},{key:'handover',name:'接维管理',icon:'🔄',color:'#8b5cf6'},{key:'ops',name:'运维执行',icon:'⚙️',color:'#10b981'}];
-    html += `<div style="background:linear-gradient(135deg,#071e3d,#0f4c81);border-radius:14px;padding:20px;margin-bottom:16px;color:#fff;">
-      <div style="font-size:14px;font-weight:700;margin-bottom:14px;">📍 当前：${PARKS[currentPark]} · 模组${currentModule} 详细进度</div>
+    const stats = phases.map(p => ({...p, ...calcPhaseStats(p.key)}));
+    const totalDone = stats.reduce((s,x) => s+x.done, 0);
+    const totalAll = stats.reduce((s,x) => s+x.total, 0);
+    const overallPct = totalAll > 0 ? Math.round(totalDone/totalAll*100) : 0;
+
+    let statusBadge = '';
+    if (overallPct === 100) statusBadge = '<span style="background:#dcfce7;color:#166534;padding:4px 14px;border-radius:8px;font-size:13px;font-weight:600;">✅ 已投产</span>';
+    else if (overallPct >= 75) statusBadge = '<span style="background:#dbeafe;color:#1e40af;padding:4px 14px;border-radius:8px;font-size:13px;font-weight:600;">🔧 接维中</span>';
+    else if (overallPct >= 25) statusBadge = '<span style="background:#fef3c7;color:#92400e;padding:4px 14px;border-radius:8px;font-size:13px;font-weight:600;">🏗️ 建设中</span>';
+    else if (overallPct > 0) statusBadge = '<span style="background:#ede9fe;color:#5b21b6;padding:4px 14px;border-radius:8px;font-size:13px;font-weight:600;">📋 准备中</span>';
+    else statusBadge = '<span style="background:#f1f5f9;color:#64748b;padding:4px 14px;border-radius:8px;font-size:13px;font-weight:600;">⬜ 未开始</span>';
+
+    html += `<div style="background:linear-gradient(135deg,#071e3d,#0f4c81);border-radius:14px;padding:24px 28px;margin-bottom:20px;color:#fff;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
+        <div>
+          <div style="font-size:18px;font-weight:800;margin-bottom:4px;">📍 ${currentPark} · ${currentModule}</div>
+          <div style="font-size:13px;opacity:.75;">全生命周期投产进度追踪</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:28px;font-weight:800;">${overallPct}%</div>
+          <div>${statusBadge}</div>
+        </div>
+      </div>
+      <div style="height:8px;background:rgba(255,255,255,.15);border-radius:4px;overflow:hidden;margin-bottom:20px;">
+        <div style="height:100%;background:linear-gradient(90deg,#38bdf8,#06b6d4);width:${overallPct}%;border-radius:4px;transition:width .5s;"></div>
+      </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">`;
-    phases.forEach(p => {
-      const s = calcPhaseStats(p.key);
+    stats.forEach(p => {
       html += `<div style="background:rgba(255,255,255,.1);border-radius:10px;padding:14px;cursor:pointer;" onclick="showPage('${p.key}')">
         <div style="font-size:20px;margin-bottom:6px;">${p.icon}</div>
         <div style="font-size:13px;font-weight:700;margin-bottom:8px;">${p.name}</div>
         <div style="height:6px;background:rgba(255,255,255,.2);border-radius:3px;overflow:hidden;margin-bottom:6px;">
-          <div style="height:100%;background:${p.color};width:${s.pct}%;border-radius:3px;"></div>
+          <div style="height:100%;background:${p.color};width:${p.pct}%;border-radius:3px;"></div>
         </div>
-        <div style="font-size:12px;opacity:.8;">${s.done}/${s.total} 项完成 · ${s.pct}%</div>
+        <div style="font-size:12px;opacity:.8;">${p.done}/${p.total} 项完成 · ${p.pct}%</div>
       </div>`;
     });
     html += '</div></div>';
+
+    // 各阶段详细表格
+    html += `<div class="table-wrap"><div class="table-header"><div class="table-title">📊 各阶段详细进度</div></div>
+    <table class="data-table"><thead><tr><th>阶段</th><th>已完成</th><th>待完成</th><th>总计</th><th>完成率</th></tr></thead><tbody>`;
+    stats.forEach(p => {
+      html += `<tr>
+        <td><b>${p.icon} ${p.name}</b></td>
+        <td style="color:#166534;font-weight:600;">${p.done}</td>
+        <td style="color:#b45309;">${p.total - p.done}</td>
+        <td>${p.total}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="flex:1;height:6px;background:#f1f5f9;border-radius:3px;overflow:hidden;min-width:80px;"><div style="height:100%;background:${p.color};width:${p.pct}%;border-radius:3px;"></div></div>
+            <span style="font-weight:700;min-width:36px;">${p.pct}%</span>
+          </div>
+        </td>
+      </tr>`;
+    });
+    html += '</tbody></table></div>';
   }
 
   content.innerHTML = html;
 }
 
-// 园区选择
-function selectPark(park, btn) {
-  currentPark = park;
-  document.querySelectorAll('#park-btns .sel-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
+// 顶部输入框实时响应（输入时暂存，不立即刷新，点确认才生效）
+let _inputParkPending = '';
+let _inputModPending = '';
+function onParkInput(val) { _inputParkPending = val.trim(); }
+function onModuleInput(val) { _inputModPending = val.trim(); }
+function applyInputSelection() {
+  const parkVal = _inputParkPending || (document.getElementById('park-input').value||'').trim();
+  const modVal = _inputModPending || (document.getElementById('module-input').value||'').trim();
+  if (!parkVal || !modVal) { showTip('请填写园区和模组名称后点击确认'); return; }
+  currentPark = parkVal;
+  currentModule = modVal;
   renderAllTasks();
 }
 
-// 模组选择
-function selectModule(mod, btn) {
-  currentModule = mod;
-  document.querySelectorAll('#module-btns .sel-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
+// 兼容旧版（顶部按钮已移除，保留空函数避免报错）
+function selectPark(park, btn) {}
+function selectModule(mod, btn) {}
+function renderModuleBtns(park, containerId, onclickFn) {}
+
+// 点击任务条目切换完成状态
+function toggleTask(taskId) {
+  if (currentPark === 'all' || currentModule === 'all' || !currentPark || !currentModule) {
+    showTip('请先填写园区和模组后再操作');
+    return;
+  }
+  const state = getTaskState(taskId);
+  if (state && state.done) {
+    // 已完成 → 撤销
+    saveTaskState(taskId, null);
+  } else {
+    // 未完成 → 标记完成（无需签名，直接记录）
+    const now = new Date();
+    const timeStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+    saveTaskState(taskId, { done: true, user: '已确认', time: timeStr, park: currentPark, module: currentModule });
+  }
   renderAllTasks();
 }
 
@@ -1577,20 +1584,15 @@ function showTip(msg) {
 // 导出进度记录
 function exportProgress() {
   const rows = [['园区','模组','阶段','任务ID','任务名称','状态','操作人','完成时间']];
-  const parks = Object.keys(PARKS).filter(p => p !== 'all');
-  const modules = MODULES.filter(m => m !== 'all');
-  parks.forEach(park => {
-    modules.forEach(mod => {
-      ['prep','build','handover','ops'].forEach(phase => {
-        const phaseNames = {prep:'现场准备',build:'建设管控',handover:'接维管理',ops:'运维执行'};
-        (PHASE_GROUPS[phase] || []).forEach(g => {
-          (TASKS[g] || []).forEach(t => {
-            const key = `lc_${park}_${mod}_${t.id}`;
-            const val = localStorage.getItem(key);
-            const state = val ? JSON.parse(val) : null;
-            rows.push([PARKS[park], mod, phaseNames[phase], t.id, t.title, state&&state.done?'已完成':'未完成', state?state.user:'', state?state.time:'']);
-          });
-        });
+  // 只导出当前选中的园区/模组数据
+  const parkLabel = (currentPark && currentPark !== 'all') ? currentPark : '(未设置)';
+  const modLabel = (currentModule && currentModule !== 'all') ? currentModule : '(未设置)';
+  ['prep','build','handover','ops'].forEach(phase => {
+    const phaseNames = {prep:'现场准备',build:'建设管控',handover:'接维管理',ops:'运维执行'};
+    (PHASE_GROUPS[phase] || []).forEach(g => {
+      (TASKS[g] || []).forEach(t => {
+        const state = getTaskState(t.id);
+        rows.push([parkLabel, modLabel, phaseNames[phase], t.id, t.title, state&&state.done?'已完成':'未完成', state?state.user:'', state?state.time:'']);
       });
     });
   });
