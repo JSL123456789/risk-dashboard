@@ -345,7 +345,7 @@ function getFiltered(sheet){
     if(s.search && !Object.values(r).some(v=>String(v).toLowerCase().includes(s.search.toLowerCase()))) return false;
     if(s.cat && r['风险分类']!==s.cat) return false;
     if(s.status && r['隐患状态']!==s.status) return false;
-    if(s.zone && r['模组']!==s.zone) return false;
+    if(s.zone && !String(r['模组']||'').toLowerCase().includes(s.zone.toLowerCase())) return false;
     return true;
   }).sort((a,b)=>{
     if(!s.sort) return 0;
