@@ -67,12 +67,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
 .ov-card .trend.down{color:var(--danger);}
 
 /* ===== CHARTS ===== */
-.charts-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px;}
-.chart-card{background:#fff;border-radius:12px;padding:18px;box-shadow:var(--shadow);}
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;}
+.chart-card{background:#fff;border-radius:12px;padding:20px;box-shadow:var(--shadow);}
 .chart-card.wide{grid-column:span 2;}
+/* 参考图风格卡片 */
+.ref-card{background:#fff;}
+.chart-title-ref{font-size:14px;font-weight:600;color:#1e293b;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.ct-icon{font-size:14px;}
+/* 旧版兼容 */
 .chart-title{font-size:14px;font-weight:600;color:#374151;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
 .chart-title::before{content:'';width:4px;height:16px;background:var(--primary-light);border-radius:2px;}
 .chart-wrap{position:relative;}
+/* 参考图底部图例 */
+.ref-legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;justify-content:center;}
+.ref-legend-row{justify-content:center;}
+.rl-item{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:#374151;}
+.rl-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0;}
 
 /* ===== PARK OVERVIEW TABLE ===== */
 .park-overview{background:#fff;border-radius:12px;padding:18px;box-shadow:var(--shadow);margin-bottom:20px;}
@@ -387,43 +397,206 @@ function buildDashboard(){
   `;
 
   // Charts
-  const cateColors=['#3b82f6','#f59e0b','#ef4444','#8b5cf6','#10b981','#6b7280','#f97316','#0891b2'];
-  const statusColors={'已完成':'#22c55e','处理中':'#3b82f6','挂起':'#f97316','未处理':'#94a3b8'};
-  
+  const parkColors=['#6366f1','#22c55e','#f97316','#ef4444','#a855f7','#0891b2'];
+  const statusColors={'已完成':'#22c55e','未处理':'#ef4444','处理中':'#f97316','挂起':'#a855f7'};
+
+  // 统计风险分类数据（排序）
+  const cateEntries=Object.entries(byCate).sort((a,b)=>b[1]-a[1]);
+  const cateKeys=cateEntries.map(e=>e[0]);
+  const cateVals=cateEntries.map(e=>e[1]);
+  const statuses=['已完成','未处理','处理中','挂起'];
+  const parkKeys=Object.keys(DATA);
+  const parkShortLabels=parkKeys.map(k=>k.replace('重庆-','').replace('贵阳-','').replace('成都-',''));
+
+  // 2x2 布局：左上园区甜甜圈 | 右上分类横条 | 左下状态甜甜圈 | 右下处理进度
   document.getElementById('chartsRow').innerHTML=`
-    <div class="chart-card wide">
-      <div class="chart-title">各园区风险状态分布</div>
-      <div class="chart-wrap" style="height:200px"><canvas id="chartParkStatus"></canvas></div>
+    <div class="chart-card ref-card">
+      <div class="chart-title-ref"><span class="ct-icon">🕐</span>各园区风险数量对比</div>
+      <div class="chart-wrap" style="height:260px;position:relative"><canvas id="chartPark"></canvas></div>
+      <div class="ref-legend" id="parkLegend"></div>
     </div>
-    <div class="chart-card">
-      <div class="chart-title">风险分类占比</div>
-      <div class="chart-wrap" style="height:200px"><canvas id="chartCate"></canvas></div>
+    <div class="chart-card ref-card">
+      <div class="chart-title-ref"><span class="ct-icon">📊</span>风险分类分布</div>
+      <div class="chart-wrap" style="height:300px"><canvas id="chartCateBar"></canvas></div>
+    </div>
+    <div class="chart-card ref-card">
+      <div class="chart-title-ref"><span class="ct-icon">⭕</span>隐患状态占比</div>
+      <div class="chart-wrap" style="height:260px;position:relative"><canvas id="chartStatusPie"></canvas></div>
+      <div class="ref-legend" id="statusLegend"></div>
+    </div>
+    <div class="chart-card ref-card">
+      <div class="chart-title-ref"><span class="ct-icon">📈</span>各园区隐患处理进度</div>
+      <div class="chart-wrap" style="height:260px"><canvas id="chartParkProgress"></canvas></div>
+      <div class="ref-legend ref-legend-row" id="progressLegend"></div>
     </div>
   `;
 
-  // Park status stacked bar
-  const statuses=['已完成','处理中','挂起','未处理'];
-  const datasets=statuses.map(st=>({
-    label:st,
-    data:Object.keys(DATA).map(sh=>(byPark[sh].byStatus[st]||0)),
-    backgroundColor:statusColors[st]||'#94a3b8',
-    borderRadius:3,
-  }));
-  if(charts.parkStatus) charts.parkStatus.destroy();
-  charts.parkStatus=new Chart(document.getElementById('chartParkStatus'),{
+  // ============ 图1：各园区风险数量对比（甜甜圈 + 外侧标注） ============
+  const parkVals=parkKeys.map(k=>byPark[k].total);
+  if(charts.park) charts.park.destroy();
+  charts.park=new Chart(document.getElementById('chartPark'),{
+    type:'doughnut',
+    data:{
+      labels:parkShortLabels,
+      datasets:[{data:parkVals,backgroundColor:parkColors,borderWidth:3,borderColor:'#fff',hoverOffset:8}]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,cutout:'55%',
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:function(item){const pct=Math.round(item.raw/total*100);return ` ${item.label}：${item.raw}项 (${pct}%)`;}}},
+      }
+    },
+    plugins:[{
+      id:'parkLabels',
+      afterDraw:function(chart){
+        const {ctx,chartArea:{width,height,left,top}}=chart;
+        const cx=left+width/2, cy=top+height/2;
+        const meta=chart.getDatasetMeta(0);
+        ctx.save();
+        meta.data.forEach((arc,i)=>{
+          const angle=(arc.startAngle+arc.endAngle)/2;
+          const r=arc.outerRadius*1.18;
+          const x=cx+Math.cos(angle)*r;
+          const y=cy+Math.sin(angle)*r;
+          const lbl=parkShortLabels[i];
+          const val=parkVals[i];
+          ctx.font='bold 11px sans-serif';
+          ctx.fillStyle='#374151';
+          ctx.textAlign='center';
+          ctx.textBaseline='bottom';
+          ctx.fillText(lbl,x,y);
+          ctx.font='bold 12px sans-serif';
+          ctx.fillStyle=parkColors[i%parkColors.length];
+          ctx.textBaseline='top';
+          ctx.fillText(val+'项',x,y+1);
+        });
+        ctx.restore();
+      }
+    }]
+  });
+  // 园区图例
+  document.getElementById('parkLegend').innerHTML=parkKeys.map((k,i)=>
+    `<span class="rl-item"><span class="rl-dot" style="background:${parkColors[i%parkColors.length]}"></span>${parkShortLabels[i]}</span>`
+  ).join('');
+
+  // ============ 图2：风险分类分布（横向柱状，紫色渐变单色系） ============
+  const cateBarColors=cateKeys.map((_,i)=>{
+    const alpha=0.45+0.55*(1-i/Math.max(cateKeys.length-1,1));
+    return `rgba(109,40,217,${alpha})`;
+  });
+  if(charts.cateBar) charts.cateBar.destroy();
+  charts.cateBar=new Chart(document.getElementById('chartCateBar'),{
     type:'bar',
-    data:{labels:Object.keys(DATA),datasets},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:11},boxWidth:12}}},scales:{x:{stacked:true,ticks:{font:{size:11}}},y:{stacked:true,ticks:{font:{size:11}}}}}
+    data:{
+      labels:cateKeys,
+      datasets:[{
+        label:'风险项数量',
+        data:cateVals,
+        backgroundColor:cateBarColors,
+        borderRadius:4,
+        borderSkipped:false,
+      }]
+    },
+    options:{
+      indexAxis:'y',
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:function(item){const pct=Math.round(item.raw/total*100);return ` ${item.raw} 项 (${pct}%)`;}}}
+      },
+      scales:{
+        x:{ticks:{font:{size:11},color:'#6b7280'},grid:{color:'#f1f5f9'},border:{display:false}},
+        y:{ticks:{font:{size:11},color:'#374151'},grid:{display:false},border:{display:false}}
+      }
+    }
   });
 
-  // Cate doughnut
-  const cateKeys=Object.keys(byCate);
-  if(charts.cate) charts.cate.destroy();
-  charts.cate=new Chart(document.getElementById('chartCate'),{
+  // ============ 图3：隐患状态占比（大甜甜圈 + 外侧数量标注） ============
+  const statusVals=statuses.map(s=>byStatus[s]||0);
+  const statusColorArr=statuses.map(s=>statusColors[s]);
+  if(charts.statusPie) charts.statusPie.destroy();
+  charts.statusPie=new Chart(document.getElementById('chartStatusPie'),{
     type:'doughnut',
-    data:{labels:cateKeys,datasets:[{data:cateKeys.map(k=>byCate[k]),backgroundColor:cateColors,borderWidth:2,borderColor:'#fff'}]},
-    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'right',labels:{font:{size:11},boxWidth:10,padding:8}}}}
+    data:{
+      labels:statuses,
+      datasets:[{data:statusVals,backgroundColor:statusColorArr,borderWidth:3,borderColor:'#fff',hoverOffset:8}]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,cutout:'60%',
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:function(item){const pct=(item.raw/total*100).toFixed(2);return ` ${item.label}：${item.raw}项 (${pct}%)`;}}},
+      }
+    },
+    plugins:[{
+      id:'statusLabels',
+      afterDraw:function(chart){
+        const {ctx,chartArea:{width,height,left,top}}=chart;
+        const cx=left+width/2, cy=top+height/2;
+        const meta=chart.getDatasetMeta(0);
+        ctx.save();
+        meta.data.forEach((arc,i)=>{
+          if(statusVals[i]===0) return;
+          const angle=(arc.startAngle+arc.endAngle)/2;
+          const r=arc.outerRadius*1.2;
+          const x=cx+Math.cos(angle)*r;
+          const y=cy+Math.sin(angle)*r;
+          const pct=(statusVals[i]/total*100).toFixed(2);
+          ctx.font='11px sans-serif';
+          ctx.fillStyle='#374151';
+          ctx.textAlign='center';
+          ctx.textBaseline='bottom';
+          ctx.fillText(statuses[i],x,y);
+          ctx.font='bold 11px sans-serif';
+          ctx.fillStyle=statusColorArr[i];
+          ctx.textBaseline='top';
+          ctx.fillText(`${statusVals[i]}项 (${pct}%)`,x,y+1);
+        });
+        ctx.restore();
+      }
+    }]
   });
+  document.getElementById('statusLegend').innerHTML=statuses.map((s,i)=>
+    `<span class="rl-item"><span class="rl-dot" style="background:${statusColorArr[i]}"></span>${s}</span>`
+  ).join('');
+
+  // ============ 图4：各园区隐患处理进度（堆叠柱状图） ============
+  const progressDatasets=statuses.map(st=>({
+    label:st,
+    data:parkKeys.map(sh=>(byPark[sh].byStatus[st]||0)),
+    backgroundColor:statusColors[st],
+    borderRadius:2,
+    borderSkipped:false,
+  }));
+  if(charts.parkProgress) charts.parkProgress.destroy();
+  charts.parkProgress=new Chart(document.getElementById('chartParkProgress'),{
+    type:'bar',
+    data:{labels:parkShortLabels,datasets:progressDatasets},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          callbacks:{
+            label:function(item){
+              const parkTotal=byPark[parkKeys[item.dataIndex]].total;
+              const pct=Math.round(item.raw/parkTotal*100);
+              return ` ${item.dataset.label}：${item.raw}项 (${pct}%)`;
+            },
+            footer:function(items){return `共 ${byPark[parkKeys[items[0].dataIndex]].total} 项`;}
+          }
+        }
+      },
+      scales:{
+        x:{stacked:true,ticks:{font:{size:11},color:'#6b7280'},grid:{display:false},border:{display:false}},
+        y:{stacked:true,ticks:{font:{size:11},color:'#6b7280'},grid:{color:'#f1f5f9'},border:{display:false}}
+      }
+    }
+  });
+  document.getElementById('progressLegend').innerHTML=statuses.map((s,i)=>
+    `<span class="rl-item"><span class="rl-dot" style="background:${statusColors[s]}"></span>${s}</span>`
+  ).join('');
 
   // Park table
   let rows='<tr><th>园区</th><th>总数</th><th>已完成</th><th>处理中</th><th>挂起</th><th>未处理</th><th>完成率</th><th>进度</th></tr>';
