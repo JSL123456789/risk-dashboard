@@ -98,6 +98,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
 .task-check{width:20px;height:20px;border:2px solid #d1d5db;border-radius:5px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .2s;margin-top:1px;}
 .task-item.completed .task-check{background:#16a34a;border-color:#16a34a;}
 .task-item.completed .task-check::after{content:'✓';font-size:12px;font-weight:700;color:#fff;}
+.task-item.pending .task-check{background:#3b82f6;border-color:#3b82f6;}
+.task-item.pending .task-check::after{content:'✓';font-size:12px;font-weight:700;color:#fff;}
+.task-item.pending{background:#eff6ff;border-color:#93c5fd;}
 .task-content{flex:1;}
 .task-title{font-size:13px;font-weight:500;color:#1e293b;margin-bottom:2px;}
 .task-item.completed .task-title{color:#166534;}
@@ -130,6 +133,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
 /* 任务备注 */
 .task-remark{font-size:11px;color:#0369a1;background:#f0f9ff;border-left:2px solid #38bdf8;padding:4px 8px;border-radius:0 4px 4px 0;margin-top:4px;line-height:1.5;word-break:break-all;}
 .task-remark-label{font-weight:600;margin-right:4px;}
+/* 行内备注输入区 */
+.task-inline-remark{background:#f0fdf4;border-top:1px solid #bbf7d0;padding:10px 13px;border-radius:0 0 10px 10px;}
+.task-inline-remark-label{font-size:11px;font-weight:600;color:#166534;margin-bottom:6px;display:flex;align-items:center;gap:5px;}
+.task-inline-remark textarea{width:100%;padding:8px 10px;font-size:12px;border:1.5px solid #86efac;border-radius:7px;resize:vertical;min-height:58px;max-height:130px;outline:none;font-family:inherit;color:#1e293b;line-height:1.6;transition:border-color .2s;background:#fff;}
+.task-inline-remark textarea:focus{border-color:#16a34a;}
+.task-inline-remark-actions{display:flex;gap:8px;margin-top:7px;align-items:center;}
+.task-inline-btn{padding:5px 14px;border-radius:6px;border:none;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;}
+.task-inline-btn.ok{background:#16a34a;color:#fff;}
+.task-inline-btn.ok:hover{background:#15803d;}
+.task-inline-btn.skip{background:#f1f5f9;color:#475569;}
+.task-inline-btn.skip:hover{background:#e2e8f0;}
+.task-inline-hint{font-size:10px;color:#6b7280;margin-left:auto;}
 /* 备注弹窗 */
 .remark-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px;}
 .remark-modal-overlay.hidden{display:none;}
@@ -1137,15 +1152,16 @@ function saveTaskState(taskId, state) {
   else localStorage.removeItem(key);
 }
 
-// 渲染任务项（点击可切换完成状态）
+// 渲染任务项（点击可切换完成状态，打钩后展示行内备注框）
 function renderTask(groupId, task) {
   const container = document.getElementById('tasks-' + groupId);
   if (!container) return;
   const state = getTaskState(task.id);
   const isCompleted = state && state.done;
+  const isPending = state && state.pending; // 已打钩但待填写备注
 
   const div = document.createElement('div');
-  div.className = 'task-item' + (isCompleted ? ' completed' : '') + (task.warn ? ' warn-item' : '');
+  div.className = 'task-item' + (isCompleted ? ' completed' : (isPending ? ' pending' : '')) + (task.warn ? ' warn-item' : '');
   div.id = 'task-' + task.id;
 
   const tagsHtml = (task.tags || []).map(t => {
@@ -1158,8 +1174,19 @@ function renderTask(groupId, task) {
 
   const detailHtml = task.detail ? `<div class="task-expand-btn" onclick="toggleTaskDetail(this,event)">▶ 查看详情</div><div class="task-detail">${task.detail.replace(/\n/g,'<br>')}</div>` : '';
 
-  // 已完成时显示备注
-  const remarkHtml = (isCompleted && state && state.remark) ? `<div class="task-remark"><span class="task-remark-label">备注：</span>${state.remark}</div>` : '';
+  // 已完成时显示备注（若有）
+  const remarkHtml = (isCompleted && state && state.remark) ? `<div class="task-remark"><span class="task-remark-label">📝 备注：</span>${state.remark}</div>` : '';
+
+  // 行内备注输入区（pending状态，即已打钩但尚未确认）
+  const inlineRemarkHtml = isPending ? `<div class="task-inline-remark" onclick="event.stopPropagation()">
+    <div class="task-inline-remark-label">📝 添加备注（可选）</div>
+    <textarea id="inline-remark-${task.id}" placeholder="记录检查情况，如：检查正常、发现异常已处理等（可不填）"></textarea>
+    <div class="task-inline-remark-actions">
+      <button class="task-inline-btn ok" onclick="confirmTaskInline('${task.id}')">✅ 确认完成</button>
+      <button class="task-inline-btn skip" onclick="cancelTaskInline('${task.id}')">取消</button>
+      <span class="task-inline-hint">备注为选填项</span>
+    </div>
+  </div>` : '';
 
   div.innerHTML = `<div class="task-header" style="cursor:pointer;" onclick="toggleTask('${task.id}')">
     <div class="task-check"></div>
@@ -1170,7 +1197,7 @@ function renderTask(groupId, task) {
       ${detailHtml}
       ${remarkHtml}
     </div>
-  </div>`;
+  </div>${inlineRemarkHtml}`;
   container.appendChild(div);
 }
 
@@ -1559,7 +1586,7 @@ function renderModuleBtns(park, containerId, onclickFn) {}
 // 当前待确认的任务ID
 let _pendingRemarkTaskId = '';
 
-// 点击任务条目切换完成状态
+// 点击任务条目切换完成状态（行内备注模式）
 function toggleTask(taskId) {
   if (currentPark === 'all' || currentModule === 'all' || !currentPark || !currentModule) {
     showTip('请先填写园区和模组后再操作');
@@ -1570,10 +1597,36 @@ function toggleTask(taskId) {
     // 已完成 → 撤销
     saveTaskState(taskId, null);
     renderAllTasks();
+  } else if (state && state.pending) {
+    // 已展开备注框 → 再次点击撤销（取消打钩）
+    saveTaskState(taskId, null);
+    renderAllTasks();
   } else {
-    // 未完成 → 弹出备注弹窗
-    openTaskRemarkModal(taskId);
+    // 未完成 → 标记为pending（打钩并展开行内备注框）
+    saveTaskState(taskId, { pending: true });
+    renderAllTasks();
+    // 滚动到备注框并聚焦
+    setTimeout(() => {
+      const ta = document.getElementById('inline-remark-' + taskId);
+      if (ta) { ta.focus(); ta.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+    }, 60);
   }
+}
+
+// 行内备注确认完成
+function confirmTaskInline(taskId) {
+  const ta = document.getElementById('inline-remark-' + taskId);
+  const remark = ta ? ta.value.trim() : '';
+  const now = new Date();
+  const timeStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+  saveTaskState(taskId, { done: true, user: '已确认', time: timeStr, park: currentPark, module: currentModule, remark });
+  renderAllTasks();
+}
+
+// 行内备注取消（撤销打钩）
+function cancelTaskInline(taskId) {
+  saveTaskState(taskId, null);
+  renderAllTasks();
 }
 
 // 打开任务备注弹窗
