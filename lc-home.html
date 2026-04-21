@@ -113,6 +113,17 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 /* 签名标识 */
 .signed-mark{display:inline-flex;align-items:center;gap:3px;font-size:9px;color:#4ade80;background:rgba(34,197,94,.1);padding:1px 5px;border-radius:3px;margin-left:4px;}
 
+/* 新建模组按钮 */
+.new-mod-btn{background:linear-gradient(135deg,#0d7377,#06b6d4);color:#fff;border:none;padding:7px 18px;border-radius:16px;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;letter-spacing:.3px;white-space:nowrap;}
+.new-mod-btn:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(6,182,212,.3);}
+
+/* 建单弹窗选项按钮 */
+.nm-option{padding:9px 14px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;text-align:center;}
+.nm-option:hover{border-color:rgba(6,182,212,.4);background:rgba(6,182,212,.06);color:#67e8f9;}
+.nm-option.selected{background:rgba(6,182,212,.12);border-color:#06b6d4;color:#67e8f9;}
+.nm-option.has-data{border-color:rgba(34,197,94,.25);color:#4ade80;}
+.nm-option.has-data.selected{background:rgba(34,197,94,.12);border-color:#22c55e;}
+
 /* ===== 空状态 ===== */
 .empty-tip{text-align:center;padding:48px 20px;color:var(--muted);}
 .empty-tip .et-icon{font-size:40px;margin-bottom:12px;}
@@ -229,10 +240,11 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
   <!-- 筛选栏 -->
   <div class="filter-bar">
     <span class="filter-label">筛选状态：</span>
-    <div class="filter-btn active" onclick="setFilter('all',this)" id="fbtn-all">全部</div>
+    <div class="filter-btn active" onclick="setFilter('active_done',this)" id="fbtn-all">🔧 进行中 + ✅ 已投产</div>
     <div class="filter-btn" onclick="setFilter('done',this)" id="fbtn-done">✅ 已投产</div>
     <div class="filter-btn" onclick="setFilter('active',this)" id="fbtn-active">🔧 进行中</div>
-    <div class="filter-btn" onclick="setFilter('notstart',this)" id="fbtn-notstart">⬜ 未开始</div>
+    <div style="flex:1;"></div>
+    <button class="new-mod-btn" onclick="openNewModModal()">＋ 新建模组</button>
   </div>
 
   <!-- 园区内容区 -->
@@ -251,6 +263,37 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
       <button class="modal-close" onclick="closeModal()">✕</button>
     </div>
     <div class="modal-body" id="mm-body"></div>
+  </div>
+</div>
+
+<!-- 新建模组弹窗 -->
+<div class="modal-bg hidden" id="newModModal">
+  <div class="modal-box" style="max-width:440px;">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">＋ 新建模组投产单</div>
+        <div class="modal-sub">选择园区和模组，创建投产管理记录</div>
+      </div>
+      <button class="modal-close" onclick="closeNewModModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="margin-bottom:18px;">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:600;">选择园区</div>
+        <div id="nm-park-list" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"></div>
+      </div>
+      <div style="margin-bottom:18px;" id="nm-mod-wrap">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:600;">选择模组</div>
+        <div id="nm-mod-list" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+      </div>
+      <div id="nm-preview" style="display:none;background:rgba(6,182,212,.06);border:1px solid rgba(6,182,212,.2);border-radius:12px;padding:14px;margin-bottom:16px;">
+        <div style="font-size:12px;color:#67e8f9;font-weight:700;margin-bottom:6px;">📋 即将创建</div>
+        <div id="nm-preview-text" style="font-size:14px;font-weight:800;color:var(--text);"></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;">点击「开始投产」进入管理平台</div>
+      </div>
+      <button id="nm-submit-btn" onclick="submitNewMod()" disabled style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;border-radius:12px;background:rgba(6,182,212,.08);color:#64748b;border:1px solid rgba(255,255,255,.08);font-size:14px;font-weight:700;cursor:not-allowed;transition:all .2s;">
+        ❄️ 开始投产
+      </button>
+    </div>
   </div>
 </div>
 
@@ -299,7 +342,7 @@ const PHASE_SECTIONS = {
   ops:      ['ops-daily','ops-alm','ops-doc'],
 };
 
-let currentFilter = 'all';
+let currentFilter = 'active_done';
 
 // =============================================
 //  数据读取
@@ -423,66 +466,75 @@ function setFilter(val, el) {
 function renderCityGroups() {
   const container = document.getElementById('city-groups');
   let html = '';
+  let anyVisible = false;
+
+  // 判断模组是否应该在当前筛选条件下显示
+  function modMatchFilter(parkKey, mod) {
+    const st = getModuleStatus(parkKey, mod);
+    if (currentFilter === 'active_done') return st === 'active' || st === 'done';
+    if (currentFilter === 'done') return st === 'done';
+    if (currentFilter === 'active') return st === 'active';
+    return false;
+  }
 
   CITY_GROUPS.forEach(cityGroup => {
-    // 筛选出符合条件的园区
+    // 只留有符合条件模组的园区
     const filteredParks = cityGroup.parks.filter(parkKey => {
-      if (currentFilter === 'all') return true;
       const mods = PARK_MODULES[parkKey] || [];
-      return mods.some(mod => getModuleStatus(parkKey, mod) === currentFilter);
+      return mods.some(mod => modMatchFilter(parkKey, mod));
     });
     if (!filteredParks.length) return;
+    anyVisible = true;
 
-    // 城市统计
-    let cityDone = 0, cityTotal = 0;
-    cityGroup.parks.forEach(pk => {
+    // 城市统计（只统计有进度的）
+    let cityDone = 0, cityActive = 0;
+    filteredParks.forEach(pk => {
       (PARK_MODULES[pk]||[]).forEach(mod => {
-        cityTotal++;
-        if (getModuleStatus(pk, mod) === 'done') cityDone++;
+        const st = getModuleStatus(pk, mod);
+        if (st === 'done') cityDone++;
+        else if (st === 'active') cityActive++;
       });
     });
+    const cityTotal = cityDone + cityActive;
 
     html += `<div class="city-group">
       <div class="city-title">
         <div class="city-icon" style="background:${cityGroup.color}22;">${cityGroup.icon}</div>
         <div>
           <div class="city-name">${cityGroup.city}</div>
-          <div class="city-sub">${filteredParks.length} 个园区 · ${cityTotal} 个模组</div>
+          <div class="city-sub">${filteredParks.length} 个园区 · ${cityTotal} 个模组有进度</div>
         </div>
-        <div class="city-stats-badge">${cityDone}/${cityTotal} 已投产</div>
+        <div class="city-stats-badge">${cityDone} 已投产 · ${cityActive} 进行中</div>
       </div>
       <div class="park-cards">`;
 
     filteredParks.forEach(parkKey => {
       const parkName = PARKS[parkKey] || parkKey;
-      const mods = PARK_MODULES[parkKey] || [];
+      const allMods = PARK_MODULES[parkKey] || [];
+      // 只显示有进度的模组
+      const filteredMods = allMods.filter(mod => modMatchFilter(parkKey, mod));
 
-      // 过滤模组
-      const filteredMods = currentFilter === 'all' ? mods : mods.filter(mod => getModuleStatus(parkKey, mod) === currentFilter);
-
-      // 园区整体进度
-      let parkSigned = 0, parkTotal = 0, parkDone = 0, parkActive = 0, parkNotstart = 0;
-      mods.forEach(mod => {
+      // 园区整体进度（基于有进度的模组）
+      let parkSigned = 0, parkTotal = 0, parkDone = 0, parkActive = 0;
+      allMods.forEach(mod => {
         const prog = getModuleSignedProgress(parkKey, mod);
         parkSigned += prog.signed;
         parkTotal += prog.total;
         const st = getModuleStatus(parkKey, mod);
         if (st === 'done') parkDone++;
         else if (st === 'active') parkActive++;
-        else parkNotstart++;
       });
       const parkPct = parkTotal > 0 ? Math.round(parkSigned / parkTotal * 100) : 0;
 
-      let parkStatus = 'notstart';
-      if (parkDone === mods.length) parkStatus = 'done';
-      else if (parkActive > 0 || parkDone > 0) parkStatus = 'active';
+      let parkStatus = 'active';
+      if (parkDone > 0 && parkActive === 0) parkStatus = 'done';
       const sm = STATUS_MAP[parkStatus];
 
       html += `<div class="park-card" onclick="openParkDetail('${parkKey}')">
         <div class="park-card-head">
           <div>
             <div class="park-card-name">${parkName}</div>
-            <div class="park-card-desc">${mods.length} 个模组 · ${parkDone} 已投产 · ${parkActive} 进行中</div>
+            <div class="park-card-desc">${filteredMods.length} 个模组 · ${parkDone} 已投产 · ${parkActive} 进行中</div>
           </div>
           <span class="park-status ${sm.cls}">${sm.label}</span>
         </div>
@@ -510,7 +562,7 @@ function renderCityGroups() {
             <span class="mod-badge ${st}">${msm.label}</span>
           </div>
           <div class="mod-bar"><div class="mod-bar-fill" style="background:${msm.barColor};width:${prog.pct}%;"></div></div>
-          <div class="mod-pct">${prog.pct > 0 ? `签名 ${prog.signed}/${prog.total} · ${prog.pct}%` : (tasks.done > 0 ? `已确认 ${tasks.done} 项` : '暂无进度')}</div>
+          <div class="mod-pct">${prog.pct > 0 ? `签名 ${prog.signed}/${prog.total} · ${prog.pct}%` : (tasks.done > 0 ? `已确认 ${tasks.done} 项` : '进行中')}</div>
         </div>`;
       });
 
@@ -520,8 +572,13 @@ function renderCityGroups() {
     html += `</div></div>`; // end park-cards, city-group
   });
 
-  if (!html) {
-    html = `<div class="empty-tip"><div class="et-icon">🔍</div><p>暂无符合条件的模组</p></div>`;
+  if (!anyVisible) {
+    const filterLabel = currentFilter === 'done' ? '已投产' : currentFilter === 'active' ? '进行中' : '进行中或已投产';
+    html = `<div class="empty-tip">
+      <div class="et-icon">📭</div>
+      <p style="margin-bottom:16px;">暂无「${filterLabel}」的模组记录</p>
+      <button class="new-mod-btn" onclick="openNewModModal()" style="margin:0 auto;display:inline-flex;align-items:center;gap:6px;font-size:14px;padding:10px 24px;">＋ 新建模组投产单</button>
+    </div>`;
   }
   container.innerHTML = html;
 }
@@ -673,6 +730,107 @@ function closeModal() {
 }
 
 // =============================================
+//  建单弹窗
+// =============================================
+let nmSelectedPark = null;
+let nmSelectedMod = null;
+
+function openNewModModal() {
+  nmSelectedPark = null;
+  nmSelectedMod = null;
+  document.getElementById('nm-mod-wrap').style.display = 'none';
+  document.getElementById('nm-preview').style.display = 'none';
+  const btn = document.getElementById('nm-submit-btn');
+  btn.disabled = true;
+  btn.style.background = 'rgba(6,182,212,.08)';
+  btn.style.color = '#64748b';
+  btn.style.cursor = 'not-allowed';
+  btn.style.borderColor = 'rgba(255,255,255,.08)';
+
+  // 渲染园区列表
+  const parkList = document.getElementById('nm-park-list');
+  let html = '';
+  for (const [key, name] of Object.entries(PARKS)) {
+    const mods = PARK_MODULES[key] || [];
+    const hasDone = mods.some(m => getModuleStatus(key, m) !== 'notstart');
+    html += `<div class="nm-option${hasDone?' has-data':''}" data-park="${key}" onclick="nmSelectPark('${key}')">
+      ${name}${hasDone ? ' <span style="font-size:10px;opacity:.7;">●</span>' : ''}
+    </div>`;
+  }
+  parkList.innerHTML = html;
+  document.getElementById('newModModal').classList.remove('hidden');
+}
+
+function nmSelectPark(parkKey) {
+  nmSelectedPark = parkKey;
+  nmSelectedMod = null;
+  // 高亮选中
+  document.querySelectorAll('#nm-park-list .nm-option').forEach(el => {
+    el.classList.toggle('selected', el.dataset.park === parkKey);
+  });
+
+  // 渲染模组列表
+  const mods = PARK_MODULES[parkKey] || [];
+  const modWrap = document.getElementById('nm-mod-wrap');
+  modWrap.style.display = 'block';
+  let html = '';
+  mods.forEach(mod => {
+    const st = getModuleStatus(parkKey, mod);
+    const hasDone = st !== 'notstart';
+    const stLabel = st === 'done' ? ' ✅' : st === 'active' ? ' 🔧' : '';
+    html += `<div class="nm-option${hasDone?' has-data':''}" data-mod="${mod}" onclick="nmSelectMod('${mod}')" style="padding:7px 14px;">${mod}${stLabel}</div>`;
+  });
+  document.getElementById('nm-mod-list').innerHTML = html;
+  document.getElementById('nm-preview').style.display = 'none';
+  updateNmSubmitBtn();
+}
+
+function nmSelectMod(mod) {
+  nmSelectedMod = mod;
+  document.querySelectorAll('#nm-mod-list .nm-option').forEach(el => {
+    el.classList.toggle('selected', el.dataset.mod === mod);
+  });
+  // 显示预览
+  if (nmSelectedPark && nmSelectedMod) {
+    const parkName = PARKS[nmSelectedPark] || nmSelectedPark;
+    const st = getModuleStatus(nmSelectedPark, mod);
+    const stText = st === 'done' ? '✅ 该模组已投产' : st === 'active' ? '🔧 该模组进行中，继续填写' : '🆕 新建投产记录';
+    document.getElementById('nm-preview-text').innerHTML = `${parkName} · ${mod}<br><span style="font-size:12px;color:${st==='done'?'#4ade80':st==='active'?'#60a5fa':'#67e8f9'};font-weight:600;">${stText}</span>`;
+    document.getElementById('nm-preview').style.display = 'block';
+  }
+  updateNmSubmitBtn();
+}
+
+function updateNmSubmitBtn() {
+  const btn = document.getElementById('nm-submit-btn');
+  if (nmSelectedPark && nmSelectedMod) {
+    btn.disabled = false;
+    btn.style.background = 'linear-gradient(135deg,#0d7377,#06b6d4)';
+    btn.style.color = '#fff';
+    btn.style.cursor = 'pointer';
+    btn.style.borderColor = 'transparent';
+    btn.style.boxShadow = '0 4px 16px rgba(6,182,212,.25)';
+  } else {
+    btn.disabled = true;
+    btn.style.background = 'rgba(6,182,212,.08)';
+    btn.style.color = '#64748b';
+    btn.style.cursor = 'not-allowed';
+    btn.style.borderColor = 'rgba(255,255,255,.08)';
+    btn.style.boxShadow = 'none';
+  }
+}
+
+function submitNewMod() {
+  if (!nmSelectedPark || !nmSelectedMod) return;
+  closeNewModModal();
+  goToLiquidModule(nmSelectedPark, nmSelectedMod);
+}
+
+function closeNewModModal() {
+  document.getElementById('newModModal').classList.add('hidden');
+}
+
+// =============================================
 //  跳转逻辑
 // =============================================
 function goToLiquid() {
@@ -708,6 +866,9 @@ document.addEventListener('DOMContentLoaded', () => {
 // 点击背景关闭弹窗
 document.getElementById('modModal').addEventListener('click', function(e) {
   if (e.target === this) closeModal();
+});
+document.getElementById('newModModal').addEventListener('click', function(e) {
+  if (e.target === this) closeNewModModal();
 });
 </script>
 </body>
