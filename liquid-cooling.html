@@ -339,6 +339,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
 .scb-btn.confirm-btn:hover{background:#15803d;}
 .scb-btn.revoke-btn{background:#fee2e2;color:#b91c1c;}
 .scb-btn.revoke-btn:hover{background:#fecaca;}
+.scb-btn.selectall-btn{background:#dbeafe;color:#1d4ed8;}
+.scb-btn.selectall-btn:hover{background:#bfdbfe;}
+.scb-btn.save-btn{background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;}
+.scb-btn.save-btn:hover{background:#dcfce7;}
+.scb-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap;}
 
 /* 已完成任务底部信息栏 */
 .task-done-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:6px;padding-top:6px;border-top:1px dashed #bbf7d0;font-size:11px;color:#64748b;}
@@ -1393,16 +1398,22 @@ function renderAllSectionConfirms() {
         </div>
         ${remarkHtml}
       </div>
-      ${currentPark&&currentPark!=='all'&&currentModule&&currentModule!=='all'?`<button class="scb-btn revoke-btn" onclick="revokeSectionConfirm('${sectionKey}', this)">撤销确认</button>`:''}`;
+      ${currentPark&&currentPark!=='all'&&currentModule&&currentModule!=='all'?`<div class="scb-actions"><button class="scb-btn revoke-btn" onclick="revokeSectionConfirm('${sectionKey}', this)">🔓 撤销确认</button></div>`:''}`;
     } else {
       bar.className = 'section-confirm-bar undone';
       const canConfirm = currentPark && currentPark !== 'all' && currentModule && currentModule !== 'all';
       const pct = totalTasks > 0 ? Math.round(doneTasks/totalTasks*100) : 0;
       bar.innerHTML = `<div class="scb-info">
-        <div class="scb-title undone-title">📋 完成上方所有检查项后，点击右侧按钮整体确认</div>
+        <div class="scb-title undone-title">📋 请逐项勾选完成后，点击右侧签名确认</div>
         <div class="scb-sub undone-sub">已完成 ${doneTasks}/${totalTasks} 项 · ${pct}%</div>
       </div>
-      ${canConfirm ? `<button class="scb-btn confirm-btn" onclick="openSectionConfirm('${sectionKey}', '${sectionTitle}', this)">✍️ 签名确认本板块</button>` : '<span style="font-size:12px;color:#94a3b8;">请先填写园区和模组</span>'}`;
+      <div class="scb-actions">
+        ${canConfirm ? `
+          <button class="scb-btn selectall-btn" onclick="selectAllInSection('${groupIds.join(',')}', this)" title="全选本板块所有任务">☑ 全选</button>
+          <button class="scb-btn save-btn" onclick="saveSectionProgress('${groupIds.join(',')}', this)" title="保存当前进度">💾 保存</button>
+          <button class="scb-btn confirm-btn" onclick="openSectionConfirm('${sectionKey}', '${sectionTitle}', this)">✍️ 签名确认</button>
+        ` : '<span style="font-size:12px;color:#94a3b8;">请先填写园区和模组</span>'}
+      </div>`;
     }
     bar.id = 'scbar-' + sectionKey;
     section.appendChild(bar);
@@ -1448,7 +1459,7 @@ function closeSectionModal() {
   document.getElementById('sectionConfirmModal').classList.add('hidden');
 }
 
-// 确认板块提交
+// 确认板块提交（仅记录签名，不自动标记任务）
 function confirmSectionSubmit() {
   const user = document.getElementById('scUserInput').value.trim();
   if (!user) { showTip('请输入您的姓名'); document.getElementById('scUserInput').focus(); return; }
@@ -1456,38 +1467,86 @@ function confirmSectionSubmit() {
   const now = new Date();
   const timeStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
   saveSectionState(currentSectionKey, { done: true, user, time: timeStr, remark });
-
-  // 同时把该板块下所有任务标记为完成
-  const groupIds = currentSectionKey.replace('section_','');
-  // 找到该板块的所有task并标记
-  const groupId = groupIds;
-  const allGroupsForSection = getAllGroupsForSection(groupId);
-  allGroupsForSection.forEach(g => {
-    (TASKS[g]||[]).forEach(t => {
-      if (!getTaskState(t.id) || !getTaskState(t.id).done) {
-        saveTaskState(t.id, { done: true, user, time: timeStr, park: currentPark, module: currentModule });
-      }
-    });
-  });
-
   closeSectionModal();
   renderAllTasks();
-  checkPhaseCompletion(groupId);
+  checkPhaseCompletion(currentSectionKey.replace('section_',''));
 }
 
-// 撤销板块确认
+// 撤销板块确认（需二次确认弹窗，不联动撤销单项任务）
 function revokeSectionConfirm(sectionKey, btnEl) {
-  saveSectionState(sectionKey, null);
-  // 撤销该板块下所有任务
-  const groupId = sectionKey.replace('section_','');
-  const allGroups = getAllGroupsForSection(groupId);
-  allGroups.forEach(g => {
-    (TASKS[g]||[]).forEach(t => saveTaskState(t.id, null));
-  });
-  renderAllTasks();
+  const sectionState = getSectionState(sectionKey);
+  const modal = document.getElementById('modalOverlay');
+  document.getElementById('modalIcon').textContent = '⚠️';
+  document.getElementById('modalTitle').textContent = '撤销板块确认';
+  document.getElementById('modalBody').innerHTML = `
+    <div style="font-size:13px;color:#374151;margin-bottom:12px;">确认要撤销本板块的签名确认记录吗？</div>
+    <div style="background:#fef9c3;border-radius:8px;padding:10px 12px;font-size:12px;color:#78350f;margin-bottom:8px;">
+      ${sectionState ? `
+      <div>👤 签名人：<b>${sectionState.user||''}</b></div>
+      <div>🕐 确认时间：${sectionState.time||''}</div>
+      ${sectionState.remark ? `<div>📝 备注：${sectionState.remark}</div>` : ''}` : ''}
+    </div>
+    <div style="font-size:12px;color:#6b7280;">⚠️ 撤销后仅清除板块签名记录，各任务的完成状态不受影响</div>`;
+  document.getElementById('modalConfirmBtn').textContent = '确认撤销';
+  modalCallback = () => {
+    saveSectionState(sectionKey, null);
+    renderAllTasks();
+    showTip('✅ 板块确认已撤销');
+  };
+  modal.classList.remove('hidden');
 }
 
-// 根据groupId找到该section内所有groupId（一个section可能有多个任务组）
+// 全选板块内所有任务（逐项标记为pending，展开备注框）
+function selectAllInSection(groupIdsStr, btnEl) {
+  if (!currentPark || currentPark === 'all' || !currentModule || currentModule === 'all') {
+    showTip('请先填写园区和模组'); return;
+  }
+  const groupIds = groupIdsStr.split(',');
+  const allTasks = groupIds.flatMap(g => TASKS[g] || []);
+  const undone = allTasks.filter(t => { const s = getTaskState(t.id); return !s || !s.done; });
+  if (!undone.length) { showTip('本板块所有任务已全部完成 ✅'); return; }
+
+  const now = new Date();
+  const timeStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+
+  const modal = document.getElementById('modalOverlay');
+  document.getElementById('modalIcon').textContent = '☑️';
+  document.getElementById('modalTitle').textContent = '全选确认';
+  document.getElementById('modalBody').innerHTML = `
+    <div style="font-size:13px;color:#374151;margin-bottom:10px;">将把本板块 <b>${undone.length}</b> 项未完成任务全部标记为已完成。</div>
+    <div style="background:#f0fdf4;border-radius:8px;padding:10px 12px;font-size:12px;color:#166534;margin-bottom:8px;">
+      ${undone.map(t => `<div>✅ ${t.title}</div>`).join('')}
+    </div>
+    <div style="font-size:12px;color:#6b7280;">已完成的任务不受影响，如需填写备注请逐项手动勾选。</div>`;
+  document.getElementById('modalConfirmBtn').textContent = '确认全选';
+  modalCallback = () => {
+    undone.forEach(t => {
+      saveTaskState(t.id, { done: true, user: '全选确认', time: timeStr, park: currentPark, module: currentModule, remark: '' });
+    });
+    renderAllTasks();
+    showTip(`✅ 已全选完成 ${undone.length} 项`);
+  };
+  modal.classList.remove('hidden');
+}
+
+// 保存当前板块进度（数据已自动存储至localStorage，此处给予明确反馈）
+function saveSectionProgress(groupIdsStr, btnEl) {
+  if (!currentPark || currentPark === 'all' || !currentModule || currentModule === 'all') {
+    showTip('请先填写园区和模组'); return;
+  }
+  const groupIds = groupIdsStr.split(',');
+  const allTasks = groupIds.flatMap(g => TASKS[g] || []);
+  const doneCnt = allTasks.filter(t => { const s = getTaskState(t.id); return s && s.done; }).length;
+  // 给按钮做短暂反馈动画
+  if (btnEl) {
+    const orig = btnEl.textContent;
+    btnEl.textContent = '✅ 已保存';
+    btnEl.style.background = '#22c55e';
+    btnEl.style.color = '#fff';
+    setTimeout(() => { btnEl.textContent = orig; btnEl.style.background = ''; btnEl.style.color = ''; }, 1800);
+  }
+  showTip(`💾 进度已保存：${doneCnt}/${allTasks.length} 项完成`);
+}
 function getAllGroupsForSection(firstGroupId) {
   // 找到包含该groupId对应tasks容器的section，返回section内所有groupId
   const el = document.getElementById('tasks-' + firstGroupId);
