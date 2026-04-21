@@ -74,7 +74,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
 .section-desc{font-size:13px;color:#64748b;line-height:1.6;max-width:800px;}
 
 /* CHECKLIST */
-.checklist-section{background:#fff;border-radius:14px;padding:20px;box-shadow:var(--shadow);margin-bottom:16px;}
+.checklist-section{background:#fff;border-radius:14px;padding:20px;box-shadow:var(--shadow);margin-bottom:16px;position:relative;transition:all .2s;}
+.checklist-section.cs-signed{border-left:4px solid #16a34a;box-shadow:0 1px 3px rgba(0,0,0,.08),0 0 0 1px rgba(22,163,74,.12);}
+.checklist-section.cs-alldo{border-left:4px solid #3b82f6;}
 .cl-section-title{font-size:14px;font-weight:700;color:#1e293b;margin-bottom:14px;display:flex;align-items:center;gap:8px;padding-bottom:10px;border-bottom:2px solid #f1f5f9;}
 .cst-badge{margin-left:auto;font-size:11px;padding:3px 10px;border-radius:10px;font-weight:500;}
 .badge-warn{background:#fef3c7;color:#92400e;}
@@ -85,7 +87,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
 
 .cl-group{margin-bottom:18px;}
 .cl-group-title{font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
-.cl-group-title::before{content:'';width:3px;height:13px;background:var(--primary-light);border-radius:2px;}
+.cl-group-title::before{content:'';width:3px;height:13px;background:var(--primary-light);border-radius:2px;flex-shrink:0;}
 .cl-items{display:grid;gap:7px;}
 
 /* TASK ITEM */
@@ -185,11 +187,34 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
 
 /* SUB TABS */
 .sub-tabs{display:flex;gap:4px;margin-bottom:16px;background:#f1f5f9;padding:4px;border-radius:10px;width:fit-content;flex-wrap:wrap;}
-.sub-tab{padding:7px 14px;border-radius:7px;font-size:12px;font-weight:500;cursor:pointer;color:#64748b;transition:all .2s;user-select:none;}
+.sub-tab{padding:7px 14px;border-radius:7px;font-size:12px;font-weight:500;cursor:pointer;color:#64748b;transition:all .2s;user-select:none;display:flex;align-items:center;gap:5px;position:relative;}
 .sub-tab.active{background:#fff;color:#1e40af;box-shadow:0 1px 4px rgba(0,0,0,.1);}
 .sub-tab:hover:not(.active){color:#374151;}
 .sub-content{display:none;}
 .sub-content.active{display:block;}
+/* sub-tab 进度徽章 */
+.sub-tab-badge{display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:17px;padding:0 5px;border-radius:9px;font-size:10px;font-weight:700;background:#e5e7eb;color:#6b7280;transition:all .2s;line-height:1;}
+.sub-tab.active .sub-tab-badge{background:#dbeafe;color:#1d4ed8;}
+.sub-tab-badge.all-done{background:#dcfce7 !important;color:#166534 !important;}
+.sub-tab-badge.has-sign{background:#d1fae5 !important;color:#065f46 !important;}
+/* checklist-section 直观展示 */
+.checklist-section{position:relative;transition:all .2s;}
+.checklist-section .cs-status-bar{position:absolute;top:0;left:0;right:0;height:4px;border-radius:14px 14px 0 0;background:#f1f5f9;overflow:hidden;z-index:1;}
+.checklist-section .cs-status-bar .cs-fill{height:100%;background:linear-gradient(90deg,#3b82f6,#06b6d4);transition:width .5s;}
+.checklist-section.cs-signed .cs-status-bar .cs-fill{background:linear-gradient(90deg,#16a34a,#0d9488);}
+.checklist-section.cs-alldo .cs-status-bar .cs-fill{background:linear-gradient(90deg,#22c55e,#16a34a);}
+/* 板块头部折叠 */
+.cs-header-row{display:flex;align-items:center;gap:8px;margin-bottom:14px;cursor:pointer;user-select:none;}
+.cs-collapse-arrow{font-size:11px;color:#94a3b8;transition:transform .2s;flex-shrink:0;}
+.cs-collapsed .cs-collapse-arrow{transform:rotate(-90deg);}
+.cs-collapsed .cl-group,.cs-collapsed .section-confirm-bar{display:none;}
+/* 分类组进度条 */
+.cl-group-progress{display:flex;align-items:center;gap:6px;margin-left:auto;}
+.clgp-bar{width:52px;height:5px;background:#f1f5f9;border-radius:3px;overflow:hidden;}
+.clgp-fill{height:100%;border-radius:3px;background:#3b82f6;transition:width .4s;}
+.clgp-fill.done{background:#16a34a;}
+.clgp-text{font-size:10px;color:#94a3b8;white-space:nowrap;min-width:26px;text-align:right;}
+.clgp-text.done{color:#16a34a;font-weight:700;}
 
 /* ALERT */
 .alert{border-radius:10px;padding:12px 14px;margin-bottom:14px;display:flex;gap:10px;align-items:flex-start;}
@@ -1567,7 +1592,75 @@ function renderAllSectionConfirms() {
     }
     bar.id = 'scbar-' + sectionKey;
     section.appendChild(bar);
+
+    // ===== 新增：更新板块顶部状态条 =====
+    // 1. 在板块顶部插入进度状态条
+    let statusBar = section.querySelector('.cs-status-bar');
+    if (!statusBar) {
+      statusBar = document.createElement('div');
+      statusBar.className = 'cs-status-bar';
+      statusBar.innerHTML = '<div class="cs-fill"></div>';
+      section.insertBefore(statusBar, section.firstChild);
+    }
+    const fill = statusBar.querySelector('.cs-fill');
+    const fillPct = totalTasks > 0 ? Math.round(doneTasks / totalTasks * 100) : 0;
+    if (fill) fill.style.width = fillPct + '%';
+
+    // 2. 设置板块签名/完成状态class
+    section.classList.remove('cs-signed', 'cs-alldo');
+    if (isDone) section.classList.add('cs-signed');
+    else if (doneTasks === totalTasks && totalTasks > 0) section.classList.add('cs-alldo');
+
+    // 3. 给板块标题行加折叠功能（只加一次）
+    const titleEl2 = section.querySelector('.cl-section-title');
+    if (titleEl2 && !titleEl2.dataset.collapseInit) {
+      titleEl2.dataset.collapseInit = '1';
+      titleEl2.style.cursor = 'pointer';
+      titleEl2.style.userSelect = 'none';
+      // 加折叠箭头
+      const arrow = document.createElement('span');
+      arrow.className = 'cs-collapse-arrow';
+      arrow.innerHTML = '▾';
+      arrow.style.marginLeft = '4px';
+      titleEl2.appendChild(arrow);
+      titleEl2.onclick = function() {
+        section.classList.toggle('cs-collapsed');
+        arrow.innerHTML = section.classList.contains('cs-collapsed') ? '▸' : '▾';
+      };
+    }
+
+    // 4. 渲染各分类组的进度条
+    section.querySelectorAll('.cl-group').forEach(group => {
+      const itemsContainer = group.querySelector('[id^="tasks-"]');
+      if (!itemsContainer) return;
+      const gId = itemsContainer.id.replace('tasks-', '');
+      const gTasks = TASKS[gId] || [];
+      const gTotal = gTasks.length;
+      const gDone = gTasks.filter(t => { const st = getTaskState(t.id); return st && st.done; }).length;
+      const gPct = gTotal > 0 ? Math.round(gDone / gTotal * 100) : 0;
+      const gAllDone = gTotal > 0 && gDone === gTotal;
+
+      const groupTitleEl = group.querySelector('.cl-group-title');
+      if (!groupTitleEl) return;
+      // 更新或创建进度组件
+      let prog = groupTitleEl.querySelector('.cl-group-progress');
+      if (!prog) {
+        prog = document.createElement('div');
+        prog.className = 'cl-group-progress';
+        prog.innerHTML = `<div class="clgp-bar"><div class="clgp-fill"></div></div><span class="clgp-text"></span>`;
+        groupTitleEl.appendChild(prog);
+      }
+      const clgpFill = prog.querySelector('.clgp-fill');
+      const clgpText = prog.querySelector('.clgp-text');
+      clgpFill.style.width = gPct + '%';
+      clgpFill.className = 'clgp-fill' + (gAllDone ? ' done' : '');
+      clgpText.textContent = gAllDone ? '✓' : `${gDone}/${gTotal}`;
+      clgpText.className = 'clgp-text' + (gAllDone ? ' done' : '');
+    });
   });
+
+  // 更新所有sub-tab进度徽章
+  updateSubTabBadges();
 }
 
 // 板块确认状态存储
@@ -2310,7 +2403,55 @@ function showSubTab(page, tab) {
   container.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
   const content = document.getElementById(page + '-' + tab);
   if (content) content.classList.add('active');
-  event && event.target && event.target.classList.add('active');
+  event && event.target && event.target.closest('.sub-tab') && event.target.closest('.sub-tab').classList.add('active');
+}
+
+// 更新所有sub-tab的进度徽章
+function updateSubTabBadges() {
+  document.querySelectorAll('.sub-tabs').forEach(tabsEl => {
+    tabsEl.querySelectorAll('.sub-tab').forEach(tabEl => {
+      // 找到对应的sub-content
+      const onclick = tabEl.getAttribute('onclick') || '';
+      const match = onclick.match(/showSubTab\(['"]([^'"]+)['"]\s*,\s*['"]([^'"]+)['"]\)/);
+      if (!match) return;
+      const contentId = match[1] + '-' + match[2];
+      const content = document.getElementById(contentId);
+      if (!content) return;
+
+      // 统计该tab内所有任务
+      const taskContainers = content.querySelectorAll('[id^="tasks-"]');
+      let total = 0, done = 0, signed = false;
+      taskContainers.forEach(tc => {
+        const gId = tc.id.replace('tasks-', '');
+        const tasks = TASKS[gId] || [];
+        total += tasks.length;
+        done += tasks.filter(t => { const st = getTaskState(t.id); return st && st.done; }).length;
+      });
+
+      // 判断该tab的板块是否已签名
+      const section = content.querySelector('.checklist-section');
+      if (section) {
+        const firstGid = Array.from(taskContainers)[0]?.id.replace('tasks-', '');
+        if (firstGid) {
+          const sk = 'section_' + firstGid;
+          const ss = getSectionState(sk);
+          signed = !!(ss && ss.done);
+        }
+      }
+
+      // 更新徽章
+      let badge = tabEl.querySelector('.sub-tab-badge');
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'sub-tab-badge';
+        tabEl.appendChild(badge);
+      }
+      const allDone = total > 0 && done === total;
+      badge.textContent = allDone ? '✓' : (total > 0 ? `${done}/${total}` : '0');
+      badge.className = 'sub-tab-badge' + (signed ? ' has-sign' : (allDone ? ' all-done' : ''));
+      badge.title = signed ? `已签名确认·${done}/${total}` : `已完成 ${done}/${total} 项`;
+    });
+  });
 }
 
 // 折叠面板
