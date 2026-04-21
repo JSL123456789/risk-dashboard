@@ -340,7 +340,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
 .scb-btn.revoke-btn{background:#fee2e2;color:#b91c1c;}
 .scb-btn.revoke-btn:hover{background:#fecaca;}
 
-/* 板块进度徽章 */
+/* 已完成任务底部信息栏 */
+.task-done-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:6px;padding-top:6px;border-top:1px dashed #bbf7d0;font-size:11px;color:#64748b;}
+.task-revoke-hint{margin-left:auto;color:#94a3b8;font-size:11px;opacity:0;transition:opacity .2s;}
+.task-item.completed:hover .task-revoke-hint{opacity:1;color:#ef4444;font-weight:600;}
+.task-item.completed .task-header:hover{background:rgba(239,68,68,.04) !important;}
 .cl-section-progress{font-size:11px;color:#64748b;background:#f1f5f9;border-radius:10px;padding:2px 9px;margin-left:6px;white-space:nowrap;}
 .cl-section-progress.done{background:#dcfce7;color:#166534;font-weight:600;}
 
@@ -1293,8 +1297,13 @@ function renderTask(groupId, task) {
 
   const detailHtml = task.detail ? `<div class="task-expand-btn" onclick="toggleTaskDetail(this,event)">▶ 查看详情</div><div class="task-detail">${task.detail.replace(/\n/g,'<br>')}</div>` : '';
 
-  // 已完成时显示备注（若有）
+  // 已完成时显示备注（若有）及"点击撤销"提示
   const remarkHtml = (isCompleted && state && state.remark) ? `<div class="task-remark"><span class="task-remark-label">📝 备注：</span>${state.remark}</div>` : '';
+  const completedMetaHtml = isCompleted ? `<div class="task-done-meta">
+    ${state && state.user ? `<span>👤 ${state.user}</span>` : ''}
+    ${state && state.time ? `<span>🕐 ${state.time}</span>` : ''}
+    <span class="task-revoke-hint">🔒 点击可撤销确认</span>
+  </div>` : '';
 
   // 行内备注输入区（pending状态，即已打钩但尚未确认）
   const inlineRemarkHtml = isPending ? `<div class="task-inline-remark" onclick="event.stopPropagation()">
@@ -1315,6 +1324,7 @@ function renderTask(groupId, task) {
       <div class="task-tags">${tagsHtml}</div>
       ${detailHtml}
       ${remarkHtml}
+      ${completedMetaHtml}
     </div>
   </div>${inlineRemarkHtml}`;
   container.appendChild(div);
@@ -1735,6 +1745,39 @@ function renderModuleBtns(park, containerId, onclickFn) {}
 // 当前待确认的任务ID
 let _pendingRemarkTaskId = '';
 
+// 撤销确认弹窗
+function showRevokeConfirm(taskId) {
+  // 找到任务标题
+  let taskTitle = taskId;
+  for (const g in TASKS) {
+    const t = TASKS[g].find(t => t.id === taskId);
+    if (t) { taskTitle = t.title; break; }
+  }
+  const state = getTaskState(taskId);
+  const infoHtml = state ? `
+    <div style="background:#f8fafc;border-radius:8px;padding:10px 12px;font-size:12px;color:#64748b;margin-bottom:4px;">
+      <div>✅ 已完成：<b style="color:#1e293b;">${taskTitle}</b></div>
+      ${state.user ? `<div>👤 操作人：${state.user}</div>` : ''}
+      ${state.time ? `<div>🕐 完成时间：${state.time}</div>` : ''}
+      ${state.remark ? `<div>📝 备注：${state.remark}</div>` : ''}
+    </div>` : '';
+
+  const modal = document.getElementById('modalOverlay');
+  document.getElementById('modalIcon').textContent = '🔓';
+  document.getElementById('modalTitle').textContent = '撤销任务确认';
+  document.getElementById('modalBody').innerHTML = `
+    <div style="font-size:13px;color:#374151;margin-bottom:12px;">该任务已完成确认，撤销后可重新勾选并编辑备注。</div>
+    ${infoHtml}
+    <div style="font-size:12px;color:#ef4444;margin-top:8px;">⚠️ 撤销后该任务的完成记录将被清除</div>`;
+  document.getElementById('modalConfirmBtn').textContent = '确认撤销';
+  modalCallback = () => {
+    saveTaskState(taskId, null);
+    renderAllTasks();
+    showTip('✅ 已撤销，可重新勾选');
+  };
+  modal.classList.remove('hidden');
+}
+
 // 点击任务条目切换完成状态（行内备注模式）
 function toggleTask(taskId) {
   if (currentPark === 'all' || currentModule === 'all' || !currentPark || !currentModule) {
@@ -1743,11 +1786,10 @@ function toggleTask(taskId) {
   }
   const state = getTaskState(taskId);
   if (state && state.done) {
-    // 已完成 → 撤销
-    saveTaskState(taskId, null);
-    renderAllTasks();
+    // ✅ 已完成 → 不直接撤销，弹出确认框
+    showRevokeConfirm(taskId);
   } else if (state && state.pending) {
-    // 已展开备注框 → 再次点击撤销（取消打钩）
+    // 已展开备注框 → 再次点击取消（收起备注框）
     saveTaskState(taskId, null);
     renderAllTasks();
   } else {
