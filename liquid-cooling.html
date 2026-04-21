@@ -1411,6 +1411,7 @@ function renderAllSectionConfirms() {
         ${hasUndone ? `
           <button class="scb-btn selectall-btn" onclick="selectAllInSection('${groupIds.join(',')}', this)" title="全选剩余未完成任务" style="font-size:12px;padding:7px 14px;">☑ 全选剩余</button>
         ` : ''}
+        <button class="scb-btn save-btn" onclick="saveSectionProgress('${groupIds.join(',')}', this)" title="保存当前进度">💾 保存</button>
         <button class="scb-btn revoke-btn" onclick="revokeSectionConfirm('${sectionKey}', this)">🔓 撤销确认</button>
       </div>`:''}`;
     } else {
