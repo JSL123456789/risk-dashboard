@@ -537,7 +537,7 @@ let currentFilter = 'active_done';
 // =============================================
 // 获取某模组某板块签名状态
 function getSectionState(park, mod, sectionKey) {
-  const key = `lc_sec_${park}_${mod}_section_${sectionKey}`;
+  const key = `lc_sec_${park}_${mod}_${sectionKey}`;
   try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch(e) { return null; }
 }
 
@@ -546,7 +546,7 @@ function getModuleTaskStats(park, mod) {
   let done = 0, total = 0;
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
-    if (key && key.startsWith(`lc_${park}_${mod}_`) && !key.includes('_section_')) {
+    if (key && key.startsWith(`lc_${park}_${mod}_`) && !key.startsWith('lc_sec_')) {
       total++;
       try { const st = JSON.parse(localStorage.getItem(key)||'{}'); if(st.done) done++; } catch(e){}
     }
