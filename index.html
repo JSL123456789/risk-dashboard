@@ -1234,6 +1234,31 @@ function handleExcelUpload(input){
 buildTabs();
 buildDashboard();
 buildSheetPanels();
+
+// ========== 从封面页跳转时自动切换园区Tab ==========
+(function(){
+  const filterPark = localStorage.getItem('risk_filter_park');
+  if(filterPark){
+    localStorage.removeItem('risk_filter_park');
+    // 找到对应sheet名的tab并切换
+    setTimeout(()=>{
+      const tabs = document.querySelectorAll('.nav-tab[data-sheet]');
+      tabs.forEach(tab=>{
+        const sheet = tab.getAttribute('data-sheet');
+        if(sheet && sheet.includes(filterPark.split('·')[1]||filterPark)){
+          tab.click();
+        }
+      });
+    }, 300);
+  }
+})();
 </script>
+
+<!-- 返回首页浮动按钮 -->
+<div style="position:fixed;bottom:24px;right:24px;z-index:999;">
+  <a href="home.html" style="display:flex;align-items:center;gap:8px;background:linear-gradient(135deg,#0f172a,#1e3a8a);color:#93c5fd;border:1px solid rgba(96,165,250,.3);border-radius:20px;padding:10px 18px;font-size:13px;font-weight:600;text-decoration:none;box-shadow:0 4px 20px rgba(0,0,0,.3);transition:all .2s;" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.4)'" onmouseout="this.style.transform='';this.style.boxShadow='0 4px 20px rgba(0,0,0,.3)'">
+    🏠 返回总览
+  </a>
+</div>
 </body>
 </html>

@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>西南数据中心 · 运营管理平台</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --primary:#0f4c81;--primary2:#0d7377;
+  --success:#16a34a;--warning:#d97706;--danger:#dc2626;
+  --bg:#0b1628;--card:#131f35;--card2:#1a2840;
+  --border:rgba(255,255,255,.08);--text:#e2e8f0;--muted:#94a3b8;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+
+/* ===== 粒子背景 ===== */
+#particles{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;overflow:hidden;}
+.particle{position:absolute;border-radius:50%;animation:float linear infinite;}
+@keyframes float{0%{transform:translateY(100vh) scale(0);opacity:0;}10%{opacity:.6;}90%{opacity:.3;}100%{transform:translateY(-10vh) scale(1);opacity:0;}}
+
+/* ===== 顶部Header ===== */
+.header{position:relative;z-index:10;background:linear-gradient(180deg,rgba(11,22,40,.98),rgba(11,22,40,.8));border-bottom:1px solid var(--border);backdrop-filter:blur(12px);}
+.header-inner{display:flex;align-items:center;justify-content:space-between;padding:16px 32px;gap:16px;flex-wrap:wrap;}
+.logo{display:flex;align-items:center;gap:14px;}
+.logo-icon{width:46px;height:46px;background:linear-gradient(135deg,#0f4c81,#0d7377);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 0 20px rgba(13,115,119,.4);}
+.logo-title{font-size:20px;font-weight:800;background:linear-gradient(90deg,#60a5fa,#34d399);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:.5px;}
+.logo-sub{font-size:12px;color:var(--muted);margin-top:2px;}
+.header-right{display:flex;align-items:center;gap:12px;}
+.header-badge{background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.3);color:#93c5fd;padding:5px 14px;border-radius:20px;font-size:12px;}
+.sys-time{font-size:12px;color:var(--muted);}
+
+/* ===== 全局统计条 ===== */
+.global-stats{position:relative;z-index:10;background:rgba(19,31,53,.9);border-bottom:1px solid var(--border);padding:10px 32px;}
+.stats-row{display:flex;gap:24px;align-items:center;flex-wrap:wrap;}
+.stat-item{display:flex;align-items:center;gap:8px;}
+.stat-dot{width:8px;height:8px;border-radius:50%;}
+.stat-label{font-size:12px;color:var(--muted);}
+.stat-val{font-size:14px;font-weight:700;color:var(--text);}
+.stat-divider{width:1px;height:20px;background:var(--border);}
+.global-progress-wrap{flex:1;min-width:200px;display:flex;align-items:center;gap:10px;}
+.global-progress-bar{flex:1;height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden;}
+.global-progress-fill{height:100%;background:linear-gradient(90deg,#3b82f6,#06b6d4);border-radius:3px;transition:width .8s ease;}
+
+/* ===== 主内容区 ===== */
+.main{position:relative;z-index:10;padding:24px 32px;}
+
+/* ===== 系统切换Tab ===== */
+.sys-tabs{display:flex;gap:10px;margin-bottom:24px;flex-wrap:wrap;}
+.sys-tab{padding:8px 20px;border-radius:20px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--muted);font-size:13px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:6px;}
+.sys-tab:hover{border-color:rgba(96,165,250,.4);color:#93c5fd;}
+.sys-tab.active{background:rgba(59,130,246,.15);border-color:#3b82f6;color:#60a5fa;font-weight:600;}
+
+/* ===== 园区地图区 ===== */
+.map-section{display:grid;grid-template-columns:1fr 340px;gap:20px;margin-bottom:24px;}
+.china-map-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;min-height:380px;display:flex;flex-direction:column;}
+.section-title{font-size:15px;font-weight:700;color:var(--text);margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+.section-title::before{content:'';width:3px;height:16px;background:linear-gradient(#3b82f6,#06b6d4);border-radius:2px;}
+.map-svg-wrap{flex:1;position:relative;display:flex;align-items:center;justify-content:center;}
+
+/* 地图标注点 */
+.map-dot{position:absolute;cursor:pointer;transform:translate(-50%,-50%);z-index:5;}
+.map-dot-inner{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.5);position:relative;transition:transform .2s;}
+.map-dot-inner::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:6px;height:6px;border-radius:50%;background:#fff;}
+.map-dot-pulse{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:28px;height:28px;border-radius:50%;animation:pulse-ring 2s ease infinite;}
+@keyframes pulse-ring{0%{box-shadow:0 0 0 0 currentColor;opacity:.8;}100%{box-shadow:0 0 0 16px currentColor;opacity:0;}}
+.map-dot:hover .map-dot-inner{transform:scale(1.4);}
+.map-label{position:absolute;top:-28px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:11px;font-weight:600;color:#fff;background:rgba(0,0,0,.7);padding:2px 8px;border-radius:4px;pointer-events:none;opacity:0;transition:opacity .2s;}
+.map-dot:hover .map-label{opacity:1;}
+.map-dot-count{position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:10px;color:var(--muted);}
+
+/* ===== 右侧园区列表 ===== */
+.park-list-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;overflow-y:auto;}
+.park-item{background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:10px;cursor:pointer;transition:all .2s;}
+.park-item:hover{border-color:#3b82f6;transform:translateX(4px);}
+.park-item.active{border-color:#3b82f6;background:rgba(59,130,246,.08);}
+.park-item-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.park-name{font-size:14px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px;}
+.park-status-badge{font-size:10px;padding:2px 8px;border-radius:5px;font-weight:600;}
+.park-progress-bar{height:4px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden;margin-bottom:5px;}
+.park-progress-fill{height:100%;border-radius:2px;transition:width .6s;}
+.park-stats{font-size:11px;color:var(--muted);}
+
+/* ===== 模组展开列表 ===== */
+.module-list{margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:none;}
+.module-list.open{display:block;}
+.module-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.mod-card{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;padding:8px 10px;cursor:pointer;transition:all .15s;}
+.mod-card:hover{border-color:#06b6d4;background:rgba(6,182,212,.08);}
+.mod-name{font-size:12px;font-weight:600;color:var(--text);margin-bottom:4px;}
+.mod-bar{height:3px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden;margin-bottom:3px;}
+.mod-bar-fill{height:100%;border-radius:2px;}
+.mod-pct{font-size:10px;color:var(--muted);}
+
+/* ===== 底部两系统卡片 ===== */
+.systems-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;}
+.sys-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:22px;cursor:pointer;transition:all .25s;position:relative;overflow:hidden;}
+.sys-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:16px 16px 0 0;}
+.sys-card.risk::before{background:linear-gradient(90deg,#1d4ed8,#0891b2);}
+.sys-card.liquid::before{background:linear-gradient(90deg,#0f4c81,#0d7377);}
+.sys-card:hover{border-color:rgba(96,165,250,.4);transform:translateY(-3px);box-shadow:0 12px 40px rgba(0,0,0,.3);}
+.sys-card-header{display:flex;align-items:center;gap:14px;margin-bottom:16px;}
+.sys-card-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+.sys-card.risk .sys-card-icon{background:linear-gradient(135deg,#1d4ed8,#0891b2);}
+.sys-card.liquid .sys-card-icon{background:linear-gradient(135deg,#0f4c81,#0d7377);}
+.sys-card-name{font-size:16px;font-weight:700;color:var(--text);}
+.sys-card-desc{font-size:12px;color:var(--muted);margin-top:3px;}
+.sys-card-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;}
+.sys-stat{text-align:center;background:rgba(255,255,255,.04);border-radius:10px;padding:10px 8px;}
+.sys-stat-val{font-size:20px;font-weight:800;}
+.sys-stat-lbl{font-size:10px;color:var(--muted);margin-top:2px;}
+.sys-card-btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:10px;border-radius:10px;border:none;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;}
+.sys-card.risk .sys-card-btn{background:linear-gradient(135deg,#1d4ed8,#0891b2);color:#fff;}
+.sys-card.liquid .sys-card-btn{background:linear-gradient(135deg,#0f4c81,#0d7377);color:#fff;}
+.sys-card-btn:hover{opacity:.85;transform:scale(.98);}
+
+/* ===== 图表区 ===== */
+.charts-section{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:24px;}
+.chart-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;}
+.chart-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:14px;display:flex;align-items:center;gap:6px;}
+.chart-wrap{position:relative;}
+
+/* ===== 最近动态 ===== */
+.activity-section{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;}
+.activity-list{display:flex;flex-direction:column;gap:10px;max-height:220px;overflow-y:auto;}
+.activity-item{display:flex;align-items:flex-start;gap:12px;padding:10px 12px;background:var(--card2);border-radius:9px;font-size:12px;}
+.activity-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:3px;}
+.activity-content{flex:1;color:var(--text);}
+.activity-time{color:var(--muted);font-size:11px;margin-top:2px;}
+
+/* ===== 响应式 ===== */
+@media(max-width:900px){
+  .map-section{grid-template-columns:1fr;}
+  .systems-grid{grid-template-columns:1fr;}
+  .charts-section{grid-template-columns:1fr 1fr;}
+  .main{padding:16px;}
+  .header-inner{padding:12px 16px;}
+  .global-stats{padding:8px 16px;}
+}
+@media(max-width:600px){
+  .charts-section{grid-template-columns:1fr;}
+  .logo-title{font-size:16px;}
+}
+
+/* ===== 弹出式模组详情 ===== */
+.park-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;}
+.park-modal-overlay.hidden{display:none;}
+.park-modal{background:#131f35;border:1px solid rgba(255,255,255,.12);border-radius:20px;width:100%;max-width:560px;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;}
+.park-modal-header{background:linear-gradient(135deg,#0f4c81,#0d7377);padding:20px 24px;color:#fff;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.park-modal-body{flex:1;overflow-y:auto;padding:20px 24px;}
+.park-modal-close{background:rgba(255,255,255,.15);border:none;color:#fff;width:30px;height:30px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.pm-mod-card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:all .15s;}
+.pm-mod-card:hover{border-color:#06b6d4;background:rgba(6,182,212,.08);}
+.pm-sys-btns{display:flex;gap:8px;margin-top:4px;}
+.pm-sys-btn{padding:5px 12px;border-radius:6px;border:1px solid;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;}
+.pm-sys-btn.risk{border-color:#3b82f6;color:#60a5fa;background:rgba(59,130,246,.1);}
+.pm-sys-btn.risk:hover{background:rgba(59,130,246,.2);}
+.pm-sys-btn.liquid{border-color:#06b6d4;color:#22d3ee;background:rgba(6,182,212,.1);}
+.pm-sys-btn.liquid:hover{background:rgba(6,182,212,.2);}
+
+.tooltip-box{position:fixed;background:#1e293b;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:8px 12px;font-size:12px;color:#e2e8f0;pointer-events:none;z-index:500;display:none;box-shadow:0 4px 20px rgba(0,0,0,.4);}
+</style>
+</head>
+<body>
+
+<!-- 粒子背景 -->
+<div id="particles"></div>
+
+<!-- Tooltip -->
+<div class="tooltip-box" id="tooltip"></div>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-inner">
+    <div class="logo">
+      <div class="logo-icon">🏙️</div>
+      <div>
+        <div class="logo-title">西南数据中心 · 运营管理平台</div>
+        <div class="logo-sub">Southwest Data Center Operations Hub</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="header-badge" id="live-time">--:--:--</div>
+      <div class="sys-time" id="live-date">----/--/--</div>
+    </div>
+  </div>
+</div>
+
+<!-- 全局统计条 -->
+<div class="global-stats">
+  <div class="stats-row">
+    <div class="stat-item"><div class="stat-dot" style="background:#ef4444;"></div><span class="stat-label">风险总数</span><span class="stat-val" id="g-risk-total">--</span></div>
+    <div class="stat-divider"></div>
+    <div class="stat-item"><div class="stat-dot" style="background:#f97316;"></div><span class="stat-label">处理中</span><span class="stat-val" id="g-risk-open">--</span></div>
+    <div class="stat-divider"></div>
+    <div class="stat-item"><div class="stat-dot" style="background:#22c55e;"></div><span class="stat-label">已闭合</span><span class="stat-val" id="g-risk-closed">--</span></div>
+    <div class="stat-divider"></div>
+    <div class="stat-item"><div class="stat-dot" style="background:#06b6d4;"></div><span class="stat-label">液冷模组</span><span class="stat-val" id="g-lc-total">--</span></div>
+    <div class="stat-divider"></div>
+    <div class="stat-item"><div class="stat-dot" style="background:#a78bfa;"></div><span class="stat-label">投产完成</span><span class="stat-val" id="g-lc-done">--</span></div>
+    <div class="stat-divider"></div>
+    <div class="global-progress-wrap">
+      <span style="font-size:11px;color:var(--muted);white-space:nowrap;">液冷总进度</span>
+      <div class="global-progress-bar"><div class="global-progress-fill" id="g-lc-progress" style="width:0%"></div></div>
+      <span style="font-size:12px;font-weight:700;color:#60a5fa;" id="g-lc-pct">0%</span>
+    </div>
+  </div>
+</div>
+
+<!-- 主内容 -->
+<div class="main">
+
+  <!-- 系统切换Tab -->
+  <div class="sys-tabs">
+    <div class="sys-tab active" onclick="switchView('overview')" id="tab-overview">🏠 总览</div>
+    <div class="sys-tab" onclick="switchView('risk')" id="tab-risk">⚠️ 风险仪表盘</div>
+    <div class="sys-tab" onclick="switchView('liquid')" id="tab-liquid">❄️ 液冷管理平台</div>
+  </div>
+
+  <!-- 总览视图 -->
+  <div id="view-overview">
+
+    <!-- 地图 + 园区列表 -->
+    <div class="map-section">
+      <!-- 中国地图示意 -->
+      <div class="china-map-card">
+        <div class="section-title">📍 园区分布地图</div>
+        <div class="map-svg-wrap" id="map-svg-wrap">
+          <!-- 中国轮廓SVG简版 + 标注点 -->
+          <svg id="china-bg" viewBox="0 0 520 400" style="width:100%;max-width:520px;max-height:340px;opacity:.25;" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- 简化中国边境轮廓 -->
+            <path d="M130,30 L160,25 L195,28 L230,22 L270,18 L310,22 L350,28 L390,35 L420,45 L440,60 L450,80 L460,100 L455,120 L465,140 L470,165 L460,185 L445,200 L430,215 L410,225 L420,240 L415,260 L400,275 L385,290 L370,300 L355,315 L340,325 L320,330 L300,340 L280,345 L260,350 L240,345 L225,335 L210,325 L195,315 L180,305 L165,290 L155,275 L140,260 L130,245 L120,230 L110,215 L100,200 L90,185 L85,170 L80,155 L75,140 L72,125 L75,110 L80,95 L88,80 L100,65 L115,50 Z" stroke="#60a5fa" stroke-width="1.5" fill="rgba(59,130,246,.05)"/>
+            <!-- 海南岛 -->
+            <ellipse cx="310" cy="365" rx="18" ry="12" stroke="#60a5fa" stroke-width="1" fill="rgba(59,130,246,.05)"/>
+            <!-- 台湾 -->
+            <ellipse cx="430" cy="270" rx="10" ry="18" stroke="#60a5fa" stroke-width="1" fill="rgba(59,130,246,.03)"/>
+          </svg>
+          <!-- 园区标注点（绝对定位，基于SVG坐标系） -->
+          <div id="map-dots" style="position:absolute;top:0;left:0;width:100%;height:100%;"></div>
+        </div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;border-top:1px solid var(--border);padding-top:12px;">
+          <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);"><div style="width:8px;height:8px;border-radius:50%;background:#22c55e;"></div>运维中</div>
+          <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);"><div style="width:8px;height:8px;border-radius:50%;background:#3b82f6;"></div>建设中</div>
+          <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);"><div style="width:8px;height:8px;border-radius:50%;background:#f59e0b;"></div>规划中</div>
+        </div>
+      </div>
+
+      <!-- 园区列表 -->
+      <div class="park-list-card">
+        <div class="section-title">🏢 园区列表</div>
+        <div id="park-list-container"></div>
+      </div>
+    </div>
+
+    <!-- 两系统快捷入口 -->
+    <div class="systems-grid">
+      <!-- 风险仪表盘 -->
+      <div class="sys-card risk" onclick="location.href='index.html'">
+        <div class="sys-card-header">
+          <div class="sys-card-icon">⚠️</div>
+          <div>
+            <div class="sys-card-name">风险隐患仪表盘</div>
+            <div class="sys-card-desc">西南各园区风险台账·实时追踪</div>
+          </div>
+        </div>
+        <div class="sys-card-stats">
+          <div class="sys-stat"><div class="sys-stat-val" style="color:#ef4444;" id="rs-total">--</div><div class="sys-stat-lbl">风险总数</div></div>
+          <div class="sys-stat"><div class="sys-stat-val" style="color:#f97316;" id="rs-open">--</div><div class="sys-stat-lbl">处理中</div></div>
+          <div class="sys-stat"><div class="sys-stat-val" style="color:#22c55e;" id="rs-closed">--</div><div class="sys-stat-lbl">已闭合</div></div>
+        </div>
+        <button class="sys-card-btn">🔗 进入风险仪表盘 →</button>
+      </div>
+
+      <!-- 液冷管理平台 -->
+      <div class="sys-card liquid" onclick="location.href='liquid-cooling.html'">
+        <div class="sys-card-header">
+          <div class="sys-card-icon">❄️</div>
+          <div>
+            <div class="sys-card-name">液冷全流程管理平台</div>
+            <div class="sys-card-desc">模组投产跟踪·四阶段闭环管理</div>
+          </div>
+        </div>
+        <div class="sys-card-stats">
+          <div class="sys-stat"><div class="sys-stat-val" style="color:#06b6d4;" id="lcs-total">--</div><div class="sys-stat-lbl">模组总数</div></div>
+          <div class="sys-stat"><div class="sys-stat-val" style="color:#22c55e;" id="lcs-done">--</div><div class="sys-stat-lbl">已投产</div></div>
+          <div class="sys-stat"><div class="sys-stat-val" style="color:#a78bfa;" id="lcs-pct">--%</div><div class="sys-stat-lbl">完成率</div></div>
+        </div>
+        <button class="sys-card-btn">🔗 进入液冷管理平台 →</button>
+      </div>
+    </div>
+
+    <!-- 图表区 -->
+    <div class="charts-section">
+      <div class="chart-card">
+        <div class="chart-title">📊 各园区风险数量</div>
+        <div class="chart-wrap"><canvas id="chart-park-risk" height="180"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">🔄 液冷投产进度</div>
+        <div class="chart-wrap"><canvas id="chart-lc-progress" height="180"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">📋 最近操作动态</div>
+        <div id="activity-list" style="max-height:180px;overflow-y:auto;display:flex;flex-direction:column;gap:7px;"></div>
+      </div>
+    </div>
+
+  </div><!-- end view-overview -->
+
+  <!-- 风险视图（iframe嵌入） -->
+  <div id="view-risk" style="display:none;">
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;">
+      <div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:14px;font-weight:600;">⚠️ 风险隐患仪表盘</span>
+        <a href="index.html" target="_blank" style="font-size:12px;color:#60a5fa;text-decoration:none;">↗ 独立窗口打开</a>
+      </div>
+      <iframe src="index.html" style="width:100%;height:80vh;border:none;" id="risk-iframe"></iframe>
+    </div>
+  </div>
+
+  <!-- 液冷视图（iframe嵌入） -->
+  <div id="view-liquid" style="display:none;">
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;">
+      <div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:14px;font-weight:600;">❄️ 液冷全流程管理平台</span>
+        <a href="liquid-cooling.html" target="_blank" style="font-size:12px;color:#06b6d4;text-decoration:none;">↗ 独立窗口打开</a>
+      </div>
+      <iframe src="liquid-cooling.html" style="width:100%;height:80vh;border:none;" id="lc-iframe"></iframe>
+    </div>
+  </div>
+
+</div><!-- end main -->
+
+<!-- 园区模组详情弹窗 -->
+<div class="park-modal-overlay hidden" id="parkModal">
+  <div class="park-modal">
+    <div class="park-modal-header">
+      <div>
+        <div style="font-size:18px;font-weight:800;" id="pm-title">园区名称</div>
+        <div style="font-size:12px;opacity:.7;margin-top:3px;" id="pm-subtitle">城市 · 数据中心</div>
+      </div>
+      <button class="park-modal-close" onclick="closeParkModal()">✕</button>
+    </div>
+    <div class="park-modal-body" id="pm-body"></div>
+  </div>
+</div>
+
+<script>
+// =============================================
+//  园区配置数据
+// =============================================
+const PARKS_CONFIG = [
+  {
+    id: 'cq-taihe', name: '重庆·泰和', city: '重庆', short: '泰和',
+    loc: {x: 27, y: 62},  // 百分比位置（相对地图容器）
+    status: 'active', color: '#22c55e',
+    risk_park_key: '重庆·泰和',
+    lc_park_key: 'cq-taihe',
+    modules: ['模组01','模组02','模组04','模组05','模组51'],
+    desc: '腾讯西南重庆泰和数据中心'
+  },
+  {
+    id: 'cq-yunfu', name: '重庆·云福', city: '重庆', short: '云福',
+    loc: {x: 28, y: 64},
+    status: 'active', color: '#22c55e',
+    risk_park_key: '重庆·云福2栋',
+    lc_park_key: 'cq-yunfu',
+    modules: ['模组01','模组02','模组03'],
+    desc: '腾讯西南重庆云福2栋数据中心'
+  },
+  {
+    id: 'gz-guian', name: '贵安·七星', city: '贵州', short: '七星',
+    loc: {x: 32, y: 70},
+    status: 'active', color: '#3b82f6',
+    risk_park_key: '贵安·七星',
+    lc_park_key: 'gz-guian',
+    modules: ['模组21','模组31'],
+    desc: '腾讯贵安七星数据中心'
+  },
+  {
+    id: 'gz-guian32', name: '贵安·32模组', city: '贵州', short: '32模',
+    loc: {x: 33, y: 71},
+    status: 'building', color: '#f59e0b',
+    risk_park_key: '贵安·32模组',
+    lc_park_key: 'gz-guian32',
+    modules: ['模组32'],
+    desc: '腾讯贵安数据中心32模组'
+  },
+  {
+    id: 'cd-xiqu', name: '成都·西区', city: '成都', short: '西区',
+    loc: {x: 24, y: 65},
+    status: 'active', color: '#22c55e',
+    risk_park_key: '成都·西区',
+    lc_park_key: 'cd-xiqu',
+    modules: ['模组01','模组02'],
+    desc: '腾讯成都西区数据中心'
+  },
+  {
+    id: 'cd-gaoxin', name: '成都·高新', city: '成都', short: '高新',
+    loc: {x: 25, y: 66},
+    status: 'building', color: '#f59e0b',
+    risk_park_key: '成都·高新',
+    lc_park_key: 'cd-gaoxin',
+    modules: ['模组01'],
+    desc: '腾讯成都高新数据中心'
+  }
+];
+
+// =============================================
+//  液冷 localStorage 数据读取
+// =============================================
+function getLcModuleProgress(park, mod) {
+  const allPhaseGroups = {
+    prep:['prep-ce','prep-uc','prep-env','prep-mt','prep-doc'],
+    build:['build-uc','build-mt','build-net','build-pwr','build-cool'],
+    handover:['ho-check','ho-test','ho-sign'],
+    ops:['ops-daily','ops-alm','ops-doc']
+  };
+  // 统计所有任务数量（用固定总数避免复杂依赖）
+  const TOTAL_TASKS = 63; // 总任务数（估算）
+  let done = 0, total = 0;
+  for(let i=0;i<localStorage.length;i++){
+    const key = localStorage.key(i);
+    if(key && key.startsWith(`lc_${park}_${mod}_`) && !key.includes('_section_')){
+      total++;
+      try{ const st = JSON.parse(localStorage.getItem(key)||'{}'); if(st.done) done++; }catch(e){}
+    }
+  }
+  // 若 total=0 说明无数据
+  if(total===0) return {done:0,total:0,pct:0};
+  const pct = Math.round(done/total*100);
+  return {done,total,pct};
+}
+
+function getLcParkSummary(park) {
+  const p = PARKS_CONFIG.find(p=>p.lc_park_key===park);
+  if(!p) return {modules:0,done:0,inprogress:0,totalPct:0};
+  const mods = p.modules;
+  let doneCount=0, inprogressCount=0, totalPct=0;
+  mods.forEach(mod=>{
+    const pr = getLcModuleProgress(park,mod);
+    if(pr.pct===100) doneCount++;
+    else if(pr.pct>0) inprogressCount++;
+    totalPct += pr.pct;
+  });
+  const avgPct = mods.length>0 ? Math.round(totalPct/mods.length) : 0;
+  return {modules:mods.length, done:doneCount, inprogress:inprogressCount, totalPct:avgPct};
+}
+
+function getAllLcStats() {
+  let totalMods=0, doneMods=0, totalPctSum=0;
+  PARKS_CONFIG.forEach(p=>{
+    const sum = getLcParkSummary(p.lc_park_key);
+    totalMods += sum.modules;
+    doneMods += sum.done;
+    totalPctSum += sum.totalPct * sum.modules;
+  });
+  const avgPct = totalMods>0 ? Math.round(totalPctSum/totalMods) : 0;
+  return {totalMods, doneMods, avgPct};
+}
+
+// =============================================
+//  风险 localStorage 数据读取
+// =============================================
+function getRiskStats() {
+  // 风险数据存在 riskData key 中
+  try{
+    const raw = localStorage.getItem('riskData');
+    if(!raw) return null;
+    const data = JSON.parse(raw);
+    if(!Array.isArray(data)) return null;
+    const total = data.length;
+    const closed = data.filter(d=>['已关闭','已闭合','关闭','闭合','closed'].includes((d['处理状态']||d['status']||'').toString().trim())).length;
+    const open = total - closed;
+    // 按园区统计
+    const byPark = {};
+    data.forEach(d=>{
+      const park = d['园区']||d['park']||'未知';
+      if(!byPark[park]) byPark[park]={total:0,open:0,closed:0};
+      byPark[park].total++;
+      if(['已关闭','已闭合','关闭','闭合','closed'].includes((d['处理状态']||d['status']||'').toString().trim())) byPark[park].closed++;
+      else byPark[park].open++;
+    });
+    return {total, open, closed, byPark};
+  }catch(e){ return null; }
+}
+
+// =============================================
+//  渲染园区列表
+// =============================================
+function renderParkList() {
+  const container = document.getElementById('park-list-container');
+  const riskStats = getRiskStats();
+  let html = '';
+  PARKS_CONFIG.forEach((park,idx)=>{
+    const lcSum = getLcParkSummary(park.lc_park_key);
+    const riskPark = riskStats && riskStats.byPark[park.risk_park_key];
+    const riskCount = riskPark ? riskPark.total : 0;
+    const riskOpen = riskPark ? riskPark.open : 0;
+    const pct = lcSum.totalPct;
+    let statusClass='', statusText='', barColor='';
+    if(park.status==='active'&&pct>0){ statusClass='background:#dcfce7;color:#166534;'; statusText='运营中'; barColor='#22c55e'; }
+    else if(park.status==='building'){ statusClass='background:rgba(245,158,11,.15);color:#f59e0b;'; statusText='建设中'; barColor='#f59e0b'; }
+    else{ statusClass='background:rgba(255,255,255,.06);color:#94a3b8;'; statusText='规划中'; barColor='#cbd5e1'; }
+
+    html += `<div class="park-item" id="park-item-${park.id}" onclick="openParkModal('${park.id}')">
+      <div class="park-item-top">
+        <div class="park-name">
+          <div style="width:8px;height:8px;border-radius:50%;background:${park.color};"></div>
+          ${park.name}
+        </div>
+        <span class="park-status-badge" style="${statusClass}">${statusText}</span>
+      </div>
+      <div class="park-progress-bar">
+        <div class="park-progress-fill" style="background:${barColor};width:${pct}%;"></div>
+      </div>
+      <div class="park-stats">
+        液冷 ${lcSum.done}/${lcSum.modules} 完成 · ${pct}%
+        ${riskCount>0 ? ` · ⚠️ ${riskOpen} 项风险` : ''}
+      </div>
+    </div>`;
+  });
+  container.innerHTML = html;
+}
+
+// =============================================
+//  渲染地图标注点
+// =============================================
+function renderMapDots() {
+  const wrap = document.getElementById('map-svg-wrap');
+  const dotsContainer = document.getElementById('map-dots');
+  const riskStats = getRiskStats();
+
+  // 合并临近园区（重庆两个园区、贵安两个、成都两个）
+  const cityGroups = [
+    { city:'重庆', parks:['cq-taihe','cq-yunfu'], x:28, y:58 },
+    { city:'贵安', parks:['gz-guian','gz-guian32'], x:34, y:68 },
+    { city:'成都', parks:['cd-xiqu','cd-gaoxin'], x:22, y:62 },
+  ];
+
+  let html = '';
+  cityGroups.forEach(g=>{
+    const parks = g.parks.map(id=>PARKS_CONFIG.find(p=>p.id===id)).filter(Boolean);
+    const totalLcMods = parks.reduce((a,p)=>a+getLcParkSummary(p.lc_park_key).modules,0);
+    const doneLcMods = parks.reduce((a,p)=>a+getLcParkSummary(p.lc_park_key).done,0);
+    const riskCount = parks.reduce((a,p)=>{
+      const rs = riskStats&&riskStats.byPark[p.risk_park_key];
+      return a+(rs?rs.open:0);
+    },0);
+    const allActive = parks.every(p=>p.status==='active');
+    const color = allActive ? '#22c55e' : '#f59e0b';
+
+    html += `<div class="map-dot" style="left:${g.x}%;top:${g.y}%;" onclick="openCityGroup('${g.city}')" title="${g.city}">
+      <div class="map-dot-pulse" style="color:${color}3a;"></div>
+      <div class="map-dot-inner" style="background:${color};border-color:rgba(255,255,255,.7);"></div>
+      <div class="map-label">${g.city}（${parks.length}园区）</div>
+      <div class="map-dot-count">${doneLcMods}/${totalLcMods}${riskCount>0?` · ⚠️${riskCount}`:''}</div>
+    </div>`;
+  });
+  dotsContainer.innerHTML = html;
+}
+
+// =============================================
+//  打开园区弹窗
+// =============================================
+function openParkModal(parkId) {
+  const park = PARKS_CONFIG.find(p=>p.id===parkId);
+  if(!park) return;
+  document.getElementById('pm-title').textContent = park.name;
+  document.getElementById('pm-subtitle').textContent = park.desc;
+
+  const lcSum = getLcParkSummary(park.lc_park_key);
+  const riskStats = getRiskStats();
+  const riskPark = riskStats&&riskStats.byPark[park.risk_park_key];
+
+  let body = `
+    <!-- 概况卡片 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+      <div style="background:rgba(6,182,212,.08);border:1px solid rgba(6,182,212,.2);border-radius:10px;padding:12px;text-align:center;">
+        <div style="font-size:22px;font-weight:800;color:#22d3ee;">${lcSum.modules}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">液冷模组</div>
+        <div style="font-size:11px;color:#06b6d4;margin-top:4px;">${lcSum.done} 已完成 · ${lcSum.inprogress} 进行中</div>
+      </div>
+      <div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:10px;padding:12px;text-align:center;">
+        <div style="font-size:22px;font-weight:800;color:#f87171;">${riskPark?riskPark.total:0}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">风险项</div>
+        <div style="font-size:11px;color:#ef4444;margin-top:4px;">${riskPark?riskPark.open:0} 处理中 · ${riskPark?riskPark.closed:0} 已闭合</div>
+      </div>
+    </div>
+
+    <!-- 整体进度条 -->
+    <div style="background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <span style="font-size:12px;font-weight:600;color:var(--text);">液冷投产总进度</span>
+        <span style="font-size:13px;font-weight:700;color:#60a5fa;">${lcSum.totalPct}%</span>
+      </div>
+      <div style="height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;">
+        <div style="height:100%;background:linear-gradient(90deg,#3b82f6,#06b6d4);width:${lcSum.totalPct}%;border-radius:3px;"></div>
+      </div>
+    </div>
+
+    <!-- 快捷入口 -->
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+      <button onclick="goToRisk('${park.risk_park_key}')" style="flex:1;padding:9px;border-radius:9px;background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.3);color:#60a5fa;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;" onmouseover="this.style.background='rgba(59,130,246,.25)'" onmouseout="this.style.background='rgba(59,130,246,.15)'">⚠️ 查看风险台账</button>
+      <button onclick="goToLiquid('${park.lc_park_key}')" style="flex:1;padding:9px;border-radius:9px;background:rgba(6,182,212,.12);border:1px solid rgba(6,182,212,.3);color:#22d3ee;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;" onmouseover="this.style.background='rgba(6,182,212,.22)'" onmouseout="this.style.background='rgba(6,182,212,.12)'">❄️ 液冷管理平台</button>
+    </div>
+
+    <!-- 模组列表 -->
+    <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px;">📦 模组详情</div>
+    <div style="display:flex;flex-direction:column;gap:8px;">`;
+
+  park.modules.forEach(mod=>{
+    const pr = getLcModuleProgress(park.lc_park_key, mod);
+    let barColor='#3b82f6', badge='', bdColor='rgba(255,255,255,.1)';
+    if(pr.pct===100){ barColor='#22c55e'; badge='<span style="background:rgba(34,197,94,.15);color:#22c55e;padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700;">✅ 完成</span>'; bdColor='rgba(34,197,94,.25)'; }
+    else if(pr.pct>0){ badge='<span style="background:rgba(59,130,246,.15);color:#60a5fa;padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700;">🔧 进行中</span>'; bdColor='rgba(59,130,246,.2)'; }
+    else{ badge='<span style="background:rgba(255,255,255,.06);color:#64748b;padding:1px 7px;border-radius:4px;font-size:10px;">⬜ 未开始</span>'; }
+    body += `<div onclick="goToLiquidModule('${park.lc_park_key}','${mod}')" style="background:rgba(255,255,255,.03);border:1px solid ${bdColor};border-radius:10px;padding:11px 13px;cursor:pointer;transition:all .15s;" onmouseover="this.style.background='rgba(6,182,212,.06)'" onmouseout="this.style.background='rgba(255,255,255,.03)'">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <span style="font-size:13px;font-weight:700;color:var(--text);">${mod}</span>${badge}
+      </div>
+      <div style="height:4px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden;margin-bottom:3px;">
+        <div style="height:100%;background:${barColor};width:${pr.pct}%;border-radius:2px;"></div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);">${pr.done > 0 ? pr.done+'/'+pr.total+' 项已确认 · '+pr.pct+'%' : '暂无进度数据，点击进入'}</div>
+    </div>`;
+  });
+
+  body += `</div>`;
+  document.getElementById('pm-body').innerHTML = body;
+  document.getElementById('parkModal').classList.remove('hidden');
+}
+
+function openCityGroup(city) {
+  // 找该城市第一个园区直接打开
+  const park = PARKS_CONFIG.find(p=>p.city===city);
+  if(park) openParkModal(park.id);
+}
+
+function closeParkModal() {
+  document.getElementById('parkModal').classList.add('hidden');
+}
+
+function goToRisk(parkKey) {
+  // 跳转风险仪表盘并尝试筛选园区
+  localStorage.setItem('risk_filter_park', parkKey);
+  location.href = 'index.html';
+}
+
+function goToLiquid(parkKey) {
+  localStorage.setItem('lc_goto_park', parkKey);
+  location.href = 'liquid-cooling.html';
+}
+
+function goToLiquidModule(parkKey, mod) {
+  localStorage.setItem('lc_goto_park', parkKey);
+  localStorage.setItem('lc_goto_mod', mod);
+  location.href = 'liquid-cooling.html';
+}
+
+// =============================================
+//  切换视图
+// =============================================
+function switchView(view) {
+  ['overview','risk','liquid'].forEach(v=>{
+    document.getElementById(`view-${v}`).style.display = v===view ? 'block' : 'none';
+    document.getElementById(`tab-${v}`).classList.toggle('active', v===view);
+  });
+}
+
+// =============================================
+//  绘制图表
+// =============================================
+let chartParkRisk = null, chartLcProgress = null;
+
+function renderCharts() {
+  const riskStats = getRiskStats();
+
+  // 各园区风险数量柱状图
+  const riskLabels = PARKS_CONFIG.map(p=>p.short);
+  const riskData = PARKS_CONFIG.map(p=>{
+    const rs = riskStats&&riskStats.byPark[p.risk_park_key];
+    return rs ? rs.total : 0;
+  });
+  const openData = PARKS_CONFIG.map(p=>{
+    const rs = riskStats&&riskStats.byPark[p.risk_park_key];
+    return rs ? rs.open : 0;
+  });
+
+  const ctx1 = document.getElementById('chart-park-risk').getContext('2d');
+  if(chartParkRisk) chartParkRisk.destroy();
+  chartParkRisk = new Chart(ctx1, {
+    type:'bar',
+    data:{
+      labels: riskLabels,
+      datasets:[
+        { label:'处理中', data: openData, backgroundColor:'rgba(249,115,22,.7)', borderRadius:4 },
+        { label:'已闭合', data: PARKS_CONFIG.map(p=>{ const rs=riskStats&&riskStats.byPark[p.risk_park_key]; return rs?rs.closed:0; }), backgroundColor:'rgba(34,197,94,.5)', borderRadius:4 }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:true, plugins:{legend:{labels:{color:'#94a3b8',font:{size:11}}}},
+      scales:{
+        x:{ticks:{color:'#94a3b8',font:{size:11}},grid:{color:'rgba(255,255,255,.04)'}},
+        y:{ticks:{color:'#94a3b8',font:{size:11}},grid:{color:'rgba(255,255,255,.06)'},beginAtZero:true,stacked:true}
+      },
+      barPercentage:0.6,
+    }
+  });
+
+  // 液冷进度环形图
+  const lcLabels = [];
+  const lcPctData = [];
+  const lcColors = ['#06b6d4','#3b82f6','#8b5cf6','#f59e0b','#22c55e','#ef4444'];
+  PARKS_CONFIG.forEach((p,i)=>{
+    const sum = getLcParkSummary(p.lc_park_key);
+    if(sum.modules>0){ lcLabels.push(p.short); lcPctData.push(sum.totalPct); }
+  });
+
+  const ctx2 = document.getElementById('chart-lc-progress').getContext('2d');
+  if(chartLcProgress) chartLcProgress.destroy();
+  chartLcProgress = new Chart(ctx2, {
+    type:'bar',
+    data:{
+      labels: lcLabels.length > 0 ? lcLabels : PARKS_CONFIG.map(p=>p.short),
+      datasets:[{
+        label:'完成率(%)',
+        data: lcPctData.length > 0 ? lcPctData : PARKS_CONFIG.map(()=>0),
+        backgroundColor: lcColors,
+        borderRadius:6,
+        borderSkipped:false
+      }]
+    },
+    options:{
+      indexAxis:'y',
+      responsive:true, maintainAspectRatio:true,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:'#94a3b8',font:{size:11},callback:v=>v+'%'},grid:{color:'rgba(255,255,255,.05)'},min:0,max:100},
+        y:{ticks:{color:'#94a3b8',font:{size:11}},grid:{display:false}}
+      }
+    }
+  });
+}
+
+// =============================================
+//  渲染最近动态
+// =============================================
+function renderActivity() {
+  const container = document.getElementById('activity-list');
+  const activities = [];
+
+  // 从 localStorage 读取最近的液冷签名记录
+  for(let i=0;i<localStorage.length;i++){
+    const key = localStorage.key(i);
+    if(key&&key.startsWith('lc_sec_')&&key.includes('_section_')){
+      try{
+        const data = JSON.parse(localStorage.getItem(key)||'{}');
+        if(data.signer&&data.signTime){
+          const inner = key.replace('lc_sec_','');
+          const secIdx = inner.indexOf('_section_');
+          if(secIdx>=0){
+            const pmStr = inner.substring(0,secIdx);
+            const uIdx = pmStr.indexOf('_');
+            if(uIdx>=0){
+              const park = pmStr.substring(0,uIdx);
+              const mod = pmStr.substring(uIdx+1);
+              const parkConf = PARKS_CONFIG.find(p=>p.lc_park_key===park);
+              activities.push({
+                time: data.signTime,
+                text: `${parkConf?parkConf.name:park} · ${mod} 板块签名确认`,
+                signer: data.signer,
+                color:'#06b6d4'
+              });
+            }
+          }
+        }
+      }catch(e){}
+    }
+  }
+
+  // 按时间倒序
+  activities.sort((a,b)=>new Date(b.time)-new Date(a.time));
+  const recent = activities.slice(0,10);
+
+  if(!recent.length){
+    container.innerHTML = `<div style="text-align:center;padding:20px 0;color:var(--muted);font-size:12px;">📭 暂无操作记录</div>`;
+    return;
+  }
+
+  container.innerHTML = recent.map(a=>`
+    <div style="display:flex;align-items:flex-start;gap:8px;padding:7px 10px;background:rgba(255,255,255,.03);border-radius:7px;">
+      <div style="width:7px;height:7px;border-radius:50%;background:${a.color};flex-shrink:0;margin-top:3px;"></div>
+      <div style="flex:1;">
+        <div style="font-size:12px;color:var(--text);">${a.text}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px;">${a.signer} · ${a.time}</div>
+      </div>
+    </div>`).join('');
+}
+
+// =============================================
+//  更新全局统计数字
+// =============================================
+function updateGlobalStats() {
+  const riskStats = getRiskStats();
+  const lcStats = getAllLcStats();
+
+  // 全局统计条
+  document.getElementById('g-risk-total').textContent = riskStats ? riskStats.total : '--';
+  document.getElementById('g-risk-open').textContent = riskStats ? riskStats.open : '--';
+  document.getElementById('g-risk-closed').textContent = riskStats ? riskStats.closed : '--';
+  document.getElementById('g-lc-total').textContent = lcStats.totalMods;
+  document.getElementById('g-lc-done').textContent = lcStats.doneMods;
+  document.getElementById('g-lc-pct').textContent = lcStats.avgPct + '%';
+  document.getElementById('g-lc-progress').style.width = lcStats.avgPct + '%';
+
+  // 系统卡片
+  document.getElementById('rs-total').textContent = riskStats ? riskStats.total : '--';
+  document.getElementById('rs-open').textContent = riskStats ? riskStats.open : '--';
+  document.getElementById('rs-closed').textContent = riskStats ? riskStats.closed : '--';
+  document.getElementById('lcs-total').textContent = lcStats.totalMods;
+  document.getElementById('lcs-done').textContent = lcStats.doneMods;
+  document.getElementById('lcs-pct').textContent = lcStats.avgPct + '%';
+}
+
+// =============================================
+//  时间更新
+// =============================================
+function updateTime() {
+  const now = new Date();
+  const pad = n=>String(n).padStart(2,'0');
+  document.getElementById('live-time').textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  document.getElementById('live-date').textContent = `${now.getFullYear()}/${pad(now.getMonth()+1)}/${pad(now.getDate())}`;
+}
+
+// =============================================
+//  粒子效果
+// =============================================
+function createParticles() {
+  const container = document.getElementById('particles');
+  const colors = ['#3b82f6','#06b6d4','#8b5cf6','#22c55e'];
+  for(let i=0;i<25;i++){
+    const p = document.createElement('div');
+    p.className = 'particle';
+    const size = Math.random()*4+2;
+    const color = colors[Math.floor(Math.random()*colors.length)];
+    p.style.cssText = `width:${size}px;height:${size}px;left:${Math.random()*100}%;background:${color};opacity:.4;animation-duration:${Math.random()*20+15}s;animation-delay:-${Math.random()*20}s;`;
+    container.appendChild(p);
+  }
+}
+
+// =============================================
+//  初始化
+// =============================================
+document.addEventListener('DOMContentLoaded', ()=>{
+  createParticles();
+  updateTime();
+  setInterval(updateTime, 1000);
+  updateGlobalStats();
+  renderParkList();
+  renderMapDots();
+  renderCharts();
+  renderActivity();
+});
+
+// 点击遮罩关闭弹窗
+document.getElementById('parkModal').addEventListener('click', function(e){
+  if(e.target===this) closeParkModal();
+});
+</script>
+</body>
+</html>
