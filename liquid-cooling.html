@@ -401,15 +401,69 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
   body{background:#fff;}
 }
 
+/* ===== 四阶段环形进度悬浮组件 ===== */
+.phase-ring-bar{background:rgba(0,0,0,.2);border-top:1px solid rgba(255,255,255,.08);padding:8px 24px;display:flex;align-items:center;gap:20px;overflow-x:auto;scrollbar-width:none;}
+.phase-ring-bar::-webkit-scrollbar{display:none;}
+.phase-ring-item{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;flex-shrink:0;min-width:64px;padding:4px 8px;border-radius:10px;transition:background .2s;}
+.phase-ring-item:hover{background:rgba(255,255,255,.1);}
+.phase-ring-item.active-phase{background:rgba(56,189,248,.2);border:1px solid rgba(56,189,248,.4);}
+.phase-ring-svg{position:relative;width:44px;height:44px;}
+.phase-ring-svg svg{transform:rotate(-90deg);}
+.phase-ring-pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;}
+.phase-ring-label{font-size:10px;color:rgba(255,255,255,.7);text-align:center;line-height:1.3;}
+.phase-ring-divider{width:1px;height:36px;background:rgba(255,255,255,.12);flex-shrink:0;}
+.phase-ring-total{display:flex;flex-direction:column;align-items:center;gap:3px;margin-left:auto;flex-shrink:0;padding:4px 12px;border-radius:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);}
+.phase-ring-total-pct{font-size:18px;font-weight:800;color:#fff;line-height:1;}
+.phase-ring-total-label{font-size:10px;color:rgba(255,255,255,.6);}
+
+/* ===== 移动端适配（全面优化） ===== */
 @media(max-width:768px){
-  .main{padding:12px 14px;}
-  .header-inner{padding:10px 14px;}
-  .selector-bar{padding:8px 14px;}
-  .overview-grid{grid-template-columns:1fr;}
+  .main{padding:10px 10px;}
+  .header-inner{padding:8px 12px;gap:8px;}
+  .header-title{font-size:14px;}
+  .header-sub{display:none;}
+  .header-icon{width:34px;height:34px;font-size:16px;}
+  .hbadge{font-size:10px;padding:3px 8px;}
+  .header-right button{font-size:10px;padding:4px 8px;}
+  .selector-bar{padding:6px 12px;gap:8px;}
+  .sel-label{font-size:11px;}
+  #park-input,#module-input{width:100px;font-size:11px;}
+  .selector-bar button{font-size:11px;padding:4px 10px;}
+  .phase-nav{padding:0;}
+  .phase-btn{padding:8px 12px;font-size:11px;}
+  .phase-ring-bar{padding:6px 12px;gap:12px;}
+  .phase-ring-item{min-width:52px;}
+  .phase-ring-svg{width:38px;height:38px;}
+  .phase-ring-pct{font-size:9px;}
+  .phase-ring-total-pct{font-size:15px;}
+  .overview-grid{grid-template-columns:1fr 1fr;}
   .key-points{grid-template-columns:1fr;}
   .param-grid{grid-template-columns:repeat(2,1fr);}
-  .completion-banner{flex-direction:column;text-align:center;}
+  .completion-banner{flex-direction:column;text-align:center;padding:16px;}
   .cb-badge{margin-left:0;}
+  .cb-icon{font-size:36px;}
+  .cb-title{font-size:16px;}
+  .checklist-section{padding:14px 12px;}
+  .task-header{padding:9px 10px;gap:8px;}
+  .task-title{font-size:12px;}
+  .task-desc{font-size:11px;}
+  .scb-actions{flex-wrap:wrap;gap:5px;}
+  .scb-btn{font-size:11px;padding:6px 10px;}
+  .section-confirm-bar{padding:12px 14px;flex-direction:column;align-items:flex-start;gap:8px;}
+  .stats-bar{gap:10px;padding:10px 12px;}
+  .stat-label,.stat-val{font-size:11px;}
+  .pr-bar{width:70px;}
+  .sub-tabs{gap:3px;}
+  .sub-tab{padding:6px 10px;font-size:11px;}
+  .mpb-track{min-width:80px;}
+  .cert-modal-inner{padding:20px 16px;max-width:100%;}
+}
+@media(max-width:480px){
+  .overview-grid{grid-template-columns:1fr;}
+  .phase-btn .pbn{display:none;}
+  .header-right{gap:6px;}
+  #park-input,#module-input{width:85px;}
+  .phase-ring-total{display:none;}
 }
 </style>
 </head>
@@ -444,6 +498,57 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
     <div class="sel-status" id="sel-status">
       <div class="ss-dot" style="background:#94a3b8"></div>
       <span>未选定具体模组</span>
+    </div>
+  </div>
+
+  <!-- 四阶段环形进度概览 -->
+  <div class="phase-ring-bar" id="phase-ring-bar">
+    <div class="phase-ring-item" id="ring-item-prep" onclick="showPage('prep')" title="点击跳转到现场准备">
+      <div class="phase-ring-svg">
+        <svg width="44" height="44" viewBox="0 0 44 44">
+          <circle cx="22" cy="22" r="18" fill="none" stroke="rgba(255,255,255,.15)" stroke-width="4"/>
+          <circle cx="22" cy="22" r="18" fill="none" stroke="#f59e0b" stroke-width="4" stroke-dasharray="113" stroke-dashoffset="113" id="ring-circle-prep" stroke-linecap="round"/>
+        </svg>
+        <div class="phase-ring-pct" id="ring-pct-prep">0%</div>
+      </div>
+      <div class="phase-ring-label">📋 现场准备</div>
+    </div>
+    <div class="phase-ring-divider"></div>
+    <div class="phase-ring-item" id="ring-item-build" onclick="showPage('build')" title="点击跳转到建设管控">
+      <div class="phase-ring-svg">
+        <svg width="44" height="44" viewBox="0 0 44 44">
+          <circle cx="22" cy="22" r="18" fill="none" stroke="rgba(255,255,255,.15)" stroke-width="4"/>
+          <circle cx="22" cy="22" r="18" fill="none" stroke="#3b82f6" stroke-width="4" stroke-dasharray="113" stroke-dashoffset="113" id="ring-circle-build" stroke-linecap="round"/>
+        </svg>
+        <div class="phase-ring-pct" id="ring-pct-build">0%</div>
+      </div>
+      <div class="phase-ring-label">🏗️ 建设管控</div>
+    </div>
+    <div class="phase-ring-divider"></div>
+    <div class="phase-ring-item" id="ring-item-handover" onclick="showPage('handover')" title="点击跳转到接维管理">
+      <div class="phase-ring-svg">
+        <svg width="44" height="44" viewBox="0 0 44 44">
+          <circle cx="22" cy="22" r="18" fill="none" stroke="rgba(255,255,255,.15)" stroke-width="4"/>
+          <circle cx="22" cy="22" r="18" fill="none" stroke="#8b5cf6" stroke-width="4" stroke-dasharray="113" stroke-dashoffset="113" id="ring-circle-handover" stroke-linecap="round"/>
+        </svg>
+        <div class="phase-ring-pct" id="ring-pct-handover">0%</div>
+      </div>
+      <div class="phase-ring-label">🔄 接维管理</div>
+    </div>
+    <div class="phase-ring-divider"></div>
+    <div class="phase-ring-item" id="ring-item-ops" onclick="showPage('ops')" title="点击跳转到运维执行">
+      <div class="phase-ring-svg">
+        <svg width="44" height="44" viewBox="0 0 44 44">
+          <circle cx="22" cy="22" r="18" fill="none" stroke="rgba(255,255,255,.15)" stroke-width="4"/>
+          <circle cx="22" cy="22" r="18" fill="none" stroke="#10b981" stroke-width="4" stroke-dasharray="113" stroke-dashoffset="113" id="ring-circle-ops" stroke-linecap="round"/>
+        </svg>
+        <div class="phase-ring-pct" id="ring-pct-ops">0%</div>
+      </div>
+      <div class="phase-ring-label">⚙️ 运维执行</div>
+    </div>
+    <div class="phase-ring-total" title="总体完成进度">
+      <div class="phase-ring-total-pct" id="ring-total-pct">0%</div>
+      <div class="phase-ring-total-label">总体进度</div>
     </div>
   </div>
 
@@ -1767,7 +1872,25 @@ function updateAllStats() {
     if(tEl) tEl.textContent = s.total - s.done;
     if(bEl) bEl.style.width = s.pct + '%';
     if(pEl) pEl.textContent = s.pct + '%';
+
+    // 更新环形进度条（SVG stroke-dashoffset，总周长=2π×18≈113）
+    const circleEl = document.getElementById('ring-circle-' + phase);
+    const pctLabel = document.getElementById('ring-pct-' + phase);
+    if (circleEl) {
+      const offset = 113 - (113 * s.pct / 100);
+      circleEl.style.strokeDashoffset = offset;
+    }
+    if (pctLabel) pctLabel.textContent = s.pct + '%';
   });
+
+  // 更新总体进度
+  const allStats = ['prep','build','handover','ops'].map(p => calcPhaseStats(p));
+  const totalDone = allStats.reduce((s,x) => s+x.done, 0);
+  const totalAll = allStats.reduce((s,x) => s+x.total, 0);
+  const totalPct = totalAll > 0 ? Math.round(totalDone/totalAll*100) : 0;
+  const totalEl2 = document.getElementById('ring-total-pct');
+  if (totalEl2) totalEl2.textContent = totalPct + '%';
+
   updateDashboard();
 }
 
@@ -1863,6 +1986,75 @@ function updateDashboard() {
       </tr>`;
     });
     html += '</tbody></table></div>';
+
+    // ===== 板块签名汇总表 =====
+    const SECTION_KEYS = {
+      prep: [
+        {key:'section_prep-env',title:'📍 现场环境确认'},
+        {key:'section_prep-mep',title:'⚡ 机电系统就绪确认'},
+        {key:'section_prep-mat',title:'📦 物资与备件准备'},
+        {key:'section_prep-team',title:'👷 人员资质与安全部署'},
+      ],
+      build: [
+        {key:'section_build-unbox',title:'📦 设备开箱验收'},
+        {key:'section_build-pipe',title:'🔧 管路施工质量管控'},
+        {key:'section_build-flush',title:'💧 冲洗试压测试'},
+        {key:'section_build-debug',title:'⚙️ 系统调试'},
+        {key:'section_build-qc',title:'✅ 质量验收'},
+      ],
+      handover: [
+        {key:'section_handover-doc',title:'📋 文档与资料交接'},
+        {key:'section_handover-training',title:'🎓 运维培训'},
+        {key:'section_handover-handover',title:'🔄 正式接维'},
+      ],
+      ops: [
+        {key:'section_ops-daily',title:'📅 日常运维'},
+        {key:'section_ops-maintain',title:'🔧 定期维护'},
+        {key:'section_ops-emergency',title:'🚨 应急处置'},
+      ],
+    };
+    let sigRows = '';
+    let hasSig = false;
+    Object.values(SECTION_KEYS).flat().forEach(({key, title}) => {
+      const st = getSectionState(key);
+      if (st) {
+        hasSig = true;
+        sigRows += `<tr>
+          <td><b>${title}</b></td>
+          <td style="color:#166534;font-weight:600;">${st.user || '-'}</td>
+          <td>${st.time || '-'}</td>
+          <td style="color:#0369a1;max-width:200px;">${st.remark || '-'}</td>
+        </tr>`;
+      }
+    });
+    if (hasSig) {
+      html += `<div class="table-wrap" style="margin-top:20px;"><div class="table-header"><div class="table-title">✍️ 各板块签名确认汇总</div></div>
+      <table class="data-table"><thead><tr><th>板块名称</th><th>签名人</th><th>确认时间</th><th>备注</th></tr></thead>
+      <tbody>${sigRows}</tbody></table></div>`;
+    }
+
+    // ===== 各任务备注汇总 =====
+    let remarkRows = '';
+    let hasRemark = false;
+    for (const g in TASKS) {
+      (TASKS[g] || []).forEach(t => {
+        const st = getTaskState(t.id);
+        if (st && st.done && st.remark) {
+          hasRemark = true;
+          remarkRows += `<tr>
+            <td style="max-width:220px;">${t.title}</td>
+            <td style="color:#166534;">${st.user || '-'}</td>
+            <td>${st.time || '-'}</td>
+            <td style="color:#0369a1;max-width:220px;">${st.remark}</td>
+          </tr>`;
+        }
+      });
+    }
+    if (hasRemark) {
+      html += `<div class="table-wrap" style="margin-top:20px;"><div class="table-header"><div class="table-title">📝 任务备注汇总</div></div>
+      <table class="data-table"><thead><tr><th>任务项</th><th>完成人</th><th>完成时间</th><th>备注内容</th></tr></thead>
+      <tbody>${remarkRows}</tbody></table></div>`;
+    }
   }
 
   content.innerHTML = html;
@@ -2006,6 +2198,13 @@ function showPage(id) {
   if (page) page.classList.add('active');
   const btns = document.querySelectorAll('.phase-btn');
   btns.forEach(b => { if(b.getAttribute('onclick') && b.getAttribute('onclick').includes("'"+id+"'")) b.classList.add('active'); });
+
+  // 高亮环形进度中当前阶段
+  ['prep','build','handover','ops'].forEach(p => {
+    const el = document.getElementById('ring-item-' + p);
+    if (el) el.classList.toggle('active-phase', p === id);
+  });
+
   window.scrollTo({top:0,behavior:'smooth'});
   if (id === 'dashboard') updateDashboard();
   if (id === 'history') renderHistoryPage();
