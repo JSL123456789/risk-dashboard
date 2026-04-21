@@ -1538,7 +1538,7 @@ function renderAllSectionConfirms() {
           <button class="scb-btn selectall-btn" onclick="selectAllInSection('${groupIds.join(',')}', this)" title="全选剩余未完成任务" style="font-size:12px;padding:7px 14px;">☑ 全选剩余</button>
         ` : ''}
         <button class="scb-btn save-btn" onclick="saveSectionProgress('${groupIds.join(',')}', this)" title="保存当前进度">💾 保存</button>
-        <button class="scb-btn confirm-btn" onclick="openSectionConfirm('${sectionKey}', '${sectionTitle}', this)" title="重新签名确认本板块">✍️ 签名确认</button>
+        <button class="scb-btn confirm-btn${hasUndone ? ' disabled-btn' : ''}" onclick="openSectionConfirm('${sectionKey}', '${sectionTitle}', this)" title="${hasUndone ? `还有 ${totalTasks - doneTasks} 项未完成，全部完成后才可重新签名` : '重新签名确认本板块'}">✍️ 签名确认</button>
         <button class="scb-btn revoke-btn" onclick="revokeSectionConfirm('${sectionKey}', this)">🔓 撤销确认</button>
       </div>`:''}`;
     } else {
@@ -1546,15 +1546,22 @@ function renderAllSectionConfirms() {
       const canConfirm = currentPark && currentPark !== 'all' && currentModule && currentModule !== 'all';
       const pct = totalTasks > 0 ? Math.round(doneTasks/totalTasks*100) : 0;
       const noDone = doneTasks === 0;
+      const allTasksDone = doneTasks === totalTasks && totalTasks > 0;
+      // 只有全部任务完成才允许签名
+      const signDisabled = !allTasksDone;
+      const signTitle = noDone ? '请先勾选至少一项任务' : (signDisabled ? `还有 ${totalTasks - doneTasks} 项未完成，全部完成后才可签名` : '签名确认本板块');
+      const statusText = noDone
+        ? '⚠️ 请先逐项勾选确认检查项，才可签名'
+        : (allTasksDone ? '✅ 全部项目已完成，可进行签名确认' : `📋 还有 <b style="color:#dc2626;">${totalTasks - doneTasks}</b> 项未完成，全部完成后才可签名`);
       bar.innerHTML = `<div class="scb-info">
-        <div class="scb-title undone-title">${noDone ? '⚠️ 请先勾选至少一项后，才可签名确认' : '📋 请逐项勾选完成后，点击右侧签名确认'}</div>
+        <div class="scb-title undone-title">${statusText}</div>
         <div class="scb-sub undone-sub">已完成 ${doneTasks}/${totalTasks} 项 · ${pct}%</div>
       </div>
       <div class="scb-actions">
         ${canConfirm ? `
-          <button class="scb-btn ${doneTasks === totalTasks && totalTasks > 0 ? 'deselectall-btn' : 'selectall-btn'}" onclick="selectAllInSection('${groupIds.join(',')}', this)" title="${doneTasks === totalTasks && totalTasks > 0 ? '取消全部任务完成状态' : '全选本板块所有任务'}">${doneTasks === totalTasks && totalTasks > 0 ? '☒ 取消全选' : '☑ 全选'}</button>
+          <button class="scb-btn ${allTasksDone ? 'deselectall-btn' : 'selectall-btn'}" onclick="selectAllInSection('${groupIds.join(',')}', this)" title="${allTasksDone ? '取消全部任务完成状态' : '全选本板块所有任务'}">${allTasksDone ? '☒ 取消全选' : '☑ 全选'}</button>
           <button class="scb-btn save-btn" onclick="saveSectionProgress('${groupIds.join(',')}', this)" title="保存当前进度">💾 保存</button>
-          <button class="scb-btn confirm-btn${noDone ? ' disabled-btn' : ''}" onclick="openSectionConfirm('${sectionKey}', '${sectionTitle}', this)" title="${noDone ? '请先勾选至少一项任务' : '签名确认本板块'}">✍️ 签名确认</button>
+          <button class="scb-btn confirm-btn${signDisabled ? ' disabled-btn' : ''}" onclick="openSectionConfirm('${sectionKey}', '${sectionTitle}', this)" title="${signTitle}">✍️ 签名确认</button>
         ` : '<span style="font-size:12px;color:#94a3b8;">请先填写园区和模组</span>'}
       </div>`;
     }
@@ -1618,15 +1625,35 @@ function openSectionConfirm(sectionKey, sectionTitle, btnEl) {
     return;
   }
 
-  // 有部分未完成时给出提醒（但允许继续）
+  // 有部分未完成时，阻止签名（需全部条目完成才可签名）
   const undoneCnt = totalTasks - doneTasks.length;
-  const bodyExtra = undoneCnt > 0
-    ? `<div style="background:#fef9c3;border-radius:8px;padding:8px 12px;font-size:12px;color:#92400e;margin-top:10px;">
-        ⚠️ 当前仍有 <b>${undoneCnt}</b> 项未完成，签名后将仅记录已完成部分。
-       </div>`
-    : `<div style="background:#f0fdf4;border-radius:8px;padding:8px 12px;font-size:12px;color:#166534;margin-top:10px;">
-        ✅ 全部 ${totalTasks} 项已完成，可进行签名确认。
-       </div>`;
+  if (undoneCnt > 0) {
+    const modal = document.getElementById('modalOverlay');
+    document.getElementById('modalIcon').textContent = '🔒';
+    document.getElementById('modalTitle').textContent = '无法签名确认';
+    document.getElementById('modalBody').innerHTML = `
+      <div style="font-size:13px;color:#374151;margin-bottom:12px;">
+        本板块还有 <b style="color:#dc2626;">${undoneCnt}</b> 项未完成，必须<b>全部条目打勾确认后</b>才可进行签名。
+      </div>
+      <div style="background:#fef3c7;border-radius:8px;padding:10px 14px;font-size:12px;color:#92400e;">
+        <div style="font-weight:600;margin-bottom:6px;">📋 ${sectionTitle}</div>
+        <div>共 <b>${totalTasks}</b> 项任务，已完成 <b style="color:#16a34a;">${doneTasks.length}</b> 项，
+             剩余 <b style="color:#dc2626;">${undoneCnt}</b> 项待确认</div>
+        <div style="margin-top:6px;">请逐项勾选完成所有检查项，再进行板块签名确认。</div>
+      </div>`;
+    document.getElementById('modalConfirmBtn').textContent = '我知道了';
+    document.getElementById('modalConfirmBtn').style.background = '#6b7280';
+    modalCallback = () => {
+      document.getElementById('modalConfirmBtn').style.background = '';
+    };
+    modal.classList.remove('hidden');
+    return;
+  }
+
+  // 全部完成，允许签名
+  const bodyExtra = `<div style="background:#f0fdf4;border-radius:8px;padding:8px 12px;font-size:12px;color:#166534;margin-top:10px;">
+    ✅ 全部 ${totalTasks} 项已完成，可进行签名确认。
+  </div>`;
 
   currentSectionKey = sectionKey;
   currentSectionTitle = sectionTitle;
@@ -1817,23 +1844,45 @@ function selectTask(el, taskId) {}
 function submitTask(taskId, groupId, event) {}
 function revokeTask(taskId, event) {}
 
-// 检查阶段完成情况
+// 检查阶段完成情况（要求：每个板块的所有条目全部打勾 + 每个板块都有签名确认）
 function checkPhaseCompletion(groupId) {
-  const phase = groupId.split('-')[0];
-  const groups = PHASE_GROUPS[phase] || [];
-  const total = groups.reduce((s, g) => s + (TASKS[g] || []).length, 0);
-  const done = groups.reduce((s, g) => s + (TASKS[g] || []).filter(t => getTaskState(t.id) && getTaskState(t.id).done).length, 0);
-  if (done === total && total > 0) {
-    // 检查所有四个阶段是否全部完成
-    const allPhases = ['prep','build','handover','ops'];
-    const allDone = allPhases.every(p => {
-      const pg = PHASE_GROUPS[p] || [];
-      const pt = pg.reduce((s,g) => s+(TASKS[g]||[]).length, 0);
-      const pd = pg.reduce((s,g) => s+(TASKS[g]||[]).filter(t => getTaskState(t.id)&&getTaskState(t.id).done).length, 0);
-      return pt > 0 && pd === pt;
-    });
-    if (allDone) showProductionComplete();
-  }
+  // 检查所有四个阶段是否全部完成
+  const allPhases = ['prep','build','handover','ops'];
+  const allDone = allPhases.every(p => isPhaseFullyComplete(p));
+  if (allDone) showProductionComplete();
+}
+
+// 判断一个阶段是否"全部完成"：该阶段所有板块均满足 ①所有任务打勾 ②已签名
+function isPhaseFullyComplete(phase) {
+  // 遍历页面中属于该阶段的所有 checklist-section
+  const sections = getSectionsForPhase(phase);
+  if (sections.length === 0) return false;
+  return sections.every(({ sectionKey, groupIds }) => {
+    // ① 所有任务必须已完成
+    const totalTasks = groupIds.reduce((s, g) => s + (TASKS[g]||[]).length, 0);
+    const doneTasks = groupIds.reduce((s, g) => s + (TASKS[g]||[]).filter(t => {
+      const st = getTaskState(t.id); return st && st.done;
+    }).length, 0);
+    if (totalTasks === 0 || doneTasks < totalTasks) return false;
+    // ② 板块必须已签名
+    const sectionState = getSectionState(sectionKey);
+    return sectionState && sectionState.done;
+  });
+}
+
+// 获取某阶段下所有板块的 { sectionKey, groupIds }
+function getSectionsForPhase(phase) {
+  const phaseGroupSet = new Set(PHASE_GROUPS[phase] || []);
+  const result = [];
+  document.querySelectorAll('.checklist-section').forEach(section => {
+    const taskContainers = section.querySelectorAll('[id^="tasks-"]');
+    if (!taskContainers.length) return;
+    const groupIds = Array.from(taskContainers).map(el => el.id.replace('tasks-',''));
+    // 判断该section是否属于当前phase（只要有一个groupId在phase里即可）
+    if (!groupIds.some(g => phaseGroupSet.has(g))) return;
+    result.push({ sectionKey: 'section_' + groupIds[0], groupIds });
+  });
+  return result;
 }
 
 // 显示投产完成证书
