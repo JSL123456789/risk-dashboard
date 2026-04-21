@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>液冷全流程管理平台 · 园区总览</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#07111f;
+  --card:#0d1e33;
+  --card2:#112240;
+  --border:rgba(255,255,255,.07);
+  --text:#e2e8f0;
+  --muted:#64748b;
+  --cyan:#06b6d4;
+  --blue:#3b82f6;
+  --green:#22c55e;
+  --amber:#f59e0b;
+  --purple:#a78bfa;
+  --red:#f87171;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+
+/* ===== 动态背景网格 ===== */
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(6,182,212,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(6,182,212,.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
+
+/* ===== HEADER ===== */
+.header{position:relative;z-index:10;background:linear-gradient(180deg,rgba(7,17,31,.98) 0%,rgba(7,17,31,.85) 100%);border-bottom:1px solid var(--border);backdrop-filter:blur(16px);}
+.header-inner{display:flex;align-items:center;justify-content:space-between;padding:16px 32px;flex-wrap:wrap;gap:12px;}
+.logo{display:flex;align-items:center;gap:14px;}
+.logo-icon{width:48px;height:48px;background:linear-gradient(135deg,#0f4c81,#0d7377);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 0 24px rgba(6,182,212,.3),0 0 48px rgba(6,182,212,.1);}
+.logo-title{font-size:20px;font-weight:800;background:linear-gradient(90deg,#38bdf8,#34d399);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:.5px;}
+.logo-sub{font-size:12px;color:var(--muted);margin-top:3px;}
+.header-right{display:flex;align-items:center;gap:12px;}
+.hdr-badge{background:rgba(6,182,212,.1);border:1px solid rgba(6,182,212,.25);color:#67e8f9;padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;}
+.hdr-time{font-size:12px;color:var(--muted);}
+.hdr-enter-btn{background:linear-gradient(135deg,#0f4c81,#0d7377);color:#fff;border:none;padding:9px 20px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;letter-spacing:.3px;}
+.hdr-enter-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(6,182,212,.3);}
+
+/* ===== 全局统计条 ===== */
+.global-bar{position:relative;z-index:10;background:rgba(13,30,51,.9);border-bottom:1px solid var(--border);padding:10px 32px;}
+.gb-inner{display:flex;align-items:center;gap:0;flex-wrap:wrap;}
+.gb-stat{display:flex;flex-direction:column;align-items:center;padding:4px 24px;border-right:1px solid var(--border);}
+.gb-stat:last-child{border-right:none;flex:1;align-items:flex-start;padding-left:28px;}
+.gb-val{font-size:22px;font-weight:800;line-height:1.1;}
+.gb-lbl{font-size:11px;color:var(--muted);margin-top:2px;}
+.gb-progress-wrap{width:100%;display:flex;align-items:center;gap:10px;margin-top:4px;}
+.gb-progress-track{flex:1;height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;}
+.gb-progress-fill{height:100%;background:linear-gradient(90deg,#0d7377,#06b6d4,#38bdf8);border-radius:3px;transition:width 1.2s cubic-bezier(.22,.61,.36,1);}
+
+/* ===== 主内容 ===== */
+.main{position:relative;z-index:10;padding:24px 32px;}
+
+/* ===== 筛选栏 ===== */
+.filter-bar{display:flex;align-items:center;gap:10px;margin-bottom:22px;flex-wrap:wrap;}
+.filter-btn{padding:6px 16px;border-radius:16px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--muted);font-size:12px;cursor:pointer;transition:all .18s;}
+.filter-btn:hover{border-color:rgba(6,182,212,.4);color:#67e8f9;}
+.filter-btn.active{background:rgba(6,182,212,.12);border-color:#06b6d4;color:#67e8f9;font-weight:600;}
+.filter-label{font-size:12px;color:var(--muted);}
+
+/* ===== 园区分组 ===== */
+.city-group{margin-bottom:32px;}
+.city-title{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.city-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.city-name{font-size:17px;font-weight:800;color:var(--text);}
+.city-sub{font-size:12px;color:var(--muted);}
+.city-stats-badge{background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:10px;padding:3px 10px;font-size:11px;color:var(--muted);}
+
+/* ===== 园区卡片 ===== */
+.park-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;}
+.park-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:18px 18px 14px;cursor:pointer;transition:all .22s;position:relative;overflow:hidden;}
+.park-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#0d7377,#06b6d4);opacity:.6;transition:opacity .2s;}
+.park-card:hover{border-color:rgba(6,182,212,.4);transform:translateY(-4px);box-shadow:0 16px 40px rgba(0,0,0,.3),0 0 0 1px rgba(6,182,212,.1);}
+.park-card:hover::before{opacity:1;}
+.park-card-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;}
+.park-card-name{font-size:15px;font-weight:800;color:var(--text);}
+.park-card-desc{font-size:11px;color:var(--muted);margin-top:3px;}
+.park-status{font-size:10px;font-weight:700;padding:3px 8px;border-radius:5px;white-space:nowrap;flex-shrink:0;}
+.park-status.done{background:rgba(34,197,94,.12);color:#4ade80;border:1px solid rgba(34,197,94,.2);}
+.park-status.active{background:rgba(59,130,246,.12);color:#60a5fa;border:1px solid rgba(59,130,246,.2);}
+.park-status.pending{background:rgba(245,158,11,.1);color:#fbbf24;border:1px solid rgba(245,158,11,.2);}
+.park-status.notstart{background:rgba(255,255,255,.05);color:#64748b;border:1px solid rgba(255,255,255,.08);}
+
+/* 总进度条 */
+.park-progress{margin-bottom:12px;}
+.park-progress-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;}
+.park-progress-label{font-size:11px;color:var(--muted);}
+.park-progress-pct{font-size:13px;font-weight:800;}
+.park-progress-track{height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;}
+.park-progress-fill{height:100%;border-radius:3px;transition:width .8s ease;}
+
+/* 模组列表 */
+.mod-list{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.mod-item{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:9px;padding:9px 10px;cursor:pointer;transition:all .15s;position:relative;overflow:hidden;}
+.mod-item::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;border-radius:1px;}
+.mod-item:hover{border-color:rgba(6,182,212,.35);background:rgba(6,182,212,.05);}
+.mod-item:hover::before{background:var(--cyan);}
+.mod-item.mod-done{border-color:rgba(34,197,94,.2);}
+.mod-item.mod-done::before{background:var(--green);}
+.mod-item.mod-active{border-color:rgba(59,130,246,.2);}
+.mod-item.mod-active::before{background:var(--blue);}
+.mod-item.mod-notstart::before{background:var(--muted);}
+.mod-name{font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px;display:flex;align-items:center;gap:5px;}
+.mod-badge{font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;}
+.mod-badge.done{background:rgba(34,197,94,.15);color:#4ade80;}
+.mod-badge.active{background:rgba(59,130,246,.15);color:#60a5fa;}
+.mod-badge.notstart{background:rgba(255,255,255,.05);color:#64748b;}
+.mod-bar{height:3px;background:rgba(255,255,255,.05);border-radius:2px;overflow:hidden;margin-bottom:3px;}
+.mod-bar-fill{height:100%;border-radius:2px;}
+.mod-pct{font-size:10px;color:var(--muted);}
+
+/* 签名标识 */
+.signed-mark{display:inline-flex;align-items:center;gap:3px;font-size:9px;color:#4ade80;background:rgba(34,197,94,.1);padding:1px 5px;border-radius:3px;margin-left:4px;}
+
+/* ===== 空状态 ===== */
+.empty-tip{text-align:center;padding:48px 20px;color:var(--muted);}
+.empty-tip .et-icon{font-size:40px;margin-bottom:12px;}
+.empty-tip p{font-size:14px;}
+
+/* ===== 详情弹窗 ===== */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(5px);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;}
+.modal-bg.hidden{display:none;}
+.modal-box{background:#0d1e33;border:1px solid rgba(6,182,212,.2);border-radius:20px;width:100%;max-width:580px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.5),0 0 0 1px rgba(6,182,212,.06);}
+.modal-head{background:linear-gradient(135deg,rgba(7,62,90,.9),rgba(13,115,119,.7));padding:22px 26px;color:#fff;display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0;border-bottom:1px solid rgba(6,182,212,.15);}
+.modal-title{font-size:20px;font-weight:800;}
+.modal-sub{font-size:12px;opacity:.65;margin-top:4px;}
+.modal-close{background:rgba(255,255,255,.1);border:none;color:#fff;width:32px;height:32px;border-radius:50%;font-size:16px;cursor:pointer;flex-shrink:0;transition:background .15s;}
+.modal-close:hover{background:rgba(255,255,255,.2);}
+.modal-body{flex:1;overflow-y:auto;padding:22px 26px;}
+
+/* 弹窗内统计行 */
+.mod-stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px;}
+.mod-stat-card{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:12px;padding:13px;text-align:center;}
+.mod-stat-val{font-size:22px;font-weight:800;line-height:1;}
+.mod-stat-lbl{font-size:11px;color:var(--muted);margin-top:4px;}
+
+/* 弹窗内阶段进度 */
+.phase-list{display:flex;flex-direction:column;gap:8px;margin-bottom:18px;}
+.phase-item{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:11px;padding:12px 14px;}
+.phase-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.phase-name{font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px;}
+.phase-pct{font-size:12px;font-weight:700;}
+.phase-bar{height:4px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden;}
+.phase-bar-fill{height:100%;border-radius:2px;transition:width .6s;}
+
+/* 弹窗内进入按钮 */
+.modal-enter-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;border-radius:12px;background:linear-gradient(135deg,#0f4c81,#0d7377);color:#fff;border:none;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;letter-spacing:.3px;}
+.modal-enter-btn:hover{transform:scale(.98);box-shadow:0 6px 24px rgba(6,182,212,.25);}
+
+/* ===== 响应式 ===== */
+@media(max-width:768px){
+  .main{padding:16px;}
+  .header-inner{padding:12px 16px;}
+  .global-bar{padding:8px 16px;}
+  .gb-stat{padding:4px 14px;}
+  .gb-val{font-size:18px;}
+  .park-cards{grid-template-columns:1fr;}
+}
+@media(max-width:480px){
+  .mod-list{grid-template-columns:1fr;}
+  .mod-stats-row{grid-template-columns:1fr 1fr;}
+}
+
+/* 滚动条 */
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:3px;}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-inner">
+    <div class="logo">
+      <div class="logo-icon">❄️</div>
+      <div>
+        <div class="logo-title">液冷全流程管理平台</div>
+        <div class="logo-sub">西南数据中心 · 园区投产总览</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="hdr-badge" id="live-time">--:--:--</div>
+      <div class="hdr-time" id="live-date"></div>
+      <button class="hdr-enter-btn" onclick="goToLiquid()">进入管理平台 →</button>
+    </div>
+  </div>
+</div>
+
+<!-- 全局统计条 -->
+<div class="global-bar">
+  <div class="gb-inner">
+    <div class="gb-stat">
+      <div class="gb-val" style="color:#67e8f9;" id="g-parks">-</div>
+      <div class="gb-lbl">园区总数</div>
+    </div>
+    <div class="gb-stat">
+      <div class="gb-val" style="color:#a5f3fc;" id="g-mods">-</div>
+      <div class="gb-lbl">模组总数</div>
+    </div>
+    <div class="gb-stat">
+      <div class="gb-val" style="color:#4ade80;" id="g-done">-</div>
+      <div class="gb-lbl">已投产</div>
+    </div>
+    <div class="gb-stat">
+      <div class="gb-val" style="color:#fbbf24;" id="g-doing">-</div>
+      <div class="gb-lbl">进行中</div>
+    </div>
+    <div class="gb-stat">
+      <div class="gb-val" style="color:#94a3b8;" id="g-notstart">-</div>
+      <div class="gb-lbl">未开始</div>
+    </div>
+    <div class="gb-stat">
+      <div>
+        <div class="gb-progress-wrap">
+          <div class="gb-progress-track"><div class="gb-progress-fill" id="g-progress" style="width:0%"></div></div>
+          <span style="font-size:14px;font-weight:800;color:#38bdf8;white-space:nowrap;" id="g-pct">0%</span>
+        </div>
+        <div class="gb-lbl" style="margin-top:4px;">总体投产进度（已签名模组）</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 主内容 -->
+<div class="main">
+
+  <!-- 筛选栏 -->
+  <div class="filter-bar">
+    <span class="filter-label">筛选状态：</span>
+    <div class="filter-btn active" onclick="setFilter('all',this)" id="fbtn-all">全部</div>
+    <div class="filter-btn" onclick="setFilter('done',this)" id="fbtn-done">✅ 已投产</div>
+    <div class="filter-btn" onclick="setFilter('active',this)" id="fbtn-active">🔧 进行中</div>
+    <div class="filter-btn" onclick="setFilter('notstart',this)" id="fbtn-notstart">⬜ 未开始</div>
+  </div>
+
+  <!-- 园区内容区 -->
+  <div id="city-groups"></div>
+
+</div><!-- end main -->
+
+<!-- 模组详情弹窗 -->
+<div class="modal-bg hidden" id="modModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title" id="mm-title">模组名称</div>
+        <div class="modal-sub" id="mm-sub">园区 · 状态</div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="mm-body"></div>
+  </div>
+</div>
+
+<script>
+// =============================================
+//  园区 & 模组配置（与 liquid-cooling.html 同步）
+// =============================================
+const PARKS = {
+  'cq-taihe':   '重庆·泰和',
+  'cq-yunfu':   '重庆·云福2栋',
+  'gz-guian':   '贵安·七星',
+  'gz-guian32': '贵安·32模组',
+  'cd-xiqu':    '成都·西区',
+  'cd-gaoxin':  '成都·高新',
+};
+
+const PARK_MODULES = {
+  'cq-taihe':   ['模组01','模组02','模组04','模组05','模组51'],
+  'cq-yunfu':   ['模组01','模组02','模组03'],
+  'gz-guian':   ['模组21','模组31'],
+  'gz-guian32': ['模组32'],
+  'cd-xiqu':    ['模组01','模组02'],
+  'cd-gaoxin':  ['模组01'],
+};
+
+// 城市分组
+const CITY_GROUPS = [
+  { city:'重庆', icon:'🏙️', color:'#3b82f6', parks:['cq-taihe','cq-yunfu'] },
+  { city:'贵州', icon:'🏔️', color:'#a78bfa', parks:['gz-guian','gz-guian32'] },
+  { city:'成都', icon:'🌸', color:'#22c55e', parks:['cd-xiqu','cd-gaoxin'] },
+];
+
+// 四阶段定义
+const PHASES = [
+  { key:'prep',     label:'现场准备', icon:'📋', color:'#3b82f6' },
+  { key:'build',    label:'建设管控', icon:'🔧', color:'#f59e0b' },
+  { key:'handover', label:'接维管理', icon:'🤝', color:'#a78bfa' },
+  { key:'ops',      label:'运维执行', icon:'⚙️', color:'#22c55e' },
+];
+
+// 各阶段板块key列表（与liquid-cooling.html一致）
+const PHASE_SECTIONS = {
+  prep:     ['prep-ce','prep-uc','prep-env','prep-mt','prep-doc'],
+  build:    ['build-uc','build-mt','build-net','build-pwr','build-cool'],
+  handover: ['ho-check','ho-test','ho-sign'],
+  ops:      ['ops-daily','ops-alm','ops-doc'],
+};
+
+let currentFilter = 'all';
+
+// =============================================
+//  数据读取
+// =============================================
+// 获取某模组某板块签名状态
+function getSectionState(park, mod, sectionKey) {
+  const key = `lc_sec_${park}_${mod}_section_${sectionKey}`;
+  try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch(e) { return null; }
+}
+
+// 获取某模组某任务完成数
+function getModuleTaskStats(park, mod) {
+  let done = 0, total = 0;
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith(`lc_${park}_${mod}_`) && !key.includes('_section_')) {
+      total++;
+      try { const st = JSON.parse(localStorage.getItem(key)||'{}'); if(st.done) done++; } catch(e){}
+    }
+  }
+  return { done, total };
+}
+
+// 获取某模组某阶段已签名板块数 / 总板块数
+function getPhaseSignedStats(park, mod, phaseKey) {
+  const sections = PHASE_SECTIONS[phaseKey] || [];
+  let signed = 0;
+  sections.forEach(sk => {
+    const st = getSectionState(park, mod, sk);
+    if (st && st.user) signed++;
+  });
+  return { signed, total: sections.length };
+}
+
+// 判断整个模组是否"已投产"（四阶段所有板块均已签名）
+function isModuleDone(park, mod) {
+  for (const phaseKey of Object.keys(PHASE_SECTIONS)) {
+    const sections = PHASE_SECTIONS[phaseKey];
+    for (const sk of sections) {
+      const st = getSectionState(park, mod, sk);
+      if (!st || !st.user) return false;
+    }
+  }
+  return true;
+}
+
+// 获取模组总体签名进度（已签名板块 / 总板块）
+function getModuleSignedProgress(park, mod) {
+  let signed = 0, total = 0;
+  for (const phaseKey of Object.keys(PHASE_SECTIONS)) {
+    const sections = PHASE_SECTIONS[phaseKey];
+    total += sections.length;
+    sections.forEach(sk => {
+      const st = getSectionState(park, mod, sk);
+      if (st && st.user) signed++;
+    });
+  }
+  const pct = total > 0 ? Math.round(signed / total * 100) : 0;
+  return { signed, total, pct };
+}
+
+// 获取模组状态
+function getModuleStatus(park, mod) {
+  const prog = getModuleSignedProgress(park, mod);
+  if (prog.pct === 100) return 'done';
+  if (prog.signed > 0) return 'active';
+  // 检查任务数
+  const tasks = getModuleTaskStats(park, mod);
+  if (tasks.done > 0) return 'active';
+  return 'notstart';
+}
+
+// =============================================
+//  全局统计
+// =============================================
+function calcGlobalStats() {
+  let totalMods = 0, doneMods = 0, activeMods = 0, notstartMods = 0;
+  for (const [park, mods] of Object.entries(PARK_MODULES)) {
+    mods.forEach(mod => {
+      totalMods++;
+      const st = getModuleStatus(park, mod);
+      if (st === 'done') doneMods++;
+      else if (st === 'active') activeMods++;
+      else notstartMods++;
+    });
+  }
+  const pct = totalMods > 0 ? Math.round(doneMods / totalMods * 100) : 0;
+  return { parks: Object.keys(PARKS).length, totalMods, doneMods, activeMods, notstartMods, pct };
+}
+
+function renderGlobalStats() {
+  const s = calcGlobalStats();
+  document.getElementById('g-parks').textContent = s.parks;
+  document.getElementById('g-mods').textContent = s.totalMods;
+  document.getElementById('g-done').textContent = s.doneMods;
+  document.getElementById('g-doing').textContent = s.activeMods;
+  document.getElementById('g-notstart').textContent = s.notstartMods;
+  document.getElementById('g-pct').textContent = s.pct + '%';
+  document.getElementById('g-progress').style.width = s.pct + '%';
+}
+
+// =============================================
+//  状态样式映射
+// =============================================
+const STATUS_MAP = {
+  done:     { label:'已投产', cls:'done', color:'#4ade80', barColor:'#22c55e', pctColor:'#4ade80' },
+  active:   { label:'进行中', cls:'active', color:'#60a5fa', barColor:'#3b82f6', pctColor:'#60a5fa' },
+  notstart: { label:'未开始', cls:'notstart', color:'#64748b', barColor:'#475569', pctColor:'#94a3b8' },
+};
+
+// =============================================
+//  渲染园区区块
+// =============================================
+function setFilter(val, el) {
+  currentFilter = val;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderCityGroups();
+}
+
+function renderCityGroups() {
+  const container = document.getElementById('city-groups');
+  let html = '';
+
+  CITY_GROUPS.forEach(cityGroup => {
+    // 筛选出符合条件的园区
+    const filteredParks = cityGroup.parks.filter(parkKey => {
+      if (currentFilter === 'all') return true;
+      const mods = PARK_MODULES[parkKey] || [];
+      return mods.some(mod => getModuleStatus(parkKey, mod) === currentFilter);
+    });
+    if (!filteredParks.length) return;
+
+    // 城市统计
+    let cityDone = 0, cityTotal = 0;
+    cityGroup.parks.forEach(pk => {
+      (PARK_MODULES[pk]||[]).forEach(mod => {
+        cityTotal++;
+        if (getModuleStatus(pk, mod) === 'done') cityDone++;
+      });
+    });
+
+    html += `<div class="city-group">
+      <div class="city-title">
+        <div class="city-icon" style="background:${cityGroup.color}22;">${cityGroup.icon}</div>
+        <div>
+          <div class="city-name">${cityGroup.city}</div>
+          <div class="city-sub">${filteredParks.length} 个园区 · ${cityTotal} 个模组</div>
+        </div>
+        <div class="city-stats-badge">${cityDone}/${cityTotal} 已投产</div>
+      </div>
+      <div class="park-cards">`;
+
+    filteredParks.forEach(parkKey => {
+      const parkName = PARKS[parkKey] || parkKey;
+      const mods = PARK_MODULES[parkKey] || [];
+
+      // 过滤模组
+      const filteredMods = currentFilter === 'all' ? mods : mods.filter(mod => getModuleStatus(parkKey, mod) === currentFilter);
+
+      // 园区整体进度
+      let parkSigned = 0, parkTotal = 0, parkDone = 0, parkActive = 0, parkNotstart = 0;
+      mods.forEach(mod => {
+        const prog = getModuleSignedProgress(parkKey, mod);
+        parkSigned += prog.signed;
+        parkTotal += prog.total;
+        const st = getModuleStatus(parkKey, mod);
+        if (st === 'done') parkDone++;
+        else if (st === 'active') parkActive++;
+        else parkNotstart++;
+      });
+      const parkPct = parkTotal > 0 ? Math.round(parkSigned / parkTotal * 100) : 0;
+
+      let parkStatus = 'notstart';
+      if (parkDone === mods.length) parkStatus = 'done';
+      else if (parkActive > 0 || parkDone > 0) parkStatus = 'active';
+      const sm = STATUS_MAP[parkStatus];
+
+      html += `<div class="park-card" onclick="openParkDetail('${parkKey}')">
+        <div class="park-card-head">
+          <div>
+            <div class="park-card-name">${parkName}</div>
+            <div class="park-card-desc">${mods.length} 个模组 · ${parkDone} 已投产 · ${parkActive} 进行中</div>
+          </div>
+          <span class="park-status ${sm.cls}">${sm.label}</span>
+        </div>
+
+        <div class="park-progress">
+          <div class="park-progress-head">
+            <span class="park-progress-label">板块签名进度</span>
+            <span class="park-progress-pct" style="color:${sm.pctColor};">${parkPct}%</span>
+          </div>
+          <div class="park-progress-track">
+            <div class="park-progress-fill" style="background:${sm.barColor};width:${parkPct}%;"></div>
+          </div>
+        </div>
+
+        <div class="mod-list">`;
+
+      filteredMods.forEach(mod => {
+        const prog = getModuleSignedProgress(parkKey, mod);
+        const st = getModuleStatus(parkKey, mod);
+        const msm = STATUS_MAP[st];
+        const tasks = getModuleTaskStats(parkKey, mod);
+        html += `<div class="mod-item mod-${st}" onclick="event.stopPropagation();openModDetail('${parkKey}','${mod}')">
+          <div class="mod-name">
+            ${mod}
+            <span class="mod-badge ${st}">${msm.label}</span>
+          </div>
+          <div class="mod-bar"><div class="mod-bar-fill" style="background:${msm.barColor};width:${prog.pct}%;"></div></div>
+          <div class="mod-pct">${prog.pct > 0 ? `签名 ${prog.signed}/${prog.total} · ${prog.pct}%` : (tasks.done > 0 ? `已确认 ${tasks.done} 项` : '暂无进度')}</div>
+        </div>`;
+      });
+
+      html += `</div></div>`; // end mod-list, park-card
+    });
+
+    html += `</div></div>`; // end park-cards, city-group
+  });
+
+  if (!html) {
+    html = `<div class="empty-tip"><div class="et-icon">🔍</div><p>暂无符合条件的模组</p></div>`;
+  }
+  container.innerHTML = html;
+}
+
+// =============================================
+//  弹窗 - 园区详情（展示园区内所有模组）
+// =============================================
+function openParkDetail(parkKey) {
+  const parkName = PARKS[parkKey] || parkKey;
+  const mods = PARK_MODULES[parkKey] || [];
+  document.getElementById('mm-title').textContent = parkName;
+
+  let doneCount = 0, activeCount = 0, notstartCount = 0;
+  mods.forEach(mod => {
+    const st = getModuleStatus(parkKey, mod);
+    if (st === 'done') doneCount++;
+    else if (st === 'active') activeCount++;
+    else notstartCount++;
+  });
+  document.getElementById('mm-sub').textContent = `${mods.length} 个模组 · ${doneCount} 已投产 · ${activeCount} 进行中`;
+
+  let body = `
+    <div class="mod-stats-row">
+      <div class="mod-stat-card"><div class="mod-stat-val" style="color:#4ade80;">${doneCount}</div><div class="mod-stat-lbl">已投产</div></div>
+      <div class="mod-stat-card"><div class="mod-stat-val" style="color:#60a5fa;">${activeCount}</div><div class="mod-stat-lbl">进行中</div></div>
+      <div class="mod-stat-card"><div class="mod-stat-val" style="color:#94a3b8;">${notstartCount}</div><div class="mod-stat-lbl">未开始</div></div>
+    </div>
+    <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:10px;">📦 选择模组进入管理平台</div>
+    <div style="display:flex;flex-direction:column;gap:8px;">`;
+
+  mods.forEach(mod => {
+    const prog = getModuleSignedProgress(parkKey, mod);
+    const st = getModuleStatus(parkKey, mod);
+    const sm = STATUS_MAP[st];
+    const tasks = getModuleTaskStats(parkKey, mod);
+
+    // 四阶段进度
+    let phaseHtml = '';
+    PHASES.forEach(ph => {
+      const ps = getPhaseSignedStats(parkKey, mod, ph.key);
+      const ppct = ps.total > 0 ? Math.round(ps.signed/ps.total*100) : 0;
+      phaseHtml += `<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+        <span style="font-size:10px;color:${ph.color};width:54px;flex-shrink:0;">${ph.icon} ${ph.label}</span>
+        <div style="flex:1;height:3px;background:rgba(255,255,255,.05);border-radius:2px;overflow:hidden;">
+          <div style="height:100%;background:${ph.color};width:${ppct}%;border-radius:2px;"></div>
+        </div>
+        <span style="font-size:10px;color:var(--muted);width:28px;text-align:right;">${ppct}%</span>
+      </div>`;
+    });
+
+    body += `<div onclick="goToLiquidModule('${parkKey}','${mod}')" style="background:rgba(255,255,255,.03);border:1px solid ${st==='done'?'rgba(34,197,94,.2)':st==='active'?'rgba(59,130,246,.18)':'rgba(255,255,255,.07)'};border-radius:12px;padding:13px 14px;cursor:pointer;transition:all .15s;margin-bottom:2px;" onmouseover="this.style.background='rgba(6,182,212,.06)';this.style.borderColor='rgba(6,182,212,.3)'" onmouseout="this.style.background='rgba(255,255,255,.03)';this.style.borderColor='${st==='done'?'rgba(34,197,94,.2)':st==='active'?'rgba(59,130,246,.18)':'rgba(255,255,255,.07)'}'">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <span style="font-size:14px;font-weight:800;color:var(--text);">${mod}</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:${sm.color}1a;color:${sm.color};">${sm.label}</span>
+          <span style="font-size:12px;font-weight:700;color:${sm.pctColor};">${prog.pct}%</span>
+        </div>
+      </div>
+      <div style="margin-bottom:6px;">${phaseHtml}</div>
+      <div style="font-size:11px;color:var(--muted);">已签名 ${prog.signed}/${prog.total} 板块${tasks.total>0?' · 任务确认 '+tasks.done+'/'+tasks.total+' 项':''}</div>
+    </div>`;
+  });
+
+  body += `</div>`;
+  document.getElementById('mm-body').innerHTML = body;
+  document.getElementById('modModal').classList.remove('hidden');
+}
+
+// =============================================
+//  弹窗 - 单模组详情
+// =============================================
+function openModDetail(parkKey, mod) {
+  const parkName = PARKS[parkKey] || parkKey;
+  const prog = getModuleSignedProgress(parkKey, mod);
+  const st = getModuleStatus(parkKey, mod);
+  const sm = STATUS_MAP[st];
+  const tasks = getModuleTaskStats(parkKey, mod);
+
+  document.getElementById('mm-title').textContent = `${parkName} · ${mod}`;
+  document.getElementById('mm-sub').textContent = `${sm.label} · 板块签名进度 ${prog.pct}%`;
+
+  let body = `
+    <div class="mod-stats-row">
+      <div class="mod-stat-card"><div class="mod-stat-val" style="color:${sm.pctColor};">${prog.pct}%</div><div class="mod-stat-lbl">总进度</div></div>
+      <div class="mod-stat-card"><div class="mod-stat-val" style="color:#67e8f9;">${prog.signed}/${prog.total}</div><div class="mod-stat-lbl">已签名板块</div></div>
+      <div class="mod-stat-card"><div class="mod-stat-val" style="color:#a5f3fc;">${tasks.done > 0 ? tasks.done+'/'+tasks.total : '--'}</div><div class="mod-stat-lbl">任务确认</div></div>
+    </div>
+
+    <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:10px;">📊 四阶段详情</div>
+    <div class="phase-list">`;
+
+  PHASES.forEach(ph => {
+    const ps = getPhaseSignedStats(parkKey, mod, ph.key);
+    const ppct = ps.total > 0 ? Math.round(ps.signed/ps.total*100) : 0;
+
+    // 该阶段各板块签名情况
+    const sections = PHASE_SECTIONS[ph.key] || [];
+    const secHtml = sections.map(sk => {
+      const secState = getSectionState(parkKey, mod, sk);
+      const signed = secState && secState.user;
+      return `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:${signed?'rgba(34,197,94,.12)':'rgba(255,255,255,.04)'};color:${signed?'#4ade80':'#64748b'};border:1px solid ${signed?'rgba(34,197,94,.2)':'rgba(255,255,255,.07)'};">${signed?'✓ ':''} ${sk.split('-')[1]||sk}</span>`;
+    }).join('');
+
+    body += `<div class="phase-item">
+      <div class="phase-head">
+        <span class="phase-name">${ph.icon} ${ph.label}</span>
+        <span class="phase-pct" style="color:${ppct===100?'#4ade80':ppct>0?ph.color:'#64748b'};">${ps.signed}/${ps.total} · ${ppct}%</span>
+      </div>
+      <div class="phase-bar"><div class="phase-bar-fill" style="background:${ppct===100?'#22c55e':ph.color};width:${ppct}%;"></div></div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;">${secHtml}</div>
+    </div>`;
+  });
+
+  body += `</div>`;
+
+  // 最近签名记录
+  const recentSigns = [];
+  for (const phaseKey of Object.keys(PHASE_SECTIONS)) {
+    PHASE_SECTIONS[phaseKey].forEach(sk => {
+      const secState = getSectionState(parkKey, mod, sk);
+      if (secState && secState.user) {
+        recentSigns.push({ sk, user: secState.user, time: secState.time || secState.signTime || '', phase: phaseKey });
+      }
+    });
+  }
+  recentSigns.sort((a,b) => new Date(b.time) - new Date(a.time));
+
+  if (recentSigns.length > 0) {
+    body += `<div style="font-size:12px;font-weight:600;color:var(--muted);margin:14px 0 8px;">✍️ 签名记录</div>
+      <div style="display:flex;flex-direction:column;gap:5px;max-height:150px;overflow-y:auto;margin-bottom:14px;">`;
+    recentSigns.forEach(r => {
+      body += `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:rgba(255,255,255,.03);border-radius:7px;font-size:11px;">
+        <div style="width:6px;height:6px;border-radius:50%;background:#4ade80;flex-shrink:0;"></div>
+        <span style="color:var(--text);flex:1;">${PHASES.find(p=>p.key===r.phase)?.label||r.phase} · ${r.sk}</span>
+        <span style="color:var(--muted);">${r.user}</span>
+        <span style="color:#475569;font-size:10px;">${r.time ? r.time.slice(0,16) : ''}</span>
+      </div>`;
+    });
+    body += `</div>`;
+  }
+
+  body += `<button class="modal-enter-btn" onclick="goToLiquidModule('${parkKey}','${mod}')">❄️ 进入 ${mod} 管理 →</button>`;
+  document.getElementById('mm-body').innerHTML = body;
+  document.getElementById('modModal').classList.remove('hidden');
+}
+
+function closeModal() {
+  document.getElementById('modModal').classList.add('hidden');
+}
+
+// =============================================
+//  跳转逻辑
+// =============================================
+function goToLiquid() {
+  location.href = 'liquid-cooling.html';
+}
+
+function goToLiquidModule(parkKey, mod) {
+  localStorage.setItem('lc_goto_park', parkKey);
+  localStorage.setItem('lc_goto_mod', mod);
+  location.href = 'liquid-cooling.html';
+}
+
+// =============================================
+//  时钟
+// =============================================
+function updateTime() {
+  const now = new Date();
+  const p = n => String(n).padStart(2,'0');
+  document.getElementById('live-time').textContent = `${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
+  document.getElementById('live-date').textContent = `${now.getFullYear()}/${p(now.getMonth()+1)}/${p(now.getDate())}`;
+}
+
+// =============================================
+//  初始化
+// =============================================
+document.addEventListener('DOMContentLoaded', () => {
+  updateTime();
+  setInterval(updateTime, 1000);
+  renderGlobalStats();
+  renderCityGroups();
+});
+
+// 点击背景关闭弹窗
+document.getElementById('modModal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+</script>
+</body>
+</html>
