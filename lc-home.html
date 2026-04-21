@@ -609,18 +609,51 @@ function getModuleStatus(park, mod) {
 //  全局统计
 // =============================================
 function calcGlobalStats() {
-  let totalMods = 0, doneMods = 0, activeMods = 0, notstartMods = 0;
-  for (const [park, mods] of Object.entries(PARK_MODULES)) {
-    mods.forEach(mod => {
-      totalMods++;
-      const st = getModuleStatus(park, mod);
-      if (st === 'done') doneMods++;
-      else if (st === 'active') activeMods++;
-      else notstartMods++;
-    });
+  // 动态从 localStorage 中发现所有园区/模组（包括自由新建的）
+  const modSet = new Set();
+  const parkSet = new Set();
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key || !key.startsWith('lc_')) continue;
+    if (key.startsWith('lc_sec_')) {
+      // lc_sec_{park}_{mod}_{sectionKey} — 板块签名数据
+      const rest = key.slice('lc_sec_'.length);
+      // sectionKey 不含下划线前缀，park/mod 可能含中文但不含 _ ，
+      // 取前两段作为 park、mod（section key 本身也含 _ ，取前两段最安全）
+      const parts = rest.split('_');
+      if (parts.length >= 2) {
+        const park = parts[0], mod = parts[1];
+        parkSet.add(park);
+        modSet.add(park + '||' + mod);
+      }
+    } else if (!key.startsWith('lc_goto_')) {
+      // lc_{park}_{mod}_{taskId} — 任务数据
+      const rest = key.slice('lc_'.length);
+      const parts = rest.split('_');
+      if (parts.length >= 2) {
+        const park = parts[0], mod = parts[1];
+        parkSet.add(park);
+        modSet.add(park + '||' + mod);
+      }
+    }
   }
+  // 同时也把预设的园区/模组纳入（保证预设但未开始的也被统计）
+  for (const [park, mods] of Object.entries(PARK_MODULES)) {
+    parkSet.add(park);
+    mods.forEach(mod => modSet.add(park + '||' + mod));
+  }
+
+  let doneMods = 0, activeMods = 0, notstartMods = 0;
+  modSet.forEach(key => {
+    const [park, mod] = key.split('||');
+    const st = getModuleStatus(park, mod);
+    if (st === 'done') doneMods++;
+    else if (st === 'active') activeMods++;
+    else notstartMods++;
+  });
+  const totalMods = modSet.size;
   const pct = totalMods > 0 ? Math.round(doneMods / totalMods * 100) : 0;
-  return { parks: Object.keys(PARKS).length, totalMods, doneMods, activeMods, notstartMods, pct };
+  return { parks: parkSet.size, totalMods, doneMods, activeMods, notstartMods, pct };
 }
 
 function renderGlobalStats() {
