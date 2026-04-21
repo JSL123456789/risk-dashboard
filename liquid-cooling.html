@@ -1392,16 +1392,27 @@ function renderAllSectionConfirms() {
     if (isDone) {
       bar.className = 'section-confirm-bar done';
       const remarkHtml = sectionState.remark ? `<div style="font-size:11px;color:#0369a1;background:#f0f9ff;border-left:2px solid #38bdf8;padding:3px 8px;border-radius:0 4px 4px 0;margin-top:4px;">📝 ${sectionState.remark}</div>` : '';
+      const hasUndone = doneTasks < totalTasks;
+      const progressColor = hasUndone ? '#d97706' : '#16a34a';
+      const progressText = hasUndone
+        ? `已完成 <b style="color:#16a34a;">${doneTasks}</b> / ${totalTasks} 项 · <span style="color:#d97706;font-weight:600;">尚有 ${totalTasks - doneTasks} 项未完成</span>`
+        : `全部 <b style="color:#16a34a;">${totalTasks}</b> 项已完成 ✅`;
       bar.innerHTML = `<div class="scb-info">
-        <div class="scb-title">✅ 本板块已确认完成</div>
+        <div class="scb-title">✅ 本板块已签名确认</div>
         <div class="scb-result">
-          <span>操作人：<b>${sectionState.user}</b></span>
+          <span>签名人：<b>${sectionState.user}</b></span>
           <span style="color:#6b7280;font-size:11px;">${sectionState.time}</span>
-          <span style="color:#64748b;font-size:11px;">· 共 ${totalTasks} 项</span>
         </div>
+        <div style="font-size:12px;color:#374151;margin-top:4px;">${progressText}</div>
+        ${hasUndone ? `<div style="font-size:11px;color:#92400e;background:#fef3c7;border-radius:4px;padding:3px 8px;margin-top:4px;display:inline-block;">⚠️ 未完成项目仍显示在上方，请继续逐项确认</div>` : ''}
         ${remarkHtml}
       </div>
-      ${currentPark&&currentPark!=='all'&&currentModule&&currentModule!=='all'?`<div class="scb-actions"><button class="scb-btn revoke-btn" onclick="revokeSectionConfirm('${sectionKey}', this)">🔓 撤销确认</button></div>`:''}`;
+      ${currentPark&&currentPark!=='all'&&currentModule&&currentModule!=='all'?`<div class="scb-actions">
+        ${hasUndone ? `
+          <button class="scb-btn selectall-btn" onclick="selectAllInSection('${groupIds.join(',')}', this)" title="全选剩余未完成任务" style="font-size:12px;padding:7px 14px;">☑ 全选剩余</button>
+        ` : ''}
+        <button class="scb-btn revoke-btn" onclick="revokeSectionConfirm('${sectionKey}', this)">🔓 撤销确认</button>
+      </div>`:''}`;
     } else {
       bar.className = 'section-confirm-bar undone';
       const canConfirm = currentPark && currentPark !== 'all' && currentModule && currentModule !== 'all';
