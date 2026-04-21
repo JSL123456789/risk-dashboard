@@ -343,6 +343,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
 .scb-btn.selectall-btn:hover{background:#bfdbfe;}
 .scb-btn.save-btn{background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;}
 .scb-btn.save-btn:hover{background:#dcfce7;}
+.scb-btn.disabled-btn{background:#e5e7eb !important;color:#9ca3af !important;cursor:not-allowed !important;box-shadow:none !important;}
 .scb-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap;}
 
 /* 已完成任务底部信息栏 */
@@ -1403,15 +1404,16 @@ function renderAllSectionConfirms() {
       bar.className = 'section-confirm-bar undone';
       const canConfirm = currentPark && currentPark !== 'all' && currentModule && currentModule !== 'all';
       const pct = totalTasks > 0 ? Math.round(doneTasks/totalTasks*100) : 0;
+      const noDone = doneTasks === 0;
       bar.innerHTML = `<div class="scb-info">
-        <div class="scb-title undone-title">📋 请逐项勾选完成后，点击右侧签名确认</div>
+        <div class="scb-title undone-title">${noDone ? '⚠️ 请先勾选至少一项后，才可签名确认' : '📋 请逐项勾选完成后，点击右侧签名确认'}</div>
         <div class="scb-sub undone-sub">已完成 ${doneTasks}/${totalTasks} 项 · ${pct}%</div>
       </div>
       <div class="scb-actions">
         ${canConfirm ? `
           <button class="scb-btn selectall-btn" onclick="selectAllInSection('${groupIds.join(',')}', this)" title="全选本板块所有任务">☑ 全选</button>
           <button class="scb-btn save-btn" onclick="saveSectionProgress('${groupIds.join(',')}', this)" title="保存当前进度">💾 保存</button>
-          <button class="scb-btn confirm-btn" onclick="openSectionConfirm('${sectionKey}', '${sectionTitle}', this)">✍️ 签名确认</button>
+          <button class="scb-btn confirm-btn${noDone ? ' disabled-btn' : ''}" onclick="openSectionConfirm('${sectionKey}', '${sectionTitle}', this)" title="${noDone ? '请先勾选至少一项任务' : '签名确认本板块'}">✍️ 签名确认</button>
         ` : '<span style="font-size:12px;color:#94a3b8;">请先填写园区和模组</span>'}
       </div>`;
     }
@@ -1444,10 +1446,55 @@ function openSectionConfirm(sectionKey, sectionTitle, btnEl) {
     showTip('请先填写园区和模组后再操作');
     return;
   }
+
+  // 获取该板块所有 groupId
+  const firstGroupId = sectionKey.replace('section_', '');
+  const allGroups = getAllGroupsForSection(firstGroupId);
+  const allTasks = allGroups.flatMap(g => TASKS[g] || []);
+  const doneTasks = allTasks.filter(t => { const s = getTaskState(t.id); return s && s.done; });
+  const totalTasks = allTasks.length;
+
+  // 没有任何任务被确认时，禁止签名
+  if (doneTasks.length === 0) {
+    const modal = document.getElementById('modalOverlay');
+    document.getElementById('modalIcon').textContent = '⚠️';
+    document.getElementById('modalTitle').textContent = '无法签名确认';
+    document.getElementById('modalBody').innerHTML = `
+      <div style="font-size:13px;color:#374151;margin-bottom:12px;">
+        本板块尚未完成任何确认项，无法进行签名。
+      </div>
+      <div style="background:#fef3c7;border-radius:8px;padding:10px 14px;font-size:12px;color:#92400e;">
+        <div style="font-weight:600;margin-bottom:6px;">📋 ${sectionTitle}</div>
+        <div>共 <b>${totalTasks}</b> 项任务，当前已完成 <b style="color:#dc2626;">0</b> 项</div>
+        <div style="margin-top:6px;">请先逐项勾选确认检查项，再进行板块签名。</div>
+      </div>`;
+    document.getElementById('modalConfirmBtn').textContent = '我知道了';
+    document.getElementById('modalConfirmBtn').style.background = '#6b7280';
+    modalCallback = () => {
+      document.getElementById('modalConfirmBtn').style.background = '';
+    };
+    modal.classList.remove('hidden');
+    return;
+  }
+
+  // 有部分未完成时给出提醒（但允许继续）
+  const undoneCnt = totalTasks - doneTasks.length;
+  const bodyExtra = undoneCnt > 0
+    ? `<div style="background:#fef9c3;border-radius:8px;padding:8px 12px;font-size:12px;color:#92400e;margin-top:10px;">
+        ⚠️ 当前仍有 <b>${undoneCnt}</b> 项未完成，签名后将仅记录已完成部分。
+       </div>`
+    : `<div style="background:#f0fdf4;border-radius:8px;padding:8px 12px;font-size:12px;color:#166534;margin-top:10px;">
+        ✅ 全部 ${totalTasks} 项已完成，可进行签名确认。
+       </div>`;
+
   currentSectionKey = sectionKey;
   currentSectionTitle = sectionTitle;
-  document.getElementById('scModalTitle').textContent = '确认本板块已完成';
-  document.getElementById('scModalBody').innerHTML = `<b>${sectionTitle}</b><br>确认您已逐项检查完毕，点击签名确认后将记录完成人和时间。<br><br>📍 ${currentPark} · ${currentModule}`;
+  document.getElementById('scModalTitle').textContent = '签名确认本板块';
+  document.getElementById('scModalBody').innerHTML = `
+    <div style="font-size:13px;color:#374151;margin-bottom:4px;"><b>${sectionTitle}</b></div>
+    <div style="font-size:12px;color:#64748b;">📍 ${currentPark} · ${currentModule}</div>
+    <div style="font-size:12px;color:#374151;margin-top:8px;">已完成 <b style="color:#16a34a;">${doneTasks.length}</b> / ${totalTasks} 项</div>
+    ${bodyExtra}`;
   document.getElementById('scUserInput').value = '';
   document.getElementById('scRemarkInput').value = '';
   document.getElementById('sectionConfirmModal').classList.remove('hidden');
