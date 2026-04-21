@@ -456,27 +456,29 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 
 <!-- 新建模组弹窗 -->
 <div class="modal-bg hidden" id="newModModal">
-  <div class="modal-box" style="max-width:440px;">
+  <div class="modal-box" style="max-width:400px;">
     <div class="modal-head">
       <div>
         <div class="modal-title">＋ 新建模组投产单</div>
-        <div class="modal-sub">选择园区和模组，创建投产管理记录</div>
+        <div class="modal-sub">填写园区和模组名称，创建投产管理记录</div>
       </div>
       <button class="modal-close" onclick="closeNewModModal()">✕</button>
     </div>
     <div class="modal-body">
-      <div style="margin-bottom:18px;">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:600;">选择园区</div>
-        <div id="nm-park-list" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"></div>
+      <div style="margin-bottom:16px;">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:600;">园区名称</div>
+        <input id="nm-park-input" type="text" placeholder="例：重庆·泰和" oninput="updateNmSubmitBtn()"
+          style="width:100%;box-sizing:border-box;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#e2e8f0;font-size:14px;outline:none;transition:border-color .2s;"
+          onfocus="this.style.borderColor='rgba(6,182,212,.5)'" onblur="this.style.borderColor='rgba(255,255,255,.15)'"
+        />
       </div>
-      <div style="margin-bottom:18px;" id="nm-mod-wrap">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:600;">选择模组</div>
-        <div id="nm-mod-list" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
-      </div>
-      <div id="nm-preview" style="display:none;background:rgba(6,182,212,.06);border:1px solid rgba(6,182,212,.2);border-radius:12px;padding:14px;margin-bottom:16px;">
-        <div style="font-size:12px;color:#67e8f9;font-weight:700;margin-bottom:6px;">📋 即将创建</div>
-        <div id="nm-preview-text" style="font-size:14px;font-weight:800;color:var(--text);"></div>
-        <div style="font-size:11px;color:var(--muted);margin-top:4px;">点击「开始投产」进入管理平台</div>
+      <div style="margin-bottom:24px;">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:600;">模组名称</div>
+        <input id="nm-mod-input" type="text" placeholder="例：模组01" oninput="updateNmSubmitBtn()"
+          style="width:100%;box-sizing:border-box;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#e2e8f0;font-size:14px;outline:none;transition:border-color .2s;"
+          onfocus="this.style.borderColor='rgba(6,182,212,.5)'" onblur="this.style.borderColor='rgba(255,255,255,.15)'"
+          onkeydown="if(event.key==='Enter')submitNewMod()"
+        />
       </div>
       <button id="nm-submit-btn" onclick="submitNewMod()" disabled style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;border-radius:12px;background:rgba(6,182,212,.08);color:#64748b;border:1px solid rgba(255,255,255,.08);font-size:14px;font-weight:700;cursor:not-allowed;transition:all .2s;">
         ❄️ 开始投产
@@ -1045,74 +1047,24 @@ let nmSelectedPark = null;
 let nmSelectedMod = null;
 
 function openNewModModal() {
-  nmSelectedPark = null;
-  nmSelectedMod = null;
-  document.getElementById('nm-mod-wrap').style.display = 'none';
-  document.getElementById('nm-preview').style.display = 'none';
+  document.getElementById('nm-park-input').value = '';
+  document.getElementById('nm-mod-input').value = '';
   const btn = document.getElementById('nm-submit-btn');
   btn.disabled = true;
   btn.style.background = 'rgba(6,182,212,.08)';
   btn.style.color = '#64748b';
   btn.style.cursor = 'not-allowed';
   btn.style.borderColor = 'rgba(255,255,255,.08)';
-
-  // 渲染园区列表
-  const parkList = document.getElementById('nm-park-list');
-  let html = '';
-  for (const [key, name] of Object.entries(PARKS)) {
-    const mods = PARK_MODULES[key] || [];
-    const hasDone = mods.some(m => getModuleStatus(key, m) !== 'notstart');
-    html += `<div class="nm-option${hasDone?' has-data':''}" data-park="${key}" onclick="nmSelectPark('${key}')">
-      ${name}${hasDone ? ' <span style="font-size:10px;opacity:.7;">●</span>' : ''}
-    </div>`;
-  }
-  parkList.innerHTML = html;
+  btn.style.boxShadow = 'none';
   document.getElementById('newModModal').classList.remove('hidden');
-}
-
-function nmSelectPark(parkKey) {
-  nmSelectedPark = parkKey;
-  nmSelectedMod = null;
-  // 高亮选中
-  document.querySelectorAll('#nm-park-list .nm-option').forEach(el => {
-    el.classList.toggle('selected', el.dataset.park === parkKey);
-  });
-
-  // 渲染模组列表
-  const mods = PARK_MODULES[parkKey] || [];
-  const modWrap = document.getElementById('nm-mod-wrap');
-  modWrap.style.display = 'block';
-  let html = '';
-  mods.forEach(mod => {
-    const st = getModuleStatus(parkKey, mod);
-    const hasDone = st !== 'notstart';
-    const stLabel = st === 'done' ? ' ✅' : st === 'active' ? ' 🔧' : '';
-    html += `<div class="nm-option${hasDone?' has-data':''}" data-mod="${mod}" onclick="nmSelectMod('${mod}')" style="padding:7px 14px;">${mod}${stLabel}</div>`;
-  });
-  document.getElementById('nm-mod-list').innerHTML = html;
-  document.getElementById('nm-preview').style.display = 'none';
-  updateNmSubmitBtn();
-}
-
-function nmSelectMod(mod) {
-  nmSelectedMod = mod;
-  document.querySelectorAll('#nm-mod-list .nm-option').forEach(el => {
-    el.classList.toggle('selected', el.dataset.mod === mod);
-  });
-  // 显示预览
-  if (nmSelectedPark && nmSelectedMod) {
-    const parkName = PARKS[nmSelectedPark] || nmSelectedPark;
-    const st = getModuleStatus(nmSelectedPark, mod);
-    const stText = st === 'done' ? '✅ 该模组已投产' : st === 'active' ? '🔧 该模组进行中，继续填写' : '🆕 新建投产记录';
-    document.getElementById('nm-preview-text').innerHTML = `${parkName} · ${mod}<br><span style="font-size:12px;color:${st==='done'?'#4ade80':st==='active'?'#60a5fa':'#67e8f9'};font-weight:600;">${stText}</span>`;
-    document.getElementById('nm-preview').style.display = 'block';
-  }
-  updateNmSubmitBtn();
+  setTimeout(() => document.getElementById('nm-park-input').focus(), 100);
 }
 
 function updateNmSubmitBtn() {
-  const btn = document.getElementById('nm-submit-btn');
-  if (nmSelectedPark && nmSelectedMod) {
+  const park = (document.getElementById('nm-park-input').value || '').trim();
+  const mod  = (document.getElementById('nm-mod-input').value  || '').trim();
+  const btn  = document.getElementById('nm-submit-btn');
+  if (park && mod) {
     btn.disabled = false;
     btn.style.background = 'linear-gradient(135deg,#0d7377,#06b6d4)';
     btn.style.color = '#fff';
@@ -1130,9 +1082,13 @@ function updateNmSubmitBtn() {
 }
 
 function submitNewMod() {
-  if (!nmSelectedPark || !nmSelectedMod) return;
+  const park = (document.getElementById('nm-park-input').value || '').trim();
+  const mod  = (document.getElementById('nm-mod-input').value  || '').trim();
+  if (!park || !mod) return;
   closeNewModModal();
-  goToLiquidModule(nmSelectedPark, nmSelectedMod);
+  localStorage.setItem('lc_goto_park', park);
+  localStorage.setItem('lc_goto_mod', mod);
+  location.href = 'liquid-cooling.html';
 }
 
 function closeNewModModal() {
