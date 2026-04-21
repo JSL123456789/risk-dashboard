@@ -1019,45 +1019,77 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
 </div><!-- /main -->
 
 <!-- 工作台选择弹窗（进入页面弹出） -->
-<div class="modal-overlay" id="selectGuideModal" style="z-index:2000;align-items:flex-start;padding-top:40px;">
-  <div style="background:#fff;border-radius:20px;width:100%;max-width:600px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.25);">
+<div class="modal-overlay" id="selectGuideModal" style="z-index:2000;align-items:flex-start;padding-top:30px;">
+  <div style="background:#fff;border-radius:20px;width:100%;max-width:680px;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+
     <!-- 弹窗头部 -->
-    <div style="background:linear-gradient(135deg,#071e3d,#0f4c81);padding:28px 32px 24px;color:#fff;flex-shrink:0;">
-      <div style="font-size:28px;margin-bottom:8px;">❄️</div>
-      <div style="font-size:20px;font-weight:800;margin-bottom:4px;">液冷全流程管理平台</div>
-      <div style="font-size:13px;opacity:.7;">选择或新建一个模组，开始跟踪投产进度</div>
+    <div style="background:linear-gradient(135deg,#071e3d 0%,#0f4c81 60%,#0d7377 100%);padding:24px 28px 20px;color:#fff;flex-shrink:0;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="font-size:32px;">❄️</div>
+          <div>
+            <div style="font-size:19px;font-weight:800;letter-spacing:.5px;">液冷全流程管理平台</div>
+            <div style="font-size:12px;opacity:.65;margin-top:2px;">选择已有模组或新建记录</div>
+          </div>
+        </div>
+        <button onclick="skipGuide()" title="关闭" style="background:rgba(255,255,255,.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">✕</button>
+      </div>
+      <!-- 统计概览 -->
+      <div id="guide-stats-bar" style="display:flex;gap:10px;"></div>
     </div>
+
+    <!-- 筛选栏 -->
+    <div id="guide-filter-bar" style="padding:14px 28px 10px;background:#f8fafc;border-bottom:1px solid #e5e7eb;flex-shrink:0;display:none;">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+        <div style="position:relative;flex:1;min-width:160px;">
+          <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;color:#94a3b8;">🔍</span>
+          <input id="guide-search-input" placeholder="搜索园区或模组名称…" oninput="applyGuideFilter()" style="width:100%;padding:8px 12px 8px 32px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;box-sizing:border-box;background:#fff;" />
+        </div>
+        <select id="guide-park-filter" onchange="applyGuideFilter()" style="padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;color:#374151;background:#fff;cursor:pointer;outline:none;">
+          <option value="">全部园区</option>
+        </select>
+        <select id="guide-status-filter" onchange="applyGuideFilter()" style="padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;color:#374151;background:#fff;cursor:pointer;outline:none;">
+          <option value="">全部状态</option>
+          <option value="done">✅ 已完成</option>
+          <option value="inprogress">🔧 进行中</option>
+          <option value="notstart">⬜ 未开始</option>
+        </select>
+      </div>
+    </div>
+
     <!-- 弹窗内容 -->
-    <div style="flex:1;overflow-y:auto;padding:24px 28px;">
+    <div style="flex:1;overflow-y:auto;padding:20px 28px 8px;">
 
       <!-- 已有记录列表 -->
       <div id="guide-record-list"></div>
 
       <!-- 新建区域 -->
-      <div id="guide-new-section" style="display:none;margin-top:16px;background:#f8fafc;border:2px dashed #cbd5e1;border-radius:14px;padding:20px;">
+      <div id="guide-new-section" style="display:none;margin-top:12px;background:#f8fafc;border:2px dashed #bfdbfe;border-radius:14px;padding:20px;">
         <div style="font-size:14px;font-weight:700;color:#1e293b;margin-bottom:16px;">🆕 新建模组记录</div>
-        <div style="margin-bottom:14px;">
-          <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:6px;">🏢 园区名称</div>
-          <input id="guide-park-input" class="submit-input" placeholder="如：重庆·泰和、成都·高新" oninput="updateGuideInfo()" style="width:100%;padding:10px 14px;font-size:13px;border:2px solid #e5e7eb;border-radius:10px;outline:none;box-sizing:border-box;transition:border-color .2s;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#e5e7eb'" />
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+          <div style="flex:1;min-width:140px;">
+            <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:6px;">🏢 园区名称</div>
+            <input id="guide-park-input" class="submit-input" placeholder="如：重庆·泰和" oninput="updateGuideInfo()" style="width:100%;padding:9px 12px;font-size:13px;border:2px solid #e5e7eb;border-radius:9px;outline:none;box-sizing:border-box;transition:border-color .2s;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#e5e7eb'" />
+          </div>
+          <div style="flex:1;min-width:140px;">
+            <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:6px;">📦 模组名称</div>
+            <input id="guide-module-input" class="submit-input" placeholder="如：模组01" oninput="updateGuideInfo()" style="width:100%;padding:9px 12px;font-size:13px;border:2px solid #e5e7eb;border-radius:9px;outline:none;box-sizing:border-box;transition:border-color .2s;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#e5e7eb'" />
+          </div>
         </div>
-        <div style="margin-bottom:16px;">
-          <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:6px;">📦 模组名称</div>
-          <input id="guide-module-input" class="submit-input" placeholder="如：模组01、M2区" oninput="updateGuideInfo()" style="width:100%;padding:10px 14px;font-size:13px;border:2px solid #e5e7eb;border-radius:10px;outline:none;box-sizing:border-box;transition:border-color .2s;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#e5e7eb'" />
-        </div>
-        <div id="guide-selected-info" style="display:none;background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#166534;font-weight:600;"></div>
+        <div id="guide-selected-info" style="display:none;background:#f0fdf4;border:1px solid #86efac;border-radius:9px;padding:9px 13px;margin-bottom:12px;font-size:13px;color:#166534;font-weight:600;"></div>
         <div style="display:flex;gap:10px;">
-          <button onclick="hideNewSection()" style="flex:1;padding:10px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;color:#64748b;font-size:13px;cursor:pointer;">取消</button>
-          <button id="guide-confirm-btn" onclick="confirmGuide()" disabled style="flex:2;padding:10px;border-radius:10px;border:none;background:#3b82f6;color:#fff;font-size:13px;font-weight:600;cursor:not-allowed;opacity:.4;transition:all .2s;">✅ 创建并进入</button>
+          <button onclick="hideNewSection()" style="padding:9px 18px;border-radius:9px;border:1px solid #e5e7eb;background:#fff;color:#64748b;font-size:13px;cursor:pointer;">取消</button>
+          <button id="guide-confirm-btn" onclick="confirmGuide()" disabled style="flex:1;padding:9px;border-radius:9px;border:none;background:#3b82f6;color:#fff;font-size:13px;font-weight:600;cursor:not-allowed;opacity:.4;transition:all .2s;">✅ 创建并进入</button>
         </div>
       </div>
     </div>
 
-    <!-- 弹窗底部操作 -->
-    <div style="border-top:1px solid #f1f5f9;padding:16px 28px;display:flex;gap:10px;flex-shrink:0;background:#fff;">
-      <button onclick="showNewSection()" style="flex:1;padding:11px;border-radius:12px;border:2px solid #3b82f6;background:#eff6ff;color:#1d4ed8;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+    <!-- 弹窗底部 -->
+    <div style="border-top:1px solid #f1f5f9;padding:14px 28px;display:flex;gap:10px;flex-shrink:0;background:#fafafa;">
+      <button onclick="showNewSection()" style="flex:1;padding:10px;border-radius:11px;border:2px solid #3b82f6;background:#eff6ff;color:#1d4ed8;font-size:13px;font-weight:600;cursor:pointer;">
         ➕ 新建模组记录
       </button>
-      <button onclick="skipGuide()" style="padding:11px 20px;border-radius:12px;border:1px solid #e5e7eb;background:#fff;color:#64748b;font-size:13px;cursor:pointer;">
+      <button onclick="skipGuide()" style="padding:10px 20px;border-radius:11px;border:1px solid #e5e7eb;background:#fff;color:#64748b;font-size:13px;cursor:pointer;">
         仅查看
       </button>
     </div>
@@ -1995,55 +2027,252 @@ function calcModuleProgress(park, mod) {
   return { done: totalDone, total: totalAll, pct };
 }
 
-// 渲染工作台已有记录列表
+// 渲染工作台顶部统计概览
+function renderGuideStats(allItems) {
+  const bar = document.getElementById('guide-stats-bar');
+  if (!bar) return;
+  const total = allItems.length;
+  const done = allItems.filter(i => i.pct === 100).length;
+  const inprogress = allItems.filter(i => i.pct > 0 && i.pct < 100).length;
+  const notstart = allItems.filter(i => i.pct === 0).length;
+  const parks = new Set(allItems.map(i => i.park)).size;
+  bar.innerHTML = [
+    { label:'模组总数', val: total, bg:'rgba(255,255,255,.18)', icon:'📦' },
+    { label:'已完成', val: done, bg:'rgba(34,197,94,.25)', icon:'✅' },
+    { label:'进行中', val: inprogress, bg:'rgba(59,130,246,.25)', icon:'🔧' },
+    { label:'未开始', val: notstart, bg:'rgba(255,255,255,.1)', icon:'⬜' },
+    { label:'园区数', val: parks, bg:'rgba(168,85,247,.25)', icon:'🏢' },
+  ].map(s => `<div style="flex:1;background:${s.bg};border-radius:10px;padding:8px 10px;text-align:center;min-width:0;">
+    <div style="font-size:18px;font-weight:800;color:#fff;">${s.val}</div>
+    <div style="font-size:10px;opacity:.75;color:#e0f2fe;margin-top:1px;">${s.label}</div>
+  </div>`).join('');
+}
+
+// 初始化园区筛选下拉框
+function initGuideParkFilter(allItems) {
+  const sel = document.getElementById('guide-park-filter');
+  if (!sel) return;
+  const parks = [...new Set(allItems.map(i => i.park))].sort();
+  // 保留第一个"全部园区"选项，重建其余
+  sel.innerHTML = '<option value="">全部园区</option>' + parks.map(p => `<option value="${p}">${p}</option>`).join('');
+}
+
+// 渲染工作台已有记录列表（带筛选）
+let _allModules = []; // 缓存所有模组数据
+
 function renderGuideRecordList() {
   const container = document.getElementById('guide-record-list');
   if (!container) return;
   const items = getExistingModules();
+
   if (!items.length) {
-    container.innerHTML = `<div style="text-align:center;padding:24px 0 8px;">
-      <div style="font-size:40px;margin-bottom:10px;">📭</div>
-      <div style="font-size:14px;font-weight:600;color:#374151;margin-bottom:6px;">暂无已有记录</div>
+    document.getElementById('guide-stats-bar').innerHTML = '';
+    document.getElementById('guide-filter-bar').style.display = 'none';
+    container.innerHTML = `<div style="text-align:center;padding:28px 0 12px;">
+      <div style="font-size:44px;margin-bottom:10px;">📭</div>
+      <div style="font-size:15px;font-weight:700;color:#374151;margin-bottom:6px;">暂无已有记录</div>
       <div style="font-size:13px;color:#94a3b8;">点击下方"新建模组记录"开始创建</div>
     </div>`;
     return;
   }
 
-  // 按进度高低排序
-  const withProgress = items.map(item => ({ ...item, ...calcModuleProgress(item.park, item.mod) }));
-  withProgress.sort((a, b) => b.pct - a.pct);
+  // 计算进度
+  _allModules = items.map(item => ({ ...item, ...calcModuleProgress(item.park, item.mod) }));
 
-  let html = `<div style="font-size:13px;font-weight:700;color:#64748b;margin-bottom:12px;">📂 已有记录（${items.length} 个模组）</div>`;
-  html += `<div style="display:flex;flex-direction:column;gap:10px;">`;
-  withProgress.forEach(item => {
-    const pct = item.pct;
-    let statusBadge = '', barColor = '#3b82f6';
-    if (pct === 100) { statusBadge = '<span style="background:#dcfce7;color:#166534;padding:3px 10px;border-radius:6px;font-size:11px;font-weight:600;">✅ 已完成</span>'; barColor = '#22c55e'; }
-    else if (pct >= 75) { statusBadge = '<span style="background:#dbeafe;color:#1e40af;padding:3px 10px;border-radius:6px;font-size:11px;font-weight:600;">🔧 接维中</span>'; }
-    else if (pct >= 25) { statusBadge = '<span style="background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:6px;font-size:11px;font-weight:600;">🏗️ 建设中</span>'; }
-    else if (pct > 0) { statusBadge = '<span style="background:#ede9fe;color:#5b21b6;padding:3px 10px;border-radius:6px;font-size:11px;font-weight:600;">📋 准备中</span>'; }
-    else { statusBadge = '<span style="background:#f1f5f9;color:#64748b;padding:3px 10px;border-radius:6px;font-size:11px;font-weight:600;">⬜ 未开始</span>'; }
+  // 渲染统计概览
+  renderGuideStats(_allModules);
 
-    html += `<div onclick="selectExistingModule('${item.park}','${item.mod}')" style="background:#fff;border:2px solid #e5e7eb;border-radius:14px;padding:16px 18px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:14px;" onmouseover="this.style.borderColor='#3b82f6';this.style.background='#eff6ff'" onmouseout="this.style.borderColor='#e5e7eb';this.style.background='#fff'">
-      <div style="width:48px;height:48px;background:linear-gradient(135deg,#0f4c81,#0d7377);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">❄️</div>
-      <div style="flex:1;min-width:0;">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
-          <span style="font-size:15px;font-weight:700;color:#1e293b;">${item.park}</span>
-          <span style="font-size:13px;color:#64748b;">·</span>
-          <span style="font-size:14px;font-weight:600;color:#334155;">${item.mod}</span>
-          ${statusBadge}
-        </div>
-        <div style="height:6px;background:#f1f5f9;border-radius:3px;overflow:hidden;margin-bottom:5px;">
-          <div style="height:100%;background:${barColor};width:${pct}%;border-radius:3px;transition:width .4s;"></div>
-        </div>
-        <div style="font-size:12px;color:#64748b;">${item.done}/${item.total} 项已完成 · ${pct}%</div>
-      </div>
-      <div style="color:#94a3b8;font-size:18px;flex-shrink:0;">▶</div>
-    </div>`;
-  });
-  html += `</div>`;
-  container.innerHTML = html;
+  // 初始化筛选下拉框
+  initGuideParkFilter(_allModules);
+  document.getElementById('guide-filter-bar').style.display = _allModules.length > 1 ? 'block' : 'none';
+
+  // 应用当前筛选条件渲染列表
+  applyGuideFilter();
 }
+
+// 应用筛选并渲染列表
+function applyGuideFilter() {
+  const container = document.getElementById('guide-record-list');
+  if (!container || !_allModules.length) return;
+
+  const searchVal = (document.getElementById('guide-search-input')?.value || '').trim().toLowerCase();
+  const parkVal = document.getElementById('guide-park-filter')?.value || '';
+  const statusVal = document.getElementById('guide-status-filter')?.value || '';
+
+  let filtered = _allModules.filter(item => {
+    if (searchVal && !item.park.toLowerCase().includes(searchVal) && !item.mod.toLowerCase().includes(searchVal)) return false;
+    if (parkVal && item.park !== parkVal) return false;
+    if (statusVal === 'done' && item.pct !== 100) return false;
+    if (statusVal === 'inprogress' && (item.pct === 0 || item.pct === 100)) return false;
+    if (statusVal === 'notstart' && item.pct !== 0) return false;
+    return true;
+  });
+
+  if (!filtered.length) {
+    // 保留统计栏，只显示无结果提示（不覆盖整个container）
+    const listEl = document.getElementById('guide-module-list');
+    if (listEl) listEl.innerHTML = `<div style="text-align:center;padding:20px 0;color:#94a3b8;font-size:13px;">暂无符合条件的记录</div>`;
+    return;
+  }
+
+  // 按园区分组，并组内按进度排序
+  const byPark = {};
+  filtered.forEach(item => {
+    if (!byPark[item.park]) byPark[item.park] = [];
+    byPark[item.park].push(item);
+  });
+  Object.values(byPark).forEach(arr => arr.sort((a, b) => b.pct - a.pct));
+
+  // 统计当前是否按园区分组展示（有多个园区才分组）
+  const parkNames = Object.keys(byPark).sort();
+  const useGroup = parkNames.length > 1 && !parkVal;
+
+  let html = `<div id="guide-module-list">`;
+
+  // 进行中的模组（pct > 0 且 < 100）
+  const inprogressAll = filtered.filter(i => i.pct > 0 && i.pct < 100);
+  const doneAll = filtered.filter(i => i.pct === 100);
+  const notstartAll = filtered.filter(i => i.pct === 0);
+
+  // 渲染分区标题 + 卡片
+  function renderCards(list, groupLabel, groupIcon, groupColor) {
+    if (!list.length) return '';
+    let s = `<div style="display:flex;align-items:center;gap:8px;margin:14px 0 8px;">
+      <span style="font-size:15px;">${groupIcon}</span>
+      <span style="font-size:12px;font-weight:700;color:${groupColor};">${groupLabel}（${list.length}）</span>
+      <div style="flex:1;height:1px;background:#e5e7eb;"></div>
+    </div>`;
+    s += `<div style="display:flex;flex-direction:column;gap:8px;">`;
+    list.forEach(item => {
+      const pct = item.pct;
+      let barColor = '#3b82f6', badge = '', borderColor = '#e5e7eb', bgGrad = '#fff';
+      if (pct === 100) {
+        badge = '<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;">✅ 已完成</span>';
+        barColor = '#22c55e'; borderColor = '#86efac'; bgGrad = '#f0fdf4';
+      } else if (pct >= 75) {
+        badge = '<span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;">🔧 接维中</span>';
+        barColor = '#3b82f6'; borderColor = '#93c5fd'; bgGrad = '#eff6ff';
+      } else if (pct >= 25) {
+        badge = '<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;">🏗️ 建设中</span>';
+        barColor = '#f59e0b'; borderColor = '#fcd34d';
+      } else if (pct > 0) {
+        badge = '<span style="background:#ede9fe;color:#5b21b6;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;">📋 准备中</span>';
+        barColor = '#8b5cf6';
+      } else {
+        badge = '<span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;">⬜ 未开始</span>';
+        barColor = '#cbd5e1';
+      }
+
+      // 签名状态
+      const hasSign = checkModuleHasSign(item.park, item.mod);
+      const signBadge = hasSign ? '<span style="background:#f0fdf4;color:#166534;padding:2px 8px;border-radius:5px;font-size:10px;">🖊 已签名</span>' : '';
+
+      s += `<div onclick="selectExistingModule('${escStr(item.park)}','${escStr(item.mod)}')" style="background:${bgGrad};border:1.5px solid ${borderColor};border-radius:12px;padding:14px 16px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:12px;" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,.1)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div style="width:44px;height:44px;background:linear-gradient(135deg,#0f4c81,#0d7377);border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">❄️</div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:5px;">
+            ${useGroup ? '' : `<span style="font-size:11px;color:#94a3b8;background:#f1f5f9;padding:1px 7px;border-radius:4px;">${item.park}</span>`}
+            <span style="font-size:14px;font-weight:700;color:#1e293b;">${item.mod}</span>
+            ${badge}
+            ${signBadge}
+          </div>
+          <div style="height:5px;background:#e5e7eb;border-radius:3px;overflow:hidden;margin-bottom:4px;">
+            <div style="height:100%;background:${barColor};width:${pct}%;border-radius:3px;transition:width .5s;"></div>
+          </div>
+          <div style="font-size:11px;color:#6b7280;">${item.done}/${item.total} 项已确认 · ${pct}%</div>
+        </div>
+        <div style="color:#cbd5e1;font-size:16px;flex-shrink:0;">›</div>
+      </div>`;
+    });
+    s += `</div>`;
+    return s;
+  }
+
+  if (useGroup) {
+    // 按园区分组渲染
+    parkNames.forEach(park => {
+      const parkItems = byPark[park];
+      const doneCount = parkItems.filter(i => i.pct === 100).length;
+      const parkPct = parkItems.length > 0 ? Math.round(parkItems.reduce((a,b) => a+b.pct, 0) / parkItems.length) : 0;
+      html += `<div style="margin-bottom:6px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:linear-gradient(90deg,#f0f9ff,#f8fafc);border-radius:10px;border:1px solid #e0f2fe;margin-bottom:6px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:16px;">🏢</span>
+            <span style="font-size:14px;font-weight:700;color:#0f172a;">${park}</span>
+            <span style="font-size:12px;color:#64748b;">${parkItems.length} 个模组</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:12px;color:#64748b;">${doneCount}/${parkItems.length} 已完成</span>
+            <div style="width:60px;height:5px;background:#e5e7eb;border-radius:3px;overflow:hidden;">
+              <div style="height:100%;background:${parkPct===100?'#22c55e':'#3b82f6'};width:${parkPct}%;"></div>
+            </div>
+          </div>
+        </div>
+        <div style="padding-left:8px;display:flex;flex-direction:column;gap:6px;">`;
+      parkItems.forEach(item => {
+        const pct = item.pct;
+        let barColor='#3b82f6', badge='', borderColor='#e5e7eb', bgGrad='#fff';
+        if (pct===100){badge='<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;">✅ 已完成</span>';barColor='#22c55e';borderColor='#86efac';bgGrad='#f0fdf4';}
+        else if(pct>=75){badge='<span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;">🔧 接维中</span>';barColor='#3b82f6';borderColor='#93c5fd';bgGrad='#eff6ff';}
+        else if(pct>=25){badge='<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;">🏗️ 建设中</span>';barColor='#f59e0b';borderColor='#fcd34d';}
+        else if(pct>0){badge='<span style="background:#ede9fe;color:#5b21b6;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;">📋 准备中</span>';barColor='#8b5cf6';}
+        else{badge='<span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;">⬜ 未开始</span>';barColor='#cbd5e1';}
+        const hasSign = checkModuleHasSign(item.park, item.mod);
+        const signBadge = hasSign ? '<span style="background:#f0fdf4;color:#166534;padding:2px 8px;border-radius:5px;font-size:10px;">🖊 已签名</span>' : '';
+        html += `<div onclick="selectExistingModule('${escStr(item.park)}','${escStr(item.mod)}')" style="background:${bgGrad};border:1.5px solid ${borderColor};border-radius:11px;padding:12px 14px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:10px;" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 10px rgba(0,0,0,.08)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+          <div style="width:38px;height:38px;background:linear-gradient(135deg,#0f4c81,#0d7377);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;">❄️</div>
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px;">
+              <span style="font-size:13px;font-weight:700;color:#1e293b;">${item.mod}</span>
+              ${badge}${signBadge}
+            </div>
+            <div style="height:4px;background:#e5e7eb;border-radius:2px;overflow:hidden;margin-bottom:3px;">
+              <div style="height:100%;background:${barColor};width:${pct}%;border-radius:2px;"></div>
+            </div>
+            <div style="font-size:11px;color:#6b7280;">${item.done}/${item.total} 已确认 · ${pct}%</div>
+          </div>
+          <div style="color:#cbd5e1;font-size:16px;">›</div>
+        </div>`;
+      });
+      html += `</div></div>`;
+    });
+  } else {
+    // 按状态分区渲染（进行中 → 已完成 → 未开始）
+    html += renderCards(inprogressAll.concat(filtered.filter(i=>i.pct>0&&i.pct<25)), '进行中', '🔧', '#1d4ed8');
+    html += renderCards(doneAll, '已完成', '✅', '#166534');
+    html += renderCards(notstartAll, '未开始', '⬜', '#64748b');
+  }
+
+  html += `</div>`;
+
+  // 替换 guide-record-list 内容时保留统计栏（通过 innerHTML 局部更新）
+  // 只更新模组列表部分
+  const existingList = document.getElementById('guide-module-list');
+  if (existingList) {
+    existingList.outerHTML = html.replace('<div id="guide-module-list">', '<div id="guide-module-list">');
+  } else {
+    // 清除空状态提示，插入列表
+    container.innerHTML = html;
+  }
+}
+
+// 检查某个 park+module 是否有签名记录
+function checkModuleHasSign(park, mod) {
+  const prefix = `lc_sec_${park}_${mod}_section_`;
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith(prefix)) {
+      try {
+        const data = JSON.parse(localStorage.getItem(key) || '{}');
+        if (data.signer) return true;
+      } catch(e) {}
+    }
+  }
+  return false;
+}
+
+// 安全转义字符串用于 HTML 属性
+function escStr(s) { return (s || '').replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
 
 // 选择已有模组直接进入
 function selectExistingModule(park, mod) {
