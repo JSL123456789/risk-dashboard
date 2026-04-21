@@ -1555,7 +1555,7 @@ function renderAllSectionConfirms() {
         : (allTasksDone ? '✅ 全部项目已完成，可进行签名确认' : `📋 还有 <b style="color:#dc2626;">${totalTasks - doneTasks}</b> 项未完成，全部完成后才可签名`);
       bar.innerHTML = `<div class="scb-info">
         <div class="scb-title undone-title">${statusText}</div>
-        <div class="scb-sub undone-sub">已完成 ${doneTasks}/${totalTasks} 项 · ${pct}%</div>
+        <div class="scb-sub undone-sub">已打勾 ${doneTasks}/${totalTasks} 项 · ${pct}% &nbsp;·&nbsp; <span style="color:#f59e0b;font-size:11px;">⚠️ 签名确认后才计入总进度</span></div>
       </div>
       <div class="scb-actions">
         ${canConfirm ? `
@@ -1911,14 +1911,36 @@ function showProductionComplete() {
   document.getElementById('certModal').classList.remove('hidden');
 }
 
-// 统计各阶段进度（以板块section为单位）
+// 统计各阶段进度
+// 规则：只有该板块已完成签名确认，板块内的已打勾任务才计入完成进度
+// total = 该阶段所有任务总数；done = 已签名板块中已打勾的任务数
 function calcPhaseStats(phase) {
   const groups = PHASE_GROUPS[phase] || [];
   const total = groups.reduce((s, g) => s + (TASKS[g] || []).length, 0);
-  const done = groups.reduce((s, g) => s + (TASKS[g] || []).filter(t => {
-    const st = getTaskState(t.id);
-    return st && st.done;
-  }).length, 0);
+
+  // 获取该阶段下所有板块（依赖DOM），判断哪些板块已签名
+  const sections = getSectionsForPhase(phase);
+  let done = 0;
+
+  if (sections.length > 0) {
+    // DOM 已就绪：只统计已签名板块中已打勾的任务
+    const signedGroupIds = new Set();
+    sections.forEach(({ sectionKey, groupIds }) => {
+      const sectionState = getSectionState(sectionKey);
+      if (sectionState && sectionState.done) {
+        groupIds.forEach(g => signedGroupIds.add(g));
+      }
+    });
+    done = groups.reduce((s, g) => {
+      if (!signedGroupIds.has(g)) return s;
+      return s + (TASKS[g] || []).filter(t => {
+        const st = getTaskState(t.id);
+        return st && st.done;
+      }).length;
+    }, 0);
+  }
+  // DOM 未就绪时 done=0，渲染完成后 renderAllTasks 会触发 updateAllStats 重新计算
+
   return { total, done, pct: total > 0 ? Math.round(done / total * 100) : 0 };
 }
 
