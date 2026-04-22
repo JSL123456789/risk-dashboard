@@ -579,7 +579,14 @@ function getCityGroupIdxForPark(parkKey) {
   const rawName  = PARKS[parkKey] || parkKey;
   const stripped = rawName.replace(/[·\-_\s]/g, ''); // 去除符号，如 "重庆泰和"
   const pkStrip  = parkKey.replace(/[·\-_\s]/g, '');
-  const candidates = [rawName.toLowerCase(), pkStrip.toLowerCase(), stripped.toLowerCase()];
+  const candidates = [
+    rawName.toLowerCase(),
+    pkStrip.toLowerCase(),
+    stripped.toLowerCase(),
+    // 也尝试归一化后的预设key对应的中文名
+    ...(PARK_NAME_ALIAS[rawName] ? [PARKS[PARK_NAME_ALIAS[rawName]] || ''].map(s => s.toLowerCase().replace(/[·\-_\s]/g, '')) : []),
+    ...(PARK_NAME_ALIAS[stripped] ? [PARKS[PARK_NAME_ALIAS[stripped]] || ''].map(s => s.toLowerCase().replace(/[·\-_\s]/g, '')) : []),
+  ].filter(Boolean);
 
   for (const entry of CITY_KEYWORD_MAP) {
     for (const kw of entry.keywords) {
@@ -595,6 +602,16 @@ function getCityGroupIdxForPark(parkKey) {
 // 获取所有城市分组（含预设外的动态园区，自动按属地归类）
 function getAllCityGroups() {
   const allParkMods = getAllParksAndMods();
+  // 同时合并 activeParks（实际建单的），确保中文园区名也被纳入
+  const activeParkMods = getActiveParksAndMods();
+  // 将 activeParkMods 中的 key 合并进 allParkMods（可能有新 key）
+  for (const [pk, mods] of Object.entries(activeParkMods)) {
+    if (!allParkMods[pk]) allParkMods[pk] = [];
+    // 合并模组列表（去重）
+    const modSet = new Set([...allParkMods[pk], ...mods]);
+    allParkMods[pk] = Array.from(modSet);
+  }
+
   const knownParkKeys = new Set(CITY_GROUPS.flatMap(g => g.parks));
 
   // 基础分组（预设城市），dynamicParks 包含预设园区 key
@@ -620,7 +637,9 @@ function getAllCityGroups() {
         otherGroup = { city: '其他园区', icon: '🏢', color: '#06b6d4', parks: [], dynamicParks: [] };
         groups.push(otherGroup);
       }
-      otherGroup.dynamicParks.push(pk);
+      if (!otherGroup.dynamicParks.includes(pk)) {
+        otherGroup.dynamicParks.push(pk);
+      }
     }
   });
 
