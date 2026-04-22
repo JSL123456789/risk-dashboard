@@ -3396,13 +3396,12 @@ function initPage() {
     return;
   }
 
-  // ===== 首次进入（无任何历史记录）：显示选择弹窗 =====
+  // ===== 首次进入（无任何历史记录）：直接展示页面，不弹窗 =====
   currentPark = 'all';
   currentModule = 'all';
   initSelectorDropdowns('', '');
   renderAllTasks();
-  renderGuideRecordList();
-  document.getElementById('selectGuideModal').classList.remove('hidden');
+  document.getElementById('selectGuideModal').classList.add('hidden');
 }
 </script>
 
