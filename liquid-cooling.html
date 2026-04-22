@@ -1073,11 +1073,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
         <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
           <div style="flex:1;min-width:140px;">
             <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:6px;">🏢 园区名称</div>
-            <input id="guide-park-input" class="submit-input" placeholder="如：重庆·泰和" oninput="updateGuideInfo()" style="width:100%;padding:9px 12px;font-size:13px;border:2px solid #e5e7eb;border-radius:9px;outline:none;box-sizing:border-box;transition:border-color .2s;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#e5e7eb'" />
+            <input id="guide-park-input" class="submit-input" placeholder="如：重庆泰和 / 泰和 / cq-taihe" oninput="updateGuideInfo()" style="width:100%;padding:9px 12px;font-size:13px;border:2px solid #e5e7eb;border-radius:9px;outline:none;box-sizing:border-box;transition:border-color .2s;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#e5e7eb'" />
+            <div id="guide-park-hint" style="display:none;margin-top:5px;padding:5px 9px;border-radius:6px;background:#eff6ff;border:1px solid #bfdbfe;font-size:11px;color:#1d4ed8;">✅ 匹配为：<span id="guide-park-hint-text"></span></div>
           </div>
           <div style="flex:1;min-width:140px;">
             <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:6px;">📦 模组名称</div>
-            <input id="guide-module-input" class="submit-input" placeholder="如：模组01" oninput="updateGuideInfo()" style="width:100%;padding:9px 12px;font-size:13px;border:2px solid #e5e7eb;border-radius:9px;outline:none;box-sizing:border-box;transition:border-color .2s;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#e5e7eb'" />
+            <input id="guide-module-input" class="submit-input" placeholder="如：01 / 模组01" oninput="updateGuideInfo()" style="width:100%;padding:9px 12px;font-size:13px;border:2px solid #e5e7eb;border-radius:9px;outline:none;box-sizing:border-box;transition:border-color .2s;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#e5e7eb'" />
+            <div id="guide-mod-hint" style="display:none;margin-top:5px;padding:5px 9px;border-radius:6px;background:#eff6ff;border:1px solid #bfdbfe;font-size:11px;color:#1d4ed8;">✅ 匹配为：<span id="guide-mod-hint-text"></span></div>
           </div>
         </div>
         <div id="guide-selected-info" style="display:none;background:#f0fdf4;border:1px solid #86efac;border-radius:9px;padding:9px 13px;margin-bottom:12px;font-size:13px;color:#166534;font-weight:600;"></div>
@@ -2302,16 +2304,94 @@ function hideNewSection() {
   document.getElementById('guide-new-section').style.display = 'none';
 }
 
+// =============================================
+//  园区/模组 模糊匹配归一化（新建时使用）
+// =============================================
+function fuzzyMatchParkName(input) {
+  if (!input) return null;
+  const s = input.trim().toLowerCase().replace(/[\s·\-_]/g, '');
+  // 精确匹配key
+  for (const [key, name] of Object.entries(PARKS)) {
+    if (key === 'all') continue;
+    if (s === key.toLowerCase().replace(/[\s·\-_]/g, '')) return name;
+  }
+  // 精确匹配名称
+  for (const [key, name] of Object.entries(PARKS)) {
+    if (key === 'all') continue;
+    if (s === name.toLowerCase().replace(/[\s·\-_]/g, '')) return name;
+  }
+  // 模糊包含匹配
+  for (const [key, name] of Object.entries(PARKS)) {
+    if (key === 'all') continue;
+    const nk = key.toLowerCase().replace(/[\s·\-_]/g, '');
+    const nn = name.toLowerCase().replace(/[\s·\-_]/g, '');
+    if (nk.includes(s) || nn.includes(s) || s.includes(nk) || s.includes(nn)) return name;
+  }
+  return null;
+}
+
+function fuzzyMatchModName(input) {
+  if (!input) return null;
+  const s = input.trim().toLowerCase().replace(/[\s模组module]/g, '');
+  const allMods = new Set();
+  Object.entries(PARK_MODULES).forEach(([k, mods]) => { if (k !== 'all') mods.forEach(m => { if (m !== 'all') allMods.add(m); }); });
+  for (const m of allMods) { if (input.trim() === m) return m; }
+  for (const m of allMods) {
+    const mn = m.replace(/[\s模组module]/gi, '').toLowerCase();
+    if (s === mn) return m;
+  }
+  for (const m of allMods) {
+    const mn = m.replace(/[\s模组module]/gi, '').toLowerCase();
+    if (s.includes(mn) || mn.includes(s)) return m;
+  }
+  return null;
+}
+
 function updateGuideInfo() {
   const parkVal = (document.getElementById('guide-park-input').value || '').trim();
   const modVal = (document.getElementById('guide-module-input').value || '').trim();
-  guidePark = parkVal;
-  guideModule = modVal;
+
+  // 园区匹配提示
+  const parkHint = document.getElementById('guide-park-hint');
+  const parkHintText = document.getElementById('guide-park-hint-text');
+  if (parkVal && parkHint) {
+    const matched = fuzzyMatchParkName(parkVal);
+    if (matched && matched !== parkVal) {
+      parkHint.style.display = 'block';
+      if (parkHintText) parkHintText.textContent = matched;
+    } else {
+      parkHint.style.display = 'none';
+    }
+  } else if (parkHint) {
+    parkHint.style.display = 'none';
+  }
+
+  // 模组匹配提示
+  const modHint = document.getElementById('guide-mod-hint');
+  const modHintText = document.getElementById('guide-mod-hint-text');
+  if (modVal && modHint) {
+    const matched = fuzzyMatchModName(modVal);
+    if (matched && matched !== modVal) {
+      modHint.style.display = 'block';
+      if (modHintText) modHintText.textContent = matched;
+    } else {
+      modHint.style.display = 'none';
+    }
+  } else if (modHint) {
+    modHint.style.display = 'none';
+  }
+
+  // 归一化后用于预览
+  const finalPark = fuzzyMatchParkName(parkVal) || parkVal;
+  const finalMod  = fuzzyMatchModName(modVal)   || modVal;
+  guidePark = finalPark;
+  guideModule = finalMod;
+
   const info = document.getElementById('guide-selected-info');
   const btn = document.getElementById('guide-confirm-btn');
-  if (guidePark && guideModule) {
+  if (parkVal && modVal) {
     info.style.display = 'block';
-    info.textContent = '✅ ' + guidePark + ' · ' + guideModule;
+    info.textContent = '✅ ' + finalPark + ' · ' + finalMod;
     btn.disabled = false;
     btn.style.opacity = '1';
     btn.style.cursor = 'pointer';
@@ -2327,8 +2407,9 @@ function confirmGuide() {
   const parkVal = (document.getElementById('guide-park-input').value || '').trim();
   const modVal = (document.getElementById('guide-module-input').value || '').trim();
   if (!parkVal || !modVal) { showTip('请填写园区和模组名称'); return; }
-  currentPark = parkVal;
-  currentModule = modVal;
+  // 归一化：有匹配则用标准名，否则原样
+  currentPark = fuzzyMatchParkName(parkVal) || parkVal;
+  currentModule = fuzzyMatchModName(modVal) || modVal;
   document.getElementById('selectGuideModal').classList.add('hidden');
   renderAllTasks();
   // 新建后刷新下拉选择器，选中新建的园区/模组

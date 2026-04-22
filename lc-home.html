@@ -325,18 +325,24 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
     <div class="modal-body">
       <div style="margin-bottom:16px;">
         <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:600;">园区名称</div>
-        <input id="nm-park-input" type="text" placeholder="例：重庆·泰和" oninput="updateNmSubmitBtn()"
+        <input id="nm-park-input" type="text" placeholder="例：重庆泰和 / cq-taihe / 泰和" oninput="updateNmSubmitBtn()"
           style="width:100%;box-sizing:border-box;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#e2e8f0;font-size:14px;outline:none;transition:border-color .2s;"
           onfocus="this.style.borderColor='rgba(6,182,212,.5)'" onblur="this.style.borderColor='rgba(255,255,255,.15)'"
         />
+        <div id="nm-park-hint" style="display:none;margin-top:6px;padding:6px 10px;border-radius:7px;background:rgba(6,182,212,.12);border:1px solid rgba(6,182,212,.3);font-size:12px;color:#67e8f9;">
+          ✅ 将匹配为：<span id="nm-park-hint-text"></span>
+        </div>
       </div>
       <div style="margin-bottom:24px;">
         <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:600;">模组名称</div>
-        <input id="nm-mod-input" type="text" placeholder="例：模组01" oninput="updateNmSubmitBtn()"
+        <input id="nm-mod-input" type="text" placeholder="例：01 / 模组01 / module01" oninput="updateNmSubmitBtn()"
           style="width:100%;box-sizing:border-box;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#e2e8f0;font-size:14px;outline:none;transition:border-color .2s;"
           onfocus="this.style.borderColor='rgba(6,182,212,.5)'" onblur="this.style.borderColor='rgba(255,255,255,.15)'"
           onkeydown="if(event.key==='Enter')submitNewMod()"
         />
+        <div id="nm-mod-hint" style="display:none;margin-top:6px;padding:6px 10px;border-radius:7px;background:rgba(6,182,212,.12);border:1px solid rgba(6,182,212,.3);font-size:12px;color:#67e8f9;">
+          ✅ 将匹配为：<span id="nm-mod-hint-text"></span>
+        </div>
       </div>
       <button id="nm-submit-btn" onclick="submitNewMod()" disabled style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;border-radius:12px;background:rgba(6,182,212,.08);color:#64748b;border:1px solid rgba(255,255,255,.08);font-size:14px;font-weight:700;cursor:not-allowed;transition:all .2s;">
         ❄️ 开始投产
@@ -1414,11 +1420,95 @@ function openNewModModal() {
   setTimeout(() => document.getElementById('nm-park-input').focus(), 100);
 }
 
+// =============================================
+//  模糊匹配归一化函数
+// =============================================
+
+// 园区模糊匹配：返回标准显示名称，匹配不到返回null
+function fuzzyMatchPark(input) {
+  if (!input) return null;
+  const s = input.trim().toLowerCase().replace(/[\s·\-_]/g, '');
+
+  // 先精确匹配parkKey
+  for (const [key, name] of Object.entries(PARKS)) {
+    if (s === key.toLowerCase().replace(/[\s·\-_]/g, '')) return name;
+  }
+  // 再匹配标准名称（去除分隔符）
+  for (const [key, name] of Object.entries(PARKS)) {
+    const normName = name.toLowerCase().replace(/[\s·\-_]/g, '');
+    if (s === normName) return name;
+  }
+  // 模糊包含匹配（输入是标准名/key的子串，或标准名/key包含输入）
+  for (const [key, name] of Object.entries(PARKS)) {
+    const normKey  = key.toLowerCase().replace(/[\s·\-_]/g, '');
+    const normName = name.toLowerCase().replace(/[\s·\-_]/g, '');
+    if (normKey.includes(s) || normName.includes(s) || s.includes(normKey) || s.includes(normName)) {
+      return name;
+    }
+  }
+  return null; // 未匹配到任何预设，原样返回用户输入
+}
+
+// 模组模糊匹配：返回标准模组名，匹配不到返回null
+function fuzzyMatchMod(input) {
+  if (!input) return null;
+  const s = input.trim().toLowerCase().replace(/[\s模组module]/g, '');
+  // 收集所有唯一模组名
+  const allMods = new Set();
+  Object.values(PARK_MODULES).forEach(mods => mods.forEach(m => allMods.add(m)));
+  // 精确匹配
+  for (const m of allMods) {
+    if (input.trim() === m) return m;
+  }
+  // 提取数字后匹配
+  for (const m of allMods) {
+    const mNum = m.replace(/[\s模组module]/gi, '').toLowerCase();
+    if (s === mNum) return m;
+  }
+  // 模糊包含
+  for (const m of allMods) {
+    const mNum = m.replace(/[\s模组module]/gi, '').toLowerCase();
+    if (s.includes(mNum) || mNum.includes(s)) return m;
+  }
+  return null;
+}
+
 function updateNmSubmitBtn() {
-  const park = (document.getElementById('nm-park-input').value || '').trim();
-  const mod  = (document.getElementById('nm-mod-input').value  || '').trim();
+  const parkRaw = (document.getElementById('nm-park-input').value || '').trim();
+  const modRaw  = (document.getElementById('nm-mod-input').value  || '').trim();
+
+  // 园区匹配提示
+  const parkHint = document.getElementById('nm-park-hint');
+  const parkHintText = document.getElementById('nm-park-hint-text');
+  if (parkRaw) {
+    const matched = fuzzyMatchPark(parkRaw);
+    if (matched && matched !== parkRaw) {
+      parkHint.style.display = 'block';
+      parkHintText.textContent = matched;
+    } else {
+      parkHint.style.display = 'none';
+    }
+  } else {
+    parkHint.style.display = 'none';
+  }
+
+  // 模组匹配提示
+  const modHint = document.getElementById('nm-mod-hint');
+  const modHintText = document.getElementById('nm-mod-hint-text');
+  if (modRaw) {
+    const matched = fuzzyMatchMod(modRaw);
+    if (matched && matched !== modRaw) {
+      modHint.style.display = 'block';
+      modHintText.textContent = matched;
+    } else {
+      modHint.style.display = 'none';
+    }
+  } else {
+    modHint.style.display = 'none';
+  }
+
   const btn  = document.getElementById('nm-submit-btn');
-  if (park && mod) {
+  if (parkRaw && modRaw) {
     btn.disabled = false;
     btn.style.background = 'linear-gradient(135deg,#0d7377,#06b6d4)';
     btn.style.color = '#fff';
@@ -1436,9 +1526,12 @@ function updateNmSubmitBtn() {
 }
 
 function submitNewMod() {
-  const park = (document.getElementById('nm-park-input').value || '').trim();
-  const mod  = (document.getElementById('nm-mod-input').value  || '').trim();
-  if (!park || !mod) return;
+  const parkRaw = (document.getElementById('nm-park-input').value || '').trim();
+  const modRaw  = (document.getElementById('nm-mod-input').value  || '').trim();
+  if (!parkRaw || !modRaw) return;
+  // 归一化：有匹配则用标准名，否则原样保存
+  const park = fuzzyMatchPark(parkRaw) || parkRaw;
+  const mod  = fuzzyMatchMod(modRaw)   || modRaw;
   closeNewModModal();
   localStorage.setItem('lc_goto_park', park);
   localStorage.setItem('lc_goto_mod', mod);
