@@ -3369,7 +3369,7 @@ function initPage() {
       if (statusEl) statusEl.innerHTML = `<div class="ss-dot" style="background:#22c55e"></div><span>${parkName} · ${modLabel}</span>`;
       document.getElementById('selectGuideModal').classList.add('hidden');
       renderAllTasks();
-      updateAllRings();
+      updateAllStats();
     }, 100);
     return;
   }
@@ -3387,7 +3387,7 @@ function initPage() {
     initSelectorDropdowns(lastPark, lastMod);
     document.getElementById('selectGuideModal').classList.add('hidden');
     renderAllTasks();
-    updateAllRings();
+    updateAllStats();
     return;
   }
 
@@ -3398,7 +3398,7 @@ function initPage() {
     initSelectorDropdowns(lastPark, '');
     document.getElementById('selectGuideModal').classList.add('hidden');
     renderAllTasks();
-    updateAllRings();
+    updateAllStats();
     return;
   }
 
