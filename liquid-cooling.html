@@ -3292,6 +3292,41 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+<!-- 清除cq-taihe数据的工具函数 -->
+<script>
+function clearCqTaiheData() {
+  if (!confirm('确定要清除重庆泰和(cq-taihe)的所有数据吗？此操作不可恢复！')) return;
+  let deleted = [];
+  for (let i = localStorage.length - 1; i >= 0; i--) {
+    const key = localStorage.key(i);
+    if (!key) continue;
+    if (key.includes('cq-taihe') || key.includes('cq_taihe') || key.includes('重庆·泰和') || key.includes('重庆泰和')) {
+      deleted.push(key);
+      localStorage.removeItem(key);
+    }
+  }
+  alert('✅ 已删除 ' + deleted.length + ' 条记录！页面即将刷新。');
+  location.reload();
+}
+// 若URL带有 ?clearCqTaihe=1 参数，自动静默清除
+(function(){
+  const url = new URL(location.href);
+  if (url.searchParams.get('clearCqTaihe') === '1') {
+    let cnt = 0;
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (!key) continue;
+      if (key.includes('cq-taihe') || key.includes('cq_taihe') || key.includes('重庆·泰和') || key.includes('重庆泰和')) {
+        localStorage.removeItem(key); cnt++;
+      }
+    }
+    url.searchParams.delete('clearCqTaihe');
+    history.replaceState({}, '', url.toString());
+    console.log('✅ 已自动清除 cq-taihe 数据：' + cnt + ' 条');
+  }
+})();
+</script>
+
 <!-- 返回首页浮动按钮 -->
 <div style="position:fixed;bottom:24px;right:24px;z-index:999;">
   <a href="lc-home.html" style="display:flex;align-items:center;gap:8px;background:linear-gradient(135deg,#071e3d,#0f4c81);color:#93c5fd;border:1px solid rgba(96,165,250,.3);border-radius:20px;padding:10px 18px;font-size:13px;font-weight:600;text-decoration:none;box-shadow:0 4px 20px rgba(0,0,0,.3);transition:all .2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">
