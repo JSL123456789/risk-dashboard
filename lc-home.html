@@ -394,12 +394,12 @@ const PARK_MODULES = {
 //    keywords   - 识别关键词（用于自定义园区归属匹配）
 // =============================================
 const CITY_CONFIG = [
-  { key:'cq',  name:'重庆', province:'重庆', region:'southwest', icon:'🏙️', color:'#3b82f6', coords:[106.504962,29.533155], parks:['cq-taihe','cq-yunfu'],   keywords:['重庆','cq'] },
-  { key:'gz',  name:'贵州', province:'贵州', region:'southwest', icon:'🏔️', color:'#a78bfa', coords:[106.713478,26.578343], parks:['gz-guian','gz-guian32'], keywords:['贵州','贵安','gz'] },
-  { key:'cd',  name:'成都', province:'四川', region:'southwest', icon:'🌸', color:'#22c55e', coords:[104.065735,30.659462], parks:['cd-xiqu','cd-gaoxin'],   keywords:['成都','四川','cd'] },
-  { key:'gd',  name:'广东', province:'广东', region:'south',     icon:'🌴', color:'#f97316', coords:[113.280637,23.125178], parks:[],                         keywords:['广东','广州','深圳','清远','东莞','佛山','珠海','gd'] },
-  { key:'tj',  name:'天津', province:'天津', region:'north',     icon:'🌊', color:'#06b6d4', coords:[117.200983,39.084158], parks:[],                         keywords:['天津','tj','滨海'] },
-  { key:'sh',  name:'上海', province:'上海', region:'east',      icon:'🌆', color:'#f59e0b', coords:[121.473701,31.230416], parks:[],                         keywords:['上海','sh','宝信','沪'] },
+  { key:'cq',  name:'重庆', province:'重庆', region:'southwest', icon:'🏙️', color:'#3b82f6', coords:[106.504962,29.533155], parks:['cq-taihe','cq-yunfu'],   keywords:['重庆','cq','泰和','云福','chongqing'] },
+  { key:'gz',  name:'贵州', province:'贵州', region:'southwest', icon:'🏔️', color:'#a78bfa', coords:[106.713478,26.578343], parks:['gz-guian','gz-guian32'], keywords:['贵州','贵安','gz','七星','guian','guizhou'] },
+  { key:'cd',  name:'成都', province:'四川', region:'southwest', icon:'🌸', color:'#22c55e', coords:[104.065735,30.659462], parks:['cd-xiqu','cd-gaoxin'],   keywords:['成都','四川','cd','西区','高新','chengdu','sichuan'] },
+  { key:'gd',  name:'广东', province:'广东', region:'south',     icon:'🌴', color:'#f97316', coords:[113.280637,23.125178], parks:[],                         keywords:['广东','广州','深圳','清远','东莞','佛山','珠海','惠州','韶关','gd','guangdong','guangzhou','shenzhen'] },
+  { key:'tj',  name:'天津', province:'天津', region:'north',     icon:'🌊', color:'#06b6d4', coords:[117.200983,39.084158], parks:[],                         keywords:['天津','tj','滨海','tianjin','津'] },
+  { key:'sh',  name:'上海', province:'上海', region:'east',      icon:'🌆', color:'#f59e0b', coords:[121.473701,31.230416], parks:[],                         keywords:['上海','sh','宝信','沪','shanghai'] },
   // 如需新增城市，在此追加一行即可
 ];
 
@@ -575,10 +575,18 @@ const CITY_KEYWORD_MAP = CITY_CONFIG.map((c, idx) => ({
 }));
 
 function getCityGroupIdxForPark(parkKey) {
-  const name = (PARKS[parkKey] || parkKey).toLowerCase();
+  // 候选名称：预设中文名、原始key本身、去除符号的变体
+  const rawName  = PARKS[parkKey] || parkKey;
+  const stripped = rawName.replace(/[·\-_\s]/g, ''); // 去除符号，如 "重庆泰和"
+  const pkStrip  = parkKey.replace(/[·\-_\s]/g, '');
+  const candidates = [rawName.toLowerCase(), pkStrip.toLowerCase(), stripped.toLowerCase()];
+
   for (const entry of CITY_KEYWORD_MAP) {
-    if (entry.keywords.some(kw => name.includes(kw.toLowerCase()) || parkKey.toLowerCase().includes(kw.toLowerCase()))) {
-      return entry.groupIdx;
+    for (const kw of entry.keywords) {
+      const kwL = kw.toLowerCase();
+      if (candidates.some(c => c.includes(kwL) || kwL.includes(c))) {
+        return entry.groupIdx;
+      }
     }
   }
   return -1; // 无法归属，放入其他
