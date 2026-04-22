@@ -612,12 +612,33 @@ function getModuleStatus(park, mod) {
 // =============================================
 //  全局统计
 // =============================================
+// 只扫描 localStorage 中有实际数据的园区/模组（不含纯预设未建单的）
+function getActiveParksAndMods() {
+  const parkModMap = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key || !key.startsWith('lc_') || key.startsWith('lc_goto_')) continue;
+    const parsed = parseParkModFromKey(key);
+    if (!parsed) continue;
+    const { rawPark, mod } = parsed;
+    if (!rawPark || !mod) continue;
+    const park = normalizeParkKey(rawPark);
+    if (!parkModMap[park]) parkModMap[park] = new Set();
+    parkModMap[park].add(mod);
+  }
+  const result = {};
+  for (const [park, modSet] of Object.entries(parkModMap)) {
+    result[park] = Array.from(modSet);
+  }
+  return result;
+}
+
 function calcGlobalStats() {
-  // 直接复用 getAllParksAndMods()，已做归一化去重
-  const allParkMods = getAllParksAndMods();
-  const parkSet = new Set(Object.keys(allParkMods));
+  // 只统计 localStorage 中有实际数据的园区和模组
+  const activeParkMods = getActiveParksAndMods();
+  const parkSet = new Set(Object.keys(activeParkMods));
   const modSet = new Set();
-  for (const [park, mods] of Object.entries(allParkMods)) {
+  for (const [park, mods] of Object.entries(activeParkMods)) {
     mods.forEach(mod => modSet.add(park + '||' + mod));
   }
 
