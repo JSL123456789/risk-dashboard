@@ -292,9 +292,10 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
   <!-- 筛选栏 -->
   <div class="filter-bar">
     <span class="filter-label">筛选状态：</span>
-    <div class="filter-btn active" onclick="setFilter('active_done',this)" id="fbtn-all">🔧 进行中 + ✅ 已投产</div>
+    <div class="filter-btn" onclick="setFilter('active_done',this)" id="fbtn-all">🔧 进行中 + ✅ 已投产</div>
     <div class="filter-btn" onclick="setFilter('done',this)" id="fbtn-done">✅ 已投产</div>
     <div class="filter-btn" onclick="setFilter('active',this)" id="fbtn-active">🔧 进行中</div>
+    <div class="filter-btn active" onclick="setFilter('all',this)" id="fbtn-everything">📋 全部</div>
     <div style="flex:1;"></div>
     <button class="new-mod-btn" onclick="openNewModModal()">＋ 新建模组</button>
   </div>
@@ -437,7 +438,7 @@ const PHASE_SECTIONS = {
   ops:      ['section_ops-daily-temp','section_ops-water-test','section_ops-cp-install','section_ops-cdu-check','section_ops-pm-quarterly'],
 };
 
-let currentFilter = 'active_done';
+let currentFilter = 'all';
 
 // =============================================
 //  动态扫描：从 localStorage 获取所有实际存在的 park/mod
@@ -835,13 +836,20 @@ function renderCityGroups() {
 
   const { groups, allParkMods } = getAllCityGroups();
 
+  // 只含有实际数据或注册标记的 park/mod 集合（用于 all 模式过滤）
+  const activeParkMods = getActiveParksAndMods();
+  function hasRegistered(parkKey, mod) {
+    return (activeParkMods[parkKey] && activeParkMods[parkKey].includes(mod));
+  }
+
   // 判断模组是否应该在当前筛选条件下显示
   function modMatchFilter(parkKey, mod) {
     const st = getModuleStatus(parkKey, mod);
+    if (currentFilter === 'all') return hasRegistered(parkKey, mod); // 只显示已建单（含空模组）
     if (currentFilter === 'active_done') return st === 'active' || st === 'done';
     if (currentFilter === 'done') return st === 'done';
     if (currentFilter === 'active') return st === 'active';
-    return false;
+    return true;
   }
 
   // 按片区分组
@@ -1046,7 +1054,7 @@ function renderCityGroups() {
   });
 
   if (!anyVisible) {
-    const filterLabel = currentFilter === 'done' ? '已投产' : currentFilter === 'active' ? '进行中' : '进行中或已投产';
+    const filterLabel = currentFilter === 'done' ? '已投产' : currentFilter === 'active' ? '进行中' : currentFilter === 'active_done' ? '进行中或已投产' : '已建单';
     html = `<div class="empty-tip">
       <div class="et-icon">📭</div>
       <p style="margin-bottom:16px;">暂无「${filterLabel}」的模组记录</p>
