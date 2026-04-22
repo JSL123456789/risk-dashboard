@@ -3286,9 +3286,6 @@ function showPrintReport() {
 
 // 初始化
 document.addEventListener('DOMContentLoaded', function() {
-  // 初始化顶部下拉选择器
-  initSelectorDropdowns('', '');
-  renderAllTasks();
   // 自动修复子标签点击 – 用事件委托
   document.querySelectorAll('.sub-tab').forEach(btn => {
     btn.addEventListener('click', function(e) {
@@ -3300,46 +3297,53 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
+  initPage();
+});
+
+// 处理 bfcache 恢复（前进/后退缓存），确保刷新/返回时也重置状态
+window.addEventListener('pageshow', function(e) {
+  if (e.persisted) {
+    // 从 bfcache 恢复，重新初始化
+    currentPark = 'all';
+    currentModule = 'all';
+    initPage();
+  }
+});
+
+function initPage() {
   // ===== 从封面页跳转时自动选择园区/模组 =====
   const gotoPark = localStorage.getItem('lc_goto_park');
   const gotoMod = localStorage.getItem('lc_goto_mod');
-  if(gotoPark) {
+  if (gotoPark) {
     localStorage.removeItem('lc_goto_park');
     localStorage.removeItem('lc_goto_mod');
-    // 自动进入对应园区/模组
     const modToUse = gotoMod || null;
-    if(modToUse) {
-      localStorage.removeItem('lc_goto_mod');
-    }
     // 延迟执行，等待DOM就绪
-    setTimeout(()=>{
-      // 模拟选择
+    setTimeout(() => {
       currentPark = gotoPark;
       currentModule = modToUse || 'all';
       guidePark = gotoPark;
       guideModule = modToUse || 'all';
-      // 刷新下拉选择器
       initSelectorDropdowns(currentPark, currentModule !== 'all' ? currentModule : '');
-      // 找 PARKS 显示名
       const parkName = PARKS[gotoPark] || gotoPark;
       const modLabel = modToUse || '全部';
-      // 更新Header显示
-      if(document.getElementById('currentModuleLabel'))
+      if (document.getElementById('currentModuleLabel'))
         document.getElementById('currentModuleLabel').textContent = parkName + ' · ' + modLabel;
       const statusEl = document.getElementById('selectorStatusDot');
-      if(statusEl) statusEl.innerHTML = `<div class="ss-dot" style="background:#22c55e"></div><span>${parkName} · ${modLabel}</span>`;
-      // 隐藏引导弹窗
+      if (statusEl) statusEl.innerHTML = `<div class="ss-dot" style="background:#22c55e"></div><span>${parkName} · ${modLabel}</span>`;
       document.getElementById('selectGuideModal').classList.add('hidden');
-      // 重新渲染
       renderAllTasks();
       updateAllRings();
     }, 100);
-    return; // 不再显示引导弹窗
+    return;
   }
 
-  // ===== 默认不弹出引导弹窗，直接进入页面 =====
+  // ===== 默认：重置为空状态，不恢复上次选择 =====
+  currentPark = 'all';
+  currentModule = 'all';
   initSelectorDropdowns('', '');
-});
+  renderAllTasks();
+}
 </script>
 
 <!-- 清除cq-taihe数据的工具函数 -->
