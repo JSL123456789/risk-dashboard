@@ -3279,7 +3279,38 @@ document.addEventListener('DOMContentLoaded', function() {
     currentModule = defaultMod;
     guidePark = defaultPark;
     guideModule = defaultMod;
+
+    // 先更新下拉框（包含localStorage数据）
     initSelectorDropdowns(currentPark, currentModule);
+
+    // 如果下拉框里没有该园区（首次使用，无localStorage数据），手动添加选项并选中
+    const parkSelect = document.getElementById('park-input');
+    const modSelect = document.getElementById('module-input');
+    if (parkSelect) {
+      const existOpt = Array.from(parkSelect.options).find(o => o.value === defaultPark);
+      if (!existOpt) {
+        const opt = document.createElement('option');
+        opt.value = defaultPark;
+        opt.textContent = defaultPark;
+        opt.selected = true;
+        parkSelect.appendChild(opt);
+      } else {
+        parkSelect.value = defaultPark;
+      }
+    }
+    if (modSelect) {
+      const existOpt = Array.from(modSelect.options).find(o => o.value === defaultMod);
+      if (!existOpt) {
+        const opt = document.createElement('option');
+        opt.value = defaultMod;
+        opt.textContent = defaultMod;
+        opt.selected = true;
+        modSelect.appendChild(opt);
+      } else {
+        modSelect.value = defaultMod;
+      }
+    }
+
     const parkName = PARKS[defaultPark] || defaultPark;
     if(document.getElementById('currentModuleLabel'))
       document.getElementById('currentModuleLabel').textContent = parkName + ' · ' + defaultMod;
