@@ -3271,14 +3271,24 @@ document.addEventListener('DOMContentLoaded', function() {
     return; // 不再显示引导弹窗
   }
 
-  // 启动时弹出工作台选择界面
-  renderGuideRecordList();
-  // 若无已有记录，自动展开新建区域
-  const existingMods = getExistingModules();
-  if (!existingMods.length) {
-    showNewSection();
-  }
-  document.getElementById('selectGuideModal').classList.remove('hidden');
+  // ===== 默认直接进入重庆泰和·模组01，不弹出选择弹窗 =====
+  setTimeout(()=>{
+    const defaultPark = 'cq-taihe';
+    const defaultMod = '模组01';
+    currentPark = defaultPark;
+    currentModule = defaultMod;
+    guidePark = defaultPark;
+    guideModule = defaultMod;
+    initSelectorDropdowns(currentPark, currentModule);
+    const parkName = PARKS[defaultPark] || defaultPark;
+    if(document.getElementById('currentModuleLabel'))
+      document.getElementById('currentModuleLabel').textContent = parkName + ' · ' + defaultMod;
+    const statusEl = document.getElementById('selectorStatusDot');
+    if(statusEl) statusEl.innerHTML = `<div class="ss-dot" style="background:#22c55e"></div><span>${parkName} · ${defaultMod}</span>`;
+    document.getElementById('selectGuideModal').classList.add('hidden');
+    renderAllTasks();
+    updateAllRings();
+  }, 100);
 });
 </script>
 
