@@ -382,12 +382,13 @@ const PHASES = [
   { key:'ops',      label:'运维执行', icon:'⚙️', color:'#22c55e' },
 ];
 
-// 各阶段板块key列表（与liquid-cooling.html一致）
+// 各阶段板块key列表（与liquid-cooling.html的sectionKey完全对齐）
+// sectionKey = 'section_' + 该板块第一个tasks-容器的groupId
 const PHASE_SECTIONS = {
-  prep:     ['prep-ce','prep-uc','prep-env','prep-mt','prep-doc'],
-  build:    ['build-uc','build-mt','build-net','build-pwr','build-cool'],
-  handover: ['ho-check','ho-test','ho-sign'],
-  ops:      ['ops-daily','ops-alm','ops-doc'],
+  prep:     ['section_prep-civil-space','section_prep-mep-cooling','section_prep-mat-build','section_prep-team-qual'],
+  build:    ['section_build-unbox-cdu','section_build-pipe-pre','section_build-flush-wash','section_build-debug-single','section_build-qc-doc'],
+  handover: ['section_handover-docs-tech','section_handover-verify-cooling','section_handover-train-theory','section_handover-spare-key','section_handover-formal-confirm'],
+  ops:      ['section_ops-daily-temp','section_ops-water-test','section_ops-cp-install','section_ops-cdu-check','section_ops-pm-quarterly'],
 };
 
 let currentFilter = 'active_done';
