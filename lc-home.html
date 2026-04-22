@@ -130,12 +130,22 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .map-title-row{display:flex;align-items:center;gap:12px;padding:16px 0 10px;}
 .map-title-label{font-size:14px;font-weight:800;color:#67e8f9;letter-spacing:.5px;}
 .map-subtitle{font-size:12px;color:var(--muted);}
-.map-wrap{width:100%;height:380px;background:rgba(6,182,212,.015);border:1px solid rgba(6,182,212,.1);border-radius:16px;overflow:hidden;position:relative;}
-.map-wrap svg text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;}
+.map-wrap{width:100%;height:480px;background:rgba(6,182,212,.015);border:1px solid rgba(6,182,212,.1);border-radius:16px;overflow:hidden;position:relative;}
+#echarts-map{width:100%;height:100%;}
+
+/* 地图图例 */
+.map-legend{position:absolute;bottom:16px;left:20px;background:rgba(7,17,31,.88);border:1px solid rgba(6,182,212,.18);border-radius:12px;padding:12px 16px;display:flex;flex-direction:column;gap:7px;backdrop-filter:blur(8px);}
+.legend-title{font-size:11px;color:#67e8f9;font-weight:700;margin-bottom:2px;letter-spacing:.5px;}
+.legend-item{display:flex;align-items:center;gap:8px;font-size:11px;color:#cbd5e1;}
+.legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.legend-dot.done{background:#22c55e;box-shadow:0 0 6px rgba(34,197,94,.6);}
+.legend-dot.active{background:#3b82f6;box-shadow:0 0 6px rgba(59,130,246,.6);}
+.legend-dot.highlight{background:rgba(6,182,212,.3);border:1px solid rgba(6,182,212,.5);}
 
 @media(max-width:768px){
   .map-section{padding:0 16px 16px;}
-  .map-wrap{height:260px;}
+  .map-wrap{height:300px;}
+  .map-legend{bottom:10px;left:10px;padding:8px 12px;}
 }
 
 /* ===== 空状态 ===== */
@@ -192,6 +202,8 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:3px;}
 </style>
+<!-- ECharts 地图库 -->
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
 </head>
 <body>
 
@@ -253,171 +265,17 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
   <div class="map-inner">
     <div class="map-title-row">
       <span class="map-title-label">📍 全国园区分布</span>
-      <span class="map-subtitle">西南大区 · 重庆 / 贵州 / 成都</span>
+      <span class="map-subtitle">西南大区 · 重庆 / 贵州 / 成都 <span id="map-status-tip" style="color:#64748b;font-size:11px;margin-left:8px;"></span></span>
     </div>
-    <div class="map-wrap">
-      <!-- SVG 中国地图 -->
-      <svg id="china-map" viewBox="0 0 900 600" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;">
-        <defs>
-          <radialGradient id="mapGlow" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stop-color="#0d7377" stop-opacity="0.15"/>
-            <stop offset="100%" stop-color="#0d7377" stop-opacity="0"/>
-          </radialGradient>
-          <filter id="glow">
-            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-            <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
-          </filter>
-          <!-- 脉冲动画定义 -->
-          <style>
-            .pulse-ring{animation:pulseRing 2s ease-out infinite;}
-            .pulse-ring2{animation:pulseRing 2s ease-out infinite 0.6s;}
-            .pulse-ring3{animation:pulseRing 2s ease-out infinite 1.2s;}
-            @keyframes pulseRing{0%{r:8;opacity:.8;}100%{r:22;opacity:0;}}
-            .map-province{transition:fill .2s;}
-            .map-province:hover{fill:rgba(6,182,212,.18)!important;cursor:pointer;}
-            .city-dot{cursor:pointer;transition:all .15s;}
-            .city-dot:hover circle.dot-main{r:7;}
-          </style>
-        </defs>
-
-        <!-- 背景光晕 -->
-        <ellipse cx="430" cy="320" rx="260" ry="200" fill="url(#mapGlow)"/>
-
-        <!-- 中国地图省份轮廓（简化版SVG路径） -->
-        <!-- 新疆 -->
-        <path class="map-province" d="M80,60 L195,45 L230,75 L250,120 L240,165 L210,175 L195,215 L170,235 L140,225 L110,240 L85,230 L70,200 L55,170 L60,130 L75,95 Z" fill="rgba(6,182,212,.06)" stroke="rgba(6,182,212,.2)" stroke-width="0.8"/>
-        <!-- 西藏 -->
-        <path class="map-province" d="M150,260 L200,240 L250,250 L290,265 L310,285 L295,320 L270,335 L235,330 L200,345 L170,335 L145,315 L135,290 Z" fill="rgba(6,182,212,.06)" stroke="rgba(6,182,212,.2)" stroke-width="0.8"/>
-        <!-- 青海 -->
-        <path class="map-province" d="M240,175 L285,165 L320,175 L340,200 L330,235 L305,250 L270,255 L245,245 L230,225 L225,200 Z" fill="rgba(6,182,212,.06)" stroke="rgba(6,182,212,.2)" stroke-width="0.8"/>
-        <!-- 甘肃 -->
-        <path class="map-province" d="M245,125 L305,105 L345,110 L365,135 L355,165 L330,175 L295,175 L265,175 L240,165 L235,140 Z" fill="rgba(6,182,212,.06)" stroke="rgba(6,182,212,.2)" stroke-width="0.8"/>
-        <!-- 内蒙古 -->
-        <path class="map-province" d="M195,45 L285,30 L380,35 L450,25 L500,45 L510,70 L480,85 L445,80 L400,95 L360,100 L320,95 L285,105 L250,115 L230,95 L210,80 Z" fill="rgba(6,182,212,.06)" stroke="rgba(6,182,212,.2)" stroke-width="0.8"/>
-        <!-- 黑龙江 -->
-        <path class="map-province" d="M590,30 L655,20 L700,35 L720,65 L705,100 L670,115 L635,110 L605,95 L585,70 Z" fill="rgba(6,182,212,.06)" stroke="rgba(6,182,212,.2)" stroke-width="0.8"/>
-        <!-- 吉林 -->
-        <path class="map-province" d="M605,100 L650,92 L685,100 L700,125 L680,145 L650,150 L620,140 L600,120 Z" fill="rgba(6,182,212,.06)" stroke="rgba(6,182,212,.2)" stroke-width="0.8"/>
-        <!-- 辽宁 -->
-        <path class="map-province" d="M560,120 L605,108 L630,120 L645,145 L625,165 L595,170 L565,160 L545,140 Z" fill="rgba(6,182,212,.06)" stroke="rgba(6,182,212,.2)" stroke-width="0.8"/>
-        <!-- 河北+北京+天津 -->
-        <path class="map-province" d="M480,90 L540,82 L565,95 L570,130 L550,150 L520,155 L490,145 L470,125 L465,105 Z" fill="rgba(6,182,212,.06)" stroke="rgba(6,182,212,.2)" stroke-width="0.8"/>
-        <!-- 山东 -->
-        <path class="map-province" d="M535,150 L580,143 L620,155 L625,180 L600,200 L560,205 L530,190 L520,170 Z" fill="rgba(6,182,212,.06)" stroke="rgba(6,182,212,.2)" stroke-width="0.8"/>
-        <!-- 山西 -->
-        <path class="map-province" d="M455,105 L490,100 L510,115 L515,150 L495,170 L465,170 L445,150 L440,125 Z" fill="rgba(6,182,212,.06)" stroke="rgba(6,182,212,.2)" stroke-width="0.8"/>
-        <!-- 陕西 -->
-        <path class="map-province" d="M380,110 L420,105 L450,115 L455,155 L445,185 L415,200 L385,195 L365,175 L360,145 Z" fill="rgba(6,182,212,.06)" stroke="rgba(6,182,212,.2)" stroke-width="0.8"/>
-        <!-- 宁夏 -->
-        <path class="map-province" d="M360,110 L385,105 L395,125 L385,150 L360,155 L345,135 Z" fill="rgba(6,182,212,.06)" stroke="rgba(6,182,212,.2)" stroke-width="0.8"/>
-        <!-- 河南 -->
-        <path class="map-province" d="M450,170 L500,162 L540,170 L545,205 L520,225 L480,230 L450,215 L440,195 Z" fill="rgba(6,182,212,.06)" stroke="rgba(6,182,212,.2)" stroke-width="0.8"/>
-        <!-- 安徽 -->
-        <path class="map-province" d="M540,180 L580,175 L610,190 L615,225 L590,250 L555,255 L530,240 L520,215 Z" fill="rgba(6,182,212,.06)" stroke="rgba(6,182,212,.2)" stroke-width="0.8"/>
-        <!-- 江苏+上海 -->
-        <path class="map-province" d="M570,155 L620,150 L655,160 L665,195 L645,220 L615,225 L585,215 L565,195 Z" fill="rgba(6,182,212,.06)" stroke="rgba(6,182,212,.2)" stroke-width="0.8"/>
-        <!-- 浙江 -->
-        <path class="map-province" d="M600,220 L645,215 L675,230 L680,265 L655,285 L620,280 L595,260 Z" fill="rgba(6,182,212,.06)" stroke="rgba(6,182,212,.2)" stroke-width="0.8"/>
-        <!-- 江西 -->
-        <path class="map-province" d="M555,255 L595,248 L625,260 L635,295 L615,325 L580,335 L550,320 L535,295 Z" fill="rgba(6,182,212,.06)" stroke="rgba(6,182,212,.2)" stroke-width="0.8"/>
-        <!-- 福建 -->
-        <path class="map-province" d="M620,268 L660,260 L695,275 L700,315 L675,340 L640,340 L615,320 Z" fill="rgba(6,182,212,.06)" stroke="rgba(6,182,212,.2)" stroke-width="0.8"/>
-        <!-- 湖北 -->
-        <path class="map-province" d="M450,220 L510,215 L550,228 L555,265 L525,280 L485,280 L450,265 L435,245 Z" fill="rgba(6,182,212,.06)" stroke="rgba(6,182,212,.2)" stroke-width="0.8"/>
-        <!-- 湖南 -->
-        <path class="map-province" d="M450,270 L490,265 L530,272 L540,310 L515,340 L480,350 L450,338 L430,315 L428,290 Z" fill="rgba(6,182,212,.06)" stroke="rgba(6,182,212,.2)" stroke-width="0.8"/>
-        <!-- 四川（含标注点） -->
-        <path class="map-province" id="prov-sc" d="M295,200 L345,185 L385,195 L415,205 L430,235 L425,270 L400,295 L365,300 L330,295 L295,280 L275,255 L275,225 Z" fill="rgba(6,182,212,.08)" stroke="rgba(6,182,212,.3)" stroke-width="1"/>
-        <!-- 重庆（高亮） -->
-        <path class="map-province" id="prov-cq" d="M428,240 L455,232 L468,250 L462,272 L440,280 L420,272 L415,255 Z" fill="rgba(251,191,36,.12)" stroke="rgba(251,191,36,.5)" stroke-width="1.2"/>
-        <!-- 云南 -->
-        <path class="map-province" d="M300,295 L345,290 L390,300 L415,325 L410,365 L380,385 L345,380 L305,360 L285,330 Z" fill="rgba(6,182,212,.06)" stroke="rgba(6,182,212,.2)" stroke-width="0.8"/>
-        <!-- 贵州（高亮） -->
-        <path class="map-province" id="prov-gz" d="M415,298 L455,290 L490,300 L500,325 L480,345 L445,350 L415,340 L400,318 Z" fill="rgba(167,139,250,.12)" stroke="rgba(167,139,250,.5)" stroke-width="1.2"/>
-        <!-- 广西 -->
-        <path class="map-province" d="M415,345 L455,340 L500,345 L525,370 L515,405 L480,420 L440,415 L405,395 L395,368 Z" fill="rgba(6,182,212,.06)" stroke="rgba(6,182,212,.2)" stroke-width="0.8"/>
-        <!-- 广东 -->
-        <path class="map-province" d="M510,340 L555,330 L600,335 L635,355 L635,390 L605,415 L565,420 L525,405 Z" fill="rgba(6,182,212,.06)" stroke="rgba(6,182,212,.2)" stroke-width="0.8"/>
-        <!-- 海南 -->
-        <path class="map-province" d="M530,435 L560,430 L575,450 L565,470 L540,472 L520,455 Z" fill="rgba(6,182,212,.06)" stroke="rgba(6,182,212,.2)" stroke-width="0.8"/>
-        <!-- 台湾 -->
-        <path class="map-province" d="M685,340 L700,330 L715,345 L715,375 L700,390 L682,380 Z" fill="rgba(6,182,212,.06)" stroke="rgba(6,182,212,.2)" stroke-width="0.8"/>
-
-        <!-- 南海虚线框 -->
-        <rect x="660" y="390" width="80" height="105" rx="4" fill="none" stroke="rgba(6,182,212,.2)" stroke-width="0.8" stroke-dasharray="4,3"/>
-        <text x="700" y="450" text-anchor="middle" font-size="9" fill="rgba(6,182,212,.4)">南海诸岛</text>
-
-        <!-- ============ 城市标注点 ============ -->
-
-        <!-- 重庆 CQ (cx≈445, cy≈258) -->
-        <g class="city-dot" onclick="onMapCityClick('cq')" transform="translate(445,258)">
-          <circle class="pulse-ring" cx="0" cy="0" r="8" fill="none" stroke="#fbbf24" stroke-width="1.5" opacity=".7"/>
-          <circle class="pulse-ring2" cx="0" cy="0" r="8" fill="none" stroke="#fbbf24" stroke-width="1.5" opacity=".7"/>
-          <circle cx="0" cy="0" r="6" fill="rgba(251,191,36,.15)" stroke="#fbbf24" stroke-width="1.5" class="dot-main"/>
-          <circle cx="0" cy="0" r="2.5" fill="#fbbf24"/>
-          <!-- 城市标签 -->
-          <rect x="8" y="-11" width="52" height="20" rx="5" fill="rgba(7,17,31,.85)" stroke="#fbbf24" stroke-width="0.8" opacity=".9"/>
-          <text x="34" y="2" text-anchor="middle" font-size="10" font-weight="700" fill="#fbbf24">🏙️ 重庆</text>
-        </g>
-
-        <!-- 贵阳 GZ (cx≈453, cy≈318) -->
-        <g class="city-dot" onclick="onMapCityClick('gz')" transform="translate(453,318)">
-          <circle class="pulse-ring" cx="0" cy="0" r="8" fill="none" stroke="#a78bfa" stroke-width="1.5" opacity=".7"/>
-          <circle class="pulse-ring2" cx="0" cy="0" r="8" fill="none" stroke="#a78bfa" stroke-width="1.5" opacity=".7"/>
-          <circle cx="0" cy="0" r="6" fill="rgba(167,139,250,.15)" stroke="#a78bfa" stroke-width="1.5" class="dot-main"/>
-          <circle cx="0" cy="0" r="2.5" fill="#a78bfa"/>
-          <rect x="8" y="-11" width="52" height="20" rx="5" fill="rgba(7,17,31,.85)" stroke="#a78bfa" stroke-width="0.8" opacity=".9"/>
-          <text x="34" y="2" text-anchor="middle" font-size="10" font-weight="700" fill="#a78bfa">🏔️ 贵州</text>
-        </g>
-
-        <!-- 成都 CD (cx≈350, cy≈248) -->
-        <g class="city-dot" onclick="onMapCityClick('cd')" transform="translate(350,248)">
-          <circle class="pulse-ring" cx="0" cy="0" r="8" fill="none" stroke="#34d399" stroke-width="1.5" opacity=".7"/>
-          <circle class="pulse-ring2" cx="0" cy="0" r="8" fill="none" stroke="#34d399" stroke-width="1.5" opacity=".7"/>
-          <circle cx="0" cy="0" r="6" fill="rgba(52,211,153,.15)" stroke="#34d399" stroke-width="1.5" class="dot-main"/>
-          <circle cx="0" cy="0" r="2.5" fill="#34d399"/>
-          <rect x="-62" y="-11" width="52" height="20" rx="5" fill="rgba(7,17,31,.85)" stroke="#34d399" stroke-width="0.8" opacity=".9"/>
-          <text x="-36" y="2" text-anchor="middle" font-size="10" font-weight="700" fill="#34d399">🌸 成都</text>
-        </g>
-
-        <!-- 连线：成都→重庆 -->
-        <line x1="350" y1="248" x2="445" y2="258" stroke="rgba(6,182,212,.25)" stroke-width="1" stroke-dasharray="4,3"/>
-        <!-- 连线：重庆→贵州 -->
-        <line x1="445" y1="258" x2="453" y2="318" stroke="rgba(6,182,212,.25)" stroke-width="1" stroke-dasharray="4,3"/>
-
-        <!-- 右侧图例 -->
-        <g transform="translate(730,180)">
-          <rect x="0" y="0" width="130" height="110" rx="8" fill="rgba(13,30,51,.9)" stroke="rgba(6,182,212,.2)" stroke-width="0.8"/>
-          <text x="10" y="18" font-size="10" font-weight="700" fill="#67e8f9">📌 园区图例</text>
-          <!-- 重庆 -->
-          <circle cx="16" cy="34" r="5" fill="rgba(251,191,36,.2)" stroke="#fbbf24" stroke-width="1.2"/>
-          <circle cx="16" cy="34" r="2" fill="#fbbf24"/>
-          <text x="26" y="38" font-size="10" fill="#e2e8f0" font-weight="600">重庆</text>
-          <text x="65" y="38" font-size="9" fill="#fbbf24" id="legend-cq-count">-</text>
-          <!-- 贵州 -->
-          <circle cx="16" cy="56" r="5" fill="rgba(167,139,250,.2)" stroke="#a78bfa" stroke-width="1.2"/>
-          <circle cx="16" cy="56" r="2" fill="#a78bfa"/>
-          <text x="26" y="60" font-size="10" fill="#e2e8f0" font-weight="600">贵州</text>
-          <text x="65" y="60" font-size="9" fill="#a78bfa" id="legend-gz-count">-</text>
-          <!-- 成都 -->
-          <circle cx="16" cy="78" r="5" fill="rgba(52,211,153,.2)" stroke="#34d399" stroke-width="1.2"/>
-          <circle cx="16" cy="78" r="2" fill="#34d399"/>
-          <text x="26" y="82" font-size="10" fill="#e2e8f0" font-weight="600">成都</text>
-          <text x="65" y="82" font-size="9" fill="#34d399" id="legend-cd-count">-</text>
-          <!-- 说明 -->
-          <text x="10" y="102" font-size="9" fill="rgba(100,116,139,.8)">点击城市标注查看详情</text>
-        </g>
-
-        <!-- 指南针 -->
-        <g transform="translate(820,60)">
-          <circle cx="0" cy="0" r="18" fill="rgba(13,30,51,.8)" stroke="rgba(6,182,212,.2)" stroke-width="0.8"/>
-          <text x="0" y="-6" text-anchor="middle" font-size="9" fill="#67e8f9" font-weight="700">N</text>
-          <polygon points="0,-14 3,-2 0,-5 -3,-2" fill="#06b6d4"/>
-          <polygon points="0,14 3,2 0,5 -3,2" fill="rgba(100,116,139,.5)"/>
-          <polygon points="-14,0 -2,-3 -5,0 -2,3" fill="rgba(100,116,139,.5)"/>
-          <polygon points="14,0 2,-3 5,0 2,3" fill="rgba(100,116,139,.5)"/>
-        </g>
-      </svg>
+    <div class="map-wrap" style="position:relative;">
+      <div id="echarts-map"></div>
+      <!-- 底部图例 -->
+      <div class="map-legend">
+        <div class="legend-title">📌 园区状态</div>
+        <div class="legend-item"><span class="legend-dot done"></span> 已投产园区</div>
+        <div class="legend-item"><span class="legend-dot active"></span> 进行中园区</div>
+        <div class="legend-item"><span class="legend-dot highlight"></span> 重点区域省份</div>
+      </div>
     </div>
   </div>
 </div>
@@ -1052,8 +910,10 @@ function closeModal() {
 }
 
 // =============================================
-//  地图交互
+//  ECharts 地图
 // =============================================
+let echartsInstance = null;
+
 // 城市到园区的映射
 const CITY_PARK_MAP = {
   'cq': ['cq-taihe','cq-yunfu'],
@@ -1061,28 +921,321 @@ const CITY_PARK_MAP = {
   'cd': ['cd-xiqu','cd-gaoxin'],
 };
 
+// 各城市中心坐标（经度, 纬度）
+const CITY_COORDS = {
+  'cq': [106.504962, 29.533155],  // 重庆
+  'gz': [106.713478, 26.578343],  // 贵阳
+  'cd': [104.065735, 30.659462],  // 成都
+};
+
+const CITY_LABELS = { cq:'重庆', gz:'贵州', cd:'成都' };
+
+// 省份名称映射（用于ECharts地图数据）
+const HIGHLIGHT_PROVINCES = ['重庆', '贵州', '四川'];
+
+function calcCityStats() {
+  const allParkMods = getAllParksAndMods();
+  const stats = {};
+  for (const [cityKey, parks] of Object.entries(CITY_PARK_MAP)) {
+    let done=0, active=0, total=0;
+    parks.forEach(pk => {
+      (allParkMods[pk]||[]).forEach(mod => {
+        const st = getModuleStatus(pk, mod);
+        if (st === 'notstart') return; // 只统计有进度的
+        total++;
+        if (st === 'done') done++;
+        else if (st === 'active') active++;
+      });
+    });
+    stats[cityKey] = { done, active, total };
+  }
+  return stats;
+}
+
+function initEchartsMap() {
+  const dom = document.getElementById('echarts-map');
+  if (!dom) return;
+
+  // 如果ECharts未加载，显示提示
+  if (typeof echarts === 'undefined') {
+    dom.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#64748b;font-size:14px;">🗺️ 地图加载中...</div>';
+    return;
+  }
+
+  if (echartsInstance) {
+    echartsInstance.dispose();
+  }
+  echartsInstance = echarts.init(dom, null, { renderer: 'canvas' });
+
+  const cityStats = calcCityStats();
+
+  // 构建散点数据：各城市标注点
+  const scatterDone = [];   // 已投产城市
+  const scatterActive = []; // 进行中城市
+
+  for (const [cityKey, coords] of Object.entries(CITY_COORDS)) {
+    const s = cityStats[cityKey] || { done:0, active:0, total:0 };
+    const label = CITY_LABELS[cityKey];
+    const tipLines = [];
+    if (s.done > 0) tipLines.push(`✅ 已投产 ${s.done} 个模组`);
+    if (s.active > 0) tipLines.push(`🔧 进行中 ${s.active} 个模组`);
+    if (tipLines.length === 0) tipLines.push('暂无进度数据');
+
+    const point = {
+      name: label,
+      value: [...coords, s.total],
+      cityKey,
+      tooltip: tipLines.join('\n'),
+      doneCount: s.done,
+      activeCount: s.active,
+    };
+
+    if (s.done > 0 && s.active === 0) {
+      scatterDone.push(point);
+    } else if (s.active > 0 || s.done > 0) {
+      scatterActive.push(point);
+    } else {
+      // 无进度也显示灰色点（可选隐藏）
+    }
+  }
+
+  const option = {
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger: 'item',
+      backgroundColor: 'rgba(7,17,31,0.92)',
+      borderColor: 'rgba(6,182,212,0.3)',
+      borderWidth: 1,
+      textStyle: { color: '#e2e8f0', fontSize: 12, fontFamily: '-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif' },
+      padding: [10, 14],
+      formatter: function(params) {
+        if (params.seriesType === 'map') {
+          const name = params.name;
+          if (HIGHLIGHT_PROVINCES.includes(name)) {
+            const cityKey = name === '重庆' ? 'cq' : name === '贵州' ? 'gz' : 'cd';
+            const s = cityStats[cityKey] || {};
+            return `<div style="font-weight:700;color:#67e8f9;margin-bottom:6px;">📍 ${name}</div>
+              <div style="color:#4ade80;">✅ 已投产：${s.done||0} 个模组</div>
+              <div style="color:#60a5fa;">🔧 进行中：${s.active||0} 个模组</div>
+              <div style="color:#94a3b8;margin-top:4px;font-size:11px;">点击查看详情</div>`;
+          }
+          return `<span style="color:#64748b;">${name}</span>`;
+        }
+        if (params.data) {
+          const d = params.data;
+          return `<div style="font-weight:700;color:#67e8f9;margin-bottom:6px;">📍 ${d.name}</div>
+            <div>${d.tooltip.replace(/\n/g,'<br/>')}</div>
+            <div style="color:#94a3b8;margin-top:4px;font-size:11px;">点击查看园区详情</div>`;
+        }
+        return '';
+      }
+    },
+    geo: {
+      map: 'china',
+      roam: false,
+      center: [104, 32],
+      zoom: 1.15,
+      aspectScale: 0.75,
+      silent: false,
+      label: {
+        show: true,
+        fontSize: 10,
+        color: 'rgba(148,163,184,0.7)',
+        formatter: function(params) {
+          if (HIGHLIGHT_PROVINCES.includes(params.name)) return params.name;
+          return '';
+        }
+      },
+      emphasis: {
+        label: { show: true, color: '#67e8f9', fontSize: 11, fontWeight: 700 },
+        itemStyle: { areaColor: 'rgba(6,182,212,0.2)', borderColor: 'rgba(6,182,212,0.6)', borderWidth: 1.5 }
+      },
+      itemStyle: {
+        areaColor: 'rgba(11,30,55,0.85)',
+        borderColor: 'rgba(6,182,212,0.18)',
+        borderWidth: 0.8,
+      },
+      regions: [
+        {
+          name: '重庆',
+          itemStyle: { areaColor: 'rgba(59,130,246,0.18)', borderColor: 'rgba(59,130,246,0.5)', borderWidth: 1.2 },
+          label: { show: true, color: '#93c5fd', fontSize: 11, fontWeight: 700 }
+        },
+        {
+          name: '贵州',
+          itemStyle: { areaColor: 'rgba(167,139,250,0.18)', borderColor: 'rgba(167,139,250,0.5)', borderWidth: 1.2 },
+          label: { show: true, color: '#c4b5fd', fontSize: 11, fontWeight: 700 }
+        },
+        {
+          name: '四川',
+          itemStyle: { areaColor: 'rgba(34,197,94,0.12)', borderColor: 'rgba(34,197,94,0.4)', borderWidth: 1.2 },
+          label: { show: true, color: '#86efac', fontSize: 11, fontWeight: 700 }
+        },
+      ]
+    },
+    series: [
+      // 地图系列（用于tooltip和点击）
+      {
+        type: 'map',
+        map: 'china',
+        geoIndex: 0,
+        data: [],
+        silent: false,
+      },
+      // 已投产城市标注（绿色）
+      {
+        type: 'effectScatter',
+        coordinateSystem: 'geo',
+        name: '已投产',
+        data: scatterDone,
+        symbolSize: 14,
+        rippleEffect: {
+          brushType: 'stroke',
+          scale: 3.5,
+          period: 3,
+        },
+        itemStyle: {
+          color: '#22c55e',
+          shadowBlur: 12,
+          shadowColor: 'rgba(34,197,94,0.8)',
+        },
+        label: {
+          show: true,
+          formatter: '{b}',
+          position: 'right',
+          fontSize: 11,
+          fontWeight: 700,
+          color: '#4ade80',
+          textBorderColor: 'rgba(7,17,31,0.8)',
+          textBorderWidth: 2,
+        },
+        emphasis: { scale: true },
+        zlevel: 5,
+      },
+      // 进行中城市标注（蓝色）
+      {
+        type: 'effectScatter',
+        coordinateSystem: 'geo',
+        name: '进行中',
+        data: scatterActive,
+        symbolSize: 14,
+        rippleEffect: {
+          brushType: 'stroke',
+          scale: 3.5,
+          period: 2.5,
+        },
+        itemStyle: {
+          color: '#3b82f6',
+          shadowBlur: 12,
+          shadowColor: 'rgba(59,130,246,0.8)',
+        },
+        label: {
+          show: true,
+          formatter: '{b}',
+          position: 'right',
+          fontSize: 11,
+          fontWeight: 700,
+          color: '#93c5fd',
+          textBorderColor: 'rgba(7,17,31,0.8)',
+          textBorderWidth: 2,
+        },
+        emphasis: { scale: true },
+        zlevel: 5,
+      },
+    ]
+  };
+
+  echartsInstance.setOption(option);
+
+  // 点击事件：省份或散点
+  echartsInstance.on('click', function(params) {
+    if (params.componentType === 'geo' || params.seriesType === 'map') {
+      const name = params.name;
+      if (name === '重庆') onMapCityClick('cq');
+      else if (name === '贵州') onMapCityClick('gz');
+      else if (name === '四川') onMapCityClick('cd');
+    } else if (params.seriesType === 'effectScatter') {
+      if (params.data && params.data.cityKey) {
+        onMapCityClick(params.data.cityKey);
+      }
+    }
+  });
+
+  // 响应窗口缩放
+  window.addEventListener('resize', () => {
+    if (echartsInstance) echartsInstance.resize();
+  });
+}
+
 function onMapCityClick(cityKey) {
   // 找出该城市的所有园区
   const parks = CITY_PARK_MAP[cityKey] || [];
   if (!parks.length) return;
 
   // 弹出第一个有数据的园区详情，或显示城市汇总
+  const allParkMods = getAllParksAndMods();
   const firstParkWithData = parks.find(pk => {
-    return (PARK_MODULES[pk]||[]).some(m => getModuleStatus(pk,m) !== 'notstart');
+    return (allParkMods[pk]||[]).some(m => getModuleStatus(pk,m) !== 'notstart');
   });
 
   if (firstParkWithData) {
-    // 如果只有一个园区，直接打开园区详情
     if (parks.length === 1) {
       openParkDetail(firstParkWithData);
     } else {
-      // 多个园区：显示城市汇总弹窗
       showCityModal(cityKey);
     }
   } else {
-    // 无数据，打开建单
     openNewModModal();
   }
+}
+
+function updateMapLegend() {
+  // ECharts模式下，图例已内置，此函数保持兼容但不再操作SVG元素
+  // 若地图已初始化，则刷新数据
+  if (echartsInstance) {
+    initEchartsMap(); // 重新渲染以更新数据
+  }
+}
+
+// 加载中国地图GeoJSON数据
+function loadChinaMapAndInit() {
+  const tipEl = document.getElementById('map-status-tip');
+  if (tipEl) tipEl.textContent = '加载地图数据...';
+
+  // 使用 ECharts 官方 CDN 的中国地图数据
+  const geoUrl = 'https://cdn.jsdelivr.net/npm/echarts@5/map/json/china.json';
+
+  fetch(geoUrl)
+    .then(res => {
+      if (!res.ok) throw new Error('网络错误');
+      return res.json();
+    })
+    .then(geoJson => {
+      echarts.registerMap('china', geoJson);
+      if (tipEl) tipEl.textContent = '';
+      initEchartsMap();
+    })
+    .catch(err => {
+      console.warn('ECharts地图数据加载失败，尝试备用源', err);
+      if (tipEl) tipEl.textContent = '尝试备用数据源...';
+      // 备用CDN
+      return fetch('https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json')
+        .then(res => res.json())
+        .then(geoJson => {
+          echarts.registerMap('china', geoJson);
+          if (tipEl) tipEl.textContent = '';
+          initEchartsMap();
+        })
+        .catch(() => {
+          if (tipEl) tipEl.textContent = '地图数据加载失败，请检查网络';
+          document.getElementById('echarts-map').innerHTML =
+            '<div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:12px;color:#64748b;">' +
+            '<div style="font-size:32px;">🗺️</div>' +
+            '<div style="font-size:13px;">地图数据加载失败</div>' +
+            '<div style="font-size:11px;color:#475569;">请确保网络可以访问 CDN 资源</div>' +
+            '</div>';
+        });
+    });
 }
 
 function showCityModal(cityKey) {
@@ -1091,7 +1244,6 @@ function showCityModal(cityKey) {
   const cityName = cityNames[cityKey] || cityKey;
   const allParkMods = getAllParksAndMods();
 
-  // 统计
   let doneCount=0, activeCount=0, notstartCount=0, totalMods=0;
   parks.forEach(pk => {
     (allParkMods[pk]||[]).forEach(mod => {
@@ -1123,7 +1275,6 @@ function showCityModal(cityKey) {
       if (st==='done') pkDone++;
       else if (st==='active') pkActive++;
     });
-    const prog = { pct: mods.length>0?Math.round((pkDone+pkActive)/mods.length*100):0 };
     const status = pkDone===mods.length&&mods.length>0 ? 'done' : (pkDone>0||pkActive>0) ? 'active' : 'notstart';
     const sm = STATUS_MAP[status];
     body += `<div onclick="openParkDetail('${pk}')" style="background:rgba(255,255,255,.03);border:1px solid ${status==='done'?'rgba(34,197,94,.2)':status==='active'?'rgba(59,130,246,.18)':'rgba(255,255,255,.07)'};border-radius:12px;padding:12px 14px;cursor:pointer;transition:all .15s;" onmouseover="this.style.background='rgba(6,182,212,.06)'" onmouseout="this.style.background='rgba(255,255,255,.03)'">
@@ -1139,44 +1290,7 @@ function showCityModal(cityKey) {
   document.getElementById('modModal').classList.remove('hidden');
 }
 
-function updateMapLegend() {
-  const allParkMods = getAllParksAndMods();
-  // 更新图例中各城市的统计数字
-  const cityStats = {
-    'cq': { done:0, active:0, total:0 },
-    'gz': { done:0, active:0, total:0 },
-    'cd': { done:0, active:0, total:0 },
-  };
-  for (const [cityKey, parks] of Object.entries(CITY_PARK_MAP)) {
-    parks.forEach(pk => {
-      (allParkMods[pk]||[]).forEach(mod => {
-        cityStats[cityKey].total++;
-        const st = getModuleStatus(pk, mod);
-        if (st==='done') cityStats[cityKey].done++;
-        else if (st==='active') cityStats[cityKey].active++;
-      });
-    });
-  }
-  const cqEl = document.getElementById('legend-cq-count');
-  const gzEl = document.getElementById('legend-gz-count');
-  const cdEl = document.getElementById('legend-cd-count');
-  if (cqEl) {
-    const s = cityStats['cq'];
-    cqEl.textContent = s.done > 0 ? `✅${s.done} 🔧${s.active}` : s.active > 0 ? `🔧${s.active}进行中` : `${s.total}个模组`;
-  }
-  if (gzEl) {
-    const s = cityStats['gz'];
-    gzEl.textContent = s.done > 0 ? `✅${s.done} 🔧${s.active}` : s.active > 0 ? `🔧${s.active}进行中` : `${s.total}个模组`;
-  }
-  if (cdEl) {
-    const s = cityStats['cd'];
-    cdEl.textContent = s.done > 0 ? `✅${s.done} 🔧${s.active}` : s.active > 0 ? `🔧${s.active}进行中` : `${s.total}个模组`;
-  }
-}
 
-// =============================================
-//  建单弹窗
-// =============================================
 let nmSelectedPark = null;
 let nmSelectedMod = null;
 
@@ -1260,7 +1374,8 @@ document.addEventListener('DOMContentLoaded', () => {
   setInterval(updateTime, 1000);
   renderGlobalStats();
   renderCityGroups();
-  updateMapLegend();
+  // 加载ECharts地图
+  loadChinaMapAndInit();
 });
 
 // 点击背景关闭弹窗
