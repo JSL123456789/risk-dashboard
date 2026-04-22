@@ -537,6 +537,29 @@ let currentFilter = 'active_done';
 // =============================================
 //  动态扫描：从 localStorage 获取所有实际存在的 park/mod
 // =============================================
+
+// 预设园区名称（中文/别名）到标准 key 的反向映射
+// 用于将用户自由输入的中文园区名归并到预设 key，避免重复
+const PARK_NAME_ALIAS = (() => {
+  const map = {};
+  // 自动从 PARKS 建立 "中文名 → key" 映射（含去除符号的变体）
+  for (const [k, v] of Object.entries(PARKS)) {
+    map[v] = k;                                  // 完整中文名，如 "重庆·泰和"
+    const stripped = v.replace(/[·\s·]/g, '');   // 去除间隔符，如 "重庆泰和"
+    map[stripped] = k;
+    const afterDot = v.split(/[·\s·]/)[1] || ''; // 仅后半段，如 "泰和"
+    if (afterDot) map[afterDot] = k;
+    const beforeDot = v.split(/[·\s·]/)[0] || '';// 仅前半段，如 "重庆"
+    // 不单独映射城市前缀（避免误合并）
+  }
+  return map;
+})();
+
+// 将 localStorage 原始 park key 归一化为标准 key（若能识别则返回预设key，否则原样）
+function normalizeParkKey(rawKey) {
+  return PARK_NAME_ALIAS[rawKey] || rawKey;
+}
+
 function getAllParksAndMods() {
   // parkModMap: { parkKey: Set<mod> }
   const parkModMap = {};
@@ -551,21 +574,23 @@ function getAllParksAndMods() {
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
     if (!key || !key.startsWith('lc_') || key.startsWith('lc_goto_')) continue;
-    let park, mod;
+    let rawPark, mod;
     if (key.startsWith('lc_sec_')) {
       // lc_sec_{park}_{mod}_{sectionKey}
       const rest = key.slice('lc_sec_'.length);
       const parts = rest.split('_');
       if (parts.length < 2) continue;
-      park = parts[0]; mod = parts[1];
+      rawPark = parts[0]; mod = parts[1];
     } else {
       // lc_{park}_{mod}_{taskId}
       const rest = key.slice('lc_'.length);
       const parts = rest.split('_');
       if (parts.length < 2) continue;
-      park = parts[0]; mod = parts[1];
+      rawPark = parts[0]; mod = parts[1];
     }
-    if (!park || !mod) continue;
+    if (!rawPark || !mod) continue;
+    // 归一化：将中文别名映射到预设 key（避免重复）
+    const park = normalizeParkKey(rawPark);
     if (!parkModMap[park]) parkModMap[park] = new Set();
     parkModMap[park].add(mod);
   }
@@ -578,28 +603,55 @@ function getAllParksAndMods() {
   return result;
 }
 
-// 获取所有城市分组（含预设外的动态园区）
+// 城市关键词 → 预设城市分组索引（用于将自定义园区归入正确城市）
+const CITY_KEYWORD_MAP = [
+  { keywords: ['重庆', 'cq'], groupIdx: 0 },
+  { keywords: ['贵州', '贵安', 'gz'], groupIdx: 1 },
+  { keywords: ['成都', '四川', 'cd'], groupIdx: 2 },
+];
+
+function getCityGroupIdxForPark(parkKey) {
+  const name = (PARKS[parkKey] || parkKey).toLowerCase();
+  for (const entry of CITY_KEYWORD_MAP) {
+    if (entry.keywords.some(kw => name.includes(kw.toLowerCase()) || parkKey.toLowerCase().includes(kw.toLowerCase()))) {
+      return entry.groupIdx;
+    }
+  }
+  return -1; // 无法归属，放入其他
+}
+
+// 获取所有城市分组（含预设外的动态园区，自动按属地归类）
 function getAllCityGroups() {
   const allParkMods = getAllParksAndMods();
   const knownParkKeys = new Set(CITY_GROUPS.flatMap(g => g.parks));
 
-  // 基础分组（预设城市）
+  // 基础分组（预设城市），dynamicParks 包含预设园区 key
   const groups = CITY_GROUPS.map(g => ({
     ...g,
-    dynamicParks: g.parks.filter(pk => allParkMods[pk])
+    dynamicParks: [...g.parks] // 复制预设列表
   }));
 
-  // 找出不属于任何预设城市的自定义园区
+  // 找出不属于任何预设城市的自定义园区（归一化后仍不在预设中的）
   const extraParks = Object.keys(allParkMods).filter(pk => !knownParkKeys.has(pk));
-  if (extraParks.length > 0) {
-    groups.push({
-      city: '其他园区',
-      icon: '🏢',
-      color: '#06b6d4',
-      parks: extraParks,
-      dynamicParks: extraParks
-    });
-  }
+
+  extraParks.forEach(pk => {
+    const idx = getCityGroupIdxForPark(pk);
+    if (idx >= 0) {
+      // 能识别城市，归入对应城市分组
+      if (!groups[idx].dynamicParks.includes(pk)) {
+        groups[idx].dynamicParks.push(pk);
+      }
+    } else {
+      // 无法识别，放入"其他园区"分组（懒创建）
+      let otherGroup = groups.find(g => g.city === '其他园区');
+      if (!otherGroup) {
+        otherGroup = { city: '其他园区', icon: '🏢', color: '#06b6d4', parks: [], dynamicParks: [] };
+        groups.push(otherGroup);
+      }
+      otherGroup.dynamicParks.push(pk);
+    }
+  });
+
   return { groups, allParkMods };
 }
 
@@ -678,37 +730,11 @@ function getModuleStatus(park, mod) {
 //  全局统计
 // =============================================
 function calcGlobalStats() {
-  // 动态从 localStorage 中发现所有园区/模组（包括自由新建的）
+  // 直接复用 getAllParksAndMods()，已做归一化去重
+  const allParkMods = getAllParksAndMods();
+  const parkSet = new Set(Object.keys(allParkMods));
   const modSet = new Set();
-  const parkSet = new Set();
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (!key || !key.startsWith('lc_')) continue;
-    if (key.startsWith('lc_sec_')) {
-      // lc_sec_{park}_{mod}_{sectionKey} — 板块签名数据
-      const rest = key.slice('lc_sec_'.length);
-      // sectionKey 不含下划线前缀，park/mod 可能含中文但不含 _ ，
-      // 取前两段作为 park、mod（section key 本身也含 _ ，取前两段最安全）
-      const parts = rest.split('_');
-      if (parts.length >= 2) {
-        const park = parts[0], mod = parts[1];
-        parkSet.add(park);
-        modSet.add(park + '||' + mod);
-      }
-    } else if (!key.startsWith('lc_goto_')) {
-      // lc_{park}_{mod}_{taskId} — 任务数据
-      const rest = key.slice('lc_'.length);
-      const parts = rest.split('_');
-      if (parts.length >= 2) {
-        const park = parts[0], mod = parts[1];
-        parkSet.add(park);
-        modSet.add(park + '||' + mod);
-      }
-    }
-  }
-  // 同时也把预设的园区/模组纳入（保证预设但未开始的也被统计）
-  for (const [park, mods] of Object.entries(PARK_MODULES)) {
-    parkSet.add(park);
+  for (const [park, mods] of Object.entries(allParkMods)) {
     mods.forEach(mod => modSet.add(park + '||' + mod));
   }
 
