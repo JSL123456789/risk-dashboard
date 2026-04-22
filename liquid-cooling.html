@@ -3351,10 +3351,8 @@ function initPage() {
     localStorage.removeItem('lc_goto_mod');
     const modToUse = gotoMod || null;
     // 同时更新上次记录
-    if (modToUse) {
-      localStorage.setItem('lc_last_park', gotoPark);
-      localStorage.setItem('lc_last_mod', modToUse);
-    }
+    localStorage.setItem('lc_last_park', gotoPark);
+    if (modToUse) localStorage.setItem('lc_last_mod', modToUse);
     setTimeout(() => {
       currentPark = gotoPark;
       currentModule = modToUse || 'all';
@@ -3374,7 +3372,7 @@ function initPage() {
     return;
   }
 
-  // ===== 刷新/重新进入：恢复上次选择的模组 =====
+  // ===== 刷新/重新进入：恢复上次选择的模组（有历史记录时直接恢复，不显示弹窗）=====
   const lastPark = localStorage.getItem('lc_last_park');
   const lastMod = localStorage.getItem('lc_last_mod');
   if (lastPark && lastMod && lastPark !== 'all' && lastMod !== 'all') {
@@ -3387,12 +3385,22 @@ function initPage() {
     return;
   }
 
-  // ===== 首次进入（无历史记录）：显示选择弹窗 =====
+  // ===== 有 lc_last_park 但无 mod（如仅查看过首页）=====
+  if (lastPark && lastPark !== 'all') {
+    currentPark = lastPark;
+    currentModule = 'all';
+    initSelectorDropdowns(lastPark, '');
+    document.getElementById('selectGuideModal').classList.add('hidden');
+    renderAllTasks();
+    updateAllRings();
+    return;
+  }
+
+  // ===== 首次进入（无任何历史记录）：显示选择弹窗 =====
   currentPark = 'all';
   currentModule = 'all';
   initSelectorDropdowns('', '');
   renderAllTasks();
-  // 显示引导弹窗
   renderGuideRecordList();
   document.getElementById('selectGuideModal').classList.remove('hidden');
 }
