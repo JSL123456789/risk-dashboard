@@ -372,6 +372,8 @@ const CITY_GROUPS = [
   { city:'重庆', icon:'🏙️', color:'#3b82f6', parks:['cq-taihe','cq-yunfu'] },
   { city:'贵州', icon:'🏔️', color:'#a78bfa', parks:['gz-guian','gz-guian32'] },
   { city:'成都', icon:'🌸', color:'#22c55e', parks:['cd-xiqu','cd-gaoxin'] },
+  { city:'广东', icon:'🌴', color:'#f97316', parks:[] },
+  { city:'天津', icon:'🌊', color:'#06b6d4', parks:[] },
 ];
 
 // 四阶段定义
@@ -491,6 +493,8 @@ const CITY_KEYWORD_MAP = [
   { keywords: ['重庆', 'cq'], groupIdx: 0 },
   { keywords: ['贵州', '贵安', 'gz'], groupIdx: 1 },
   { keywords: ['成都', '四川', 'cd'], groupIdx: 2 },
+  { keywords: ['广东', '广州', '深圳', '清远', '东莞', '佛山', '珠海', 'gd'], groupIdx: 3 },
+  { keywords: ['天津', 'tj', '滨海'], groupIdx: 4 },
 ];
 
 function getCityGroupIdxForPark(parkKey) {
@@ -993,6 +997,8 @@ const CITY_PARK_MAP = {
   'cq': ['cq-taihe','cq-yunfu'],
   'gz': ['gz-guian','gz-guian32'],
   'cd': ['cd-xiqu','cd-gaoxin'],
+  'gd': [],   // 广东（动态填充）
+  'tj': [],   // 天津（动态填充）
 };
 
 // 各城市中心坐标（经度, 纬度）
@@ -1000,29 +1006,37 @@ const CITY_COORDS = {
   'cq': [106.504962, 29.533155],  // 重庆
   'gz': [106.713478, 26.578343],  // 贵阳
   'cd': [104.065735, 30.659462],  // 成都
+  'gd': [113.280637, 23.125178],  // 广州（广东）
+  'tj': [117.200983, 39.084158],  // 天津
 };
 
-const CITY_LABELS = { cq:'重庆', gz:'贵州', cd:'成都' };
+const CITY_LABELS = { cq:'重庆', gz:'贵州', cd:'成都', gd:'广东', tj:'天津' };
 
 // 省份名称映射（用于ECharts地图数据）
-const HIGHLIGHT_PROVINCES = ['重庆', '贵州', '四川'];
+const HIGHLIGHT_PROVINCES = ['重庆', '贵州', '四川', '广东', '天津'];
 
 function calcCityStats() {
-  const allParkMods = getAllParksAndMods();
+  const { groups, allParkMods } = getAllCityGroups();
   const stats = {};
-  for (const [cityKey, parks] of Object.entries(CITY_PARK_MAP)) {
+
+  // 城市分组index到cityKey的映射
+  const groupIdxToKey = ['cq', 'gz', 'cd', 'gd', 'tj'];
+
+  groups.forEach((group, idx) => {
+    const cityKey = groupIdxToKey[idx] || ('other_' + idx);
     let done=0, active=0, total=0;
-    parks.forEach(pk => {
+    (group.dynamicParks || []).forEach(pk => {
       (allParkMods[pk]||[]).forEach(mod => {
         const st = getModuleStatus(pk, mod);
-        if (st === 'notstart') return; // 只统计有进度的
+        if (st === 'notstart') return;
         total++;
         if (st === 'done') done++;
         else if (st === 'active') active++;
       });
     });
-    stats[cityKey] = { done, active, total };
-  }
+    if (total > 0) stats[cityKey] = { done, active, total };
+  });
+
   return stats;
 }
 
@@ -1086,7 +1100,8 @@ function initEchartsMap() {
         if (params.seriesType === 'map') {
           const name = params.name;
           if (HIGHLIGHT_PROVINCES.includes(name)) {
-            const cityKey = name === '重庆' ? 'cq' : name === '贵州' ? 'gz' : 'cd';
+            const cityKeyMap = { '重庆':'cq', '贵州':'gz', '四川':'cd', '广东':'gd', '天津':'tj' };
+            const cityKey = cityKeyMap[name] || 'cq';
             const s = cityStats[cityKey] || {};
             return `<div style="font-weight:700;color:#67e8f9;margin-bottom:6px;">📍 ${name}</div>
               <div style="color:#4ade80;">✅ 已投产：${s.done||0} 个模组</div>
@@ -1106,9 +1121,10 @@ function initEchartsMap() {
     },
     geo: {
       map: 'china',
-      roam: false,
+      roam: true,
       center: [104, 32],
       zoom: 1.15,
+      scaleLimit: { min: 0.8, max: 8 },
       aspectScale: 0.75,
       silent: false,
       label: {
@@ -1144,6 +1160,16 @@ function initEchartsMap() {
           name: '四川',
           itemStyle: { areaColor: 'rgba(34,197,94,0.12)', borderColor: 'rgba(34,197,94,0.4)', borderWidth: 1.2 },
           label: { show: true, color: '#86efac', fontSize: 11, fontWeight: 700 }
+        },
+        {
+          name: '广东',
+          itemStyle: { areaColor: 'rgba(249,115,22,0.18)', borderColor: 'rgba(249,115,22,0.5)', borderWidth: 1.2 },
+          label: { show: true, color: '#fdba74', fontSize: 11, fontWeight: 700 }
+        },
+        {
+          name: '天津',
+          itemStyle: { areaColor: 'rgba(6,182,212,0.2)', borderColor: 'rgba(6,182,212,0.6)', borderWidth: 1.2 },
+          label: { show: true, color: '#67e8f9', fontSize: 11, fontWeight: 700 }
         },
       ]
     },
@@ -1225,9 +1251,9 @@ function initEchartsMap() {
   echartsInstance.on('click', function(params) {
     if (params.componentType === 'geo' || params.seriesType === 'map') {
       const name = params.name;
-      if (name === '重庆') onMapCityClick('cq');
-      else if (name === '贵州') onMapCityClick('gz');
-      else if (name === '四川') onMapCityClick('cd');
+      const provinceKeyMap = { '重庆':'cq', '贵州':'gz', '四川':'cd', '广东':'gd', '天津':'tj' };
+      const ck = provinceKeyMap[name];
+      if (ck) onMapCityClick(ck);
     } else if (params.seriesType === 'effectScatter') {
       if (params.data && params.data.cityKey) {
         onMapCityClick(params.data.cityKey);
@@ -1242,8 +1268,12 @@ function initEchartsMap() {
 }
 
 function onMapCityClick(cityKey) {
-  // 找出该城市的所有园区
-  const parks = CITY_PARK_MAP[cityKey] || [];
+  // 动态获取该城市的所有园区（含自定义园区）
+  const { groups } = getAllCityGroups();
+  const groupIdxToKey = ['cq', 'gz', 'cd', 'gd', 'tj'];
+  const groupIdx = groupIdxToKey.indexOf(cityKey);
+  const group = groupIdx >= 0 ? groups[groupIdx] : null;
+  const parks = group ? (group.dynamicParks || []) : (CITY_PARK_MAP[cityKey] || []);
   if (!parks.length) return;
 
   // 弹出第一个有数据的园区详情，或显示城市汇总
@@ -1316,7 +1346,7 @@ function loadChinaMapAndInit() {
 
 function showCityModal(cityKey) {
   const parks = CITY_PARK_MAP[cityKey] || [];
-  const cityNames = { cq:'重庆', gz:'贵州', cd:'成都' };
+  const cityNames = { cq:'重庆', gz:'贵州', cd:'成都', gd:'广东', tj:'天津' };
   const cityName = cityNames[cityKey] || cityKey;
   const allParkMods = getAllParksAndMods();
 
