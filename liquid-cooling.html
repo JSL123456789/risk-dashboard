@@ -2393,6 +2393,8 @@ function confirmGuide() {
   // 归一化：有匹配则用标准名，否则原样
   currentPark = fuzzyMatchParkName(parkVal) || parkVal;
   currentModule = fuzzyMatchModName(modVal) || modVal;
+  // 写入注册标记，确保即使没有任何工单数据也能在首页展示
+  localStorage.setItem(`lc_reg_${currentPark}_${currentModule}`, JSON.stringify({ createdAt: new Date().toISOString() }));
   document.getElementById('selectGuideModal').classList.add('hidden');
   renderAllTasks();
   // 新建后刷新下拉选择器，选中新建的园区/模组

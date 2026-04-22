@@ -510,18 +510,53 @@ function getAllParksAndMods() {
     mods.forEach(m => parkModMap[park].add(m));
   }
 
-  // 再扫描 localStorage 动态发现自由新建的
+  // 再扫描 localStorage 动态发现自由新建的（含注册标记）
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
-    if (!key || !key.startsWith('lc_') || key.startsWith('lc_goto_')) continue;
-    const parsed = parseParkModFromKey(key);
-    if (!parsed) continue;
-    const { rawPark, mod } = parsed;
-    if (!rawPark || !mod) continue;
-    // 归一化：将中文别名映射到预设 key（避免重复）
-    const park = normalizeParkKey(rawPark);
-    if (!parkModMap[park]) parkModMap[park] = new Set();
-    parkModMap[park].add(mod);
+    if (!key || key.startsWith('lc_goto_')) continue;
+
+    let rest = null;
+    if (key.startsWith('lc_reg_')) {
+      rest = key.slice('lc_reg_'.length);
+    } else if (key.startsWith('lc_')) {
+      // 借用 parseParkModFromKey
+      const parsed = parseParkModFromKey(key);
+      if (!parsed) continue;
+      const { rawPark, mod } = parsed;
+      if (!rawPark || !mod) continue;
+      const park = normalizeParkKey(rawPark);
+      if (!parkModMap[park]) parkModMap[park] = new Set();
+      parkModMap[park].add(mod);
+      continue;
+    }
+
+    if (rest !== null) {
+      // 解析注册标记中的 park/mod
+      const knownParkKeys = Object.keys(PARK_MODULES).sort((a, b) => b.length - a.length);
+      let matched = false;
+      for (const pk of knownParkKeys) {
+        if (rest.startsWith(pk + '_')) {
+          const mod = rest.slice(pk.length + 1);
+          if (mod) {
+            if (!parkModMap[pk]) parkModMap[pk] = new Set();
+            parkModMap[pk].add(mod);
+            matched = true;
+          }
+          break;
+        }
+      }
+      if (!matched) {
+        const parts = rest.split('_');
+        if (parts.length >= 2) {
+          const park = normalizeParkKey(parts[0]);
+          const mod = parts[1];
+          if (park && mod) {
+            if (!parkModMap[park]) parkModMap[park] = new Set();
+            parkModMap[park].add(mod);
+          }
+        }
+      }
+    }
   }
 
   // 转为 { parkKey: [mod, ...] }
@@ -690,7 +725,42 @@ function getActiveParksAndMods() {
   const parkModMap = {};
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
-    if (!key || !key.startsWith('lc_') || key.startsWith('lc_goto_')) continue;
+    if (!key) continue;
+
+    // 扫描注册标记（新建模组时写入，即使没有任何工单数据也能展示）
+    if (key.startsWith('lc_reg_')) {
+      const rest = key.slice('lc_reg_'.length);
+      // 格式: lc_reg_{park}_{mod}，park可能含'-'，需前缀匹配
+      const knownParkKeys = Object.keys(PARK_MODULES).sort((a, b) => b.length - a.length);
+      let matched = false;
+      for (const pk of knownParkKeys) {
+        if (rest.startsWith(pk + '_')) {
+          const mod = rest.slice(pk.length + 1);
+          if (mod) {
+            if (!parkModMap[pk]) parkModMap[pk] = new Set();
+            parkModMap[pk].add(mod);
+            matched = true;
+          }
+          break;
+        }
+      }
+      if (!matched) {
+        // 自定义园区名（中文，不含'-'），直接split
+        const parts = rest.split('_');
+        if (parts.length >= 2) {
+          const park = normalizeParkKey(parts[0]);
+          const mod = parts[1];
+          if (park && mod) {
+            if (!parkModMap[park]) parkModMap[park] = new Set();
+            parkModMap[park].add(mod);
+          }
+        }
+      }
+      continue;
+    }
+
+    // 扫描正常操作数据
+    if (!key.startsWith('lc_') || key.startsWith('lc_goto_')) continue;
     const parsed = parseParkModFromKey(key);
     if (!parsed) continue;
     const { rawPark, mod } = parsed;
@@ -1729,6 +1799,8 @@ function submitNewMod() {
   // 归一化：有匹配则用标准名，否则原样保存
   const park = fuzzyMatchPark(parkRaw) || parkRaw;
   const mod  = fuzzyMatchMod(modRaw)   || modRaw;
+  // 写入注册标记，确保即使没有任何工单数据也能在首页展示
+  localStorage.setItem(`lc_reg_${park}_${mod}`, JSON.stringify({ createdAt: new Date().toISOString() }));
   closeNewModModal();
   localStorage.setItem('lc_goto_park', park);
   localStorage.setItem('lc_goto_mod', mod);
