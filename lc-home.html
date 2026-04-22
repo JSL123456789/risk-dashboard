@@ -535,6 +535,75 @@ const PHASE_SECTIONS = {
 let currentFilter = 'active_done';
 
 // =============================================
+//  动态扫描：从 localStorage 获取所有实际存在的 park/mod
+// =============================================
+function getAllParksAndMods() {
+  // parkModMap: { parkKey: Set<mod> }
+  const parkModMap = {};
+
+  // 先把预设的园区/模组纳入（保证预设的也出现）
+  for (const [park, mods] of Object.entries(PARK_MODULES)) {
+    if (!parkModMap[park]) parkModMap[park] = new Set();
+    mods.forEach(m => parkModMap[park].add(m));
+  }
+
+  // 再扫描 localStorage 动态发现自由新建的
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key || !key.startsWith('lc_') || key.startsWith('lc_goto_')) continue;
+    let park, mod;
+    if (key.startsWith('lc_sec_')) {
+      // lc_sec_{park}_{mod}_{sectionKey}
+      const rest = key.slice('lc_sec_'.length);
+      const parts = rest.split('_');
+      if (parts.length < 2) continue;
+      park = parts[0]; mod = parts[1];
+    } else {
+      // lc_{park}_{mod}_{taskId}
+      const rest = key.slice('lc_'.length);
+      const parts = rest.split('_');
+      if (parts.length < 2) continue;
+      park = parts[0]; mod = parts[1];
+    }
+    if (!park || !mod) continue;
+    if (!parkModMap[park]) parkModMap[park] = new Set();
+    parkModMap[park].add(mod);
+  }
+
+  // 转为 { parkKey: [mod, ...] }
+  const result = {};
+  for (const [park, modSet] of Object.entries(parkModMap)) {
+    result[park] = Array.from(modSet);
+  }
+  return result;
+}
+
+// 获取所有城市分组（含预设外的动态园区）
+function getAllCityGroups() {
+  const allParkMods = getAllParksAndMods();
+  const knownParkKeys = new Set(CITY_GROUPS.flatMap(g => g.parks));
+
+  // 基础分组（预设城市）
+  const groups = CITY_GROUPS.map(g => ({
+    ...g,
+    dynamicParks: g.parks.filter(pk => allParkMods[pk])
+  }));
+
+  // 找出不属于任何预设城市的自定义园区
+  const extraParks = Object.keys(allParkMods).filter(pk => !knownParkKeys.has(pk));
+  if (extraParks.length > 0) {
+    groups.push({
+      city: '其他园区',
+      icon: '🏢',
+      color: '#06b6d4',
+      parks: extraParks,
+      dynamicParks: extraParks
+    });
+  }
+  return { groups, allParkMods };
+}
+
+// =============================================
 //  数据读取
 // =============================================
 // 获取某模组某板块签名状态
@@ -691,6 +760,8 @@ function renderCityGroups() {
   let html = '';
   let anyVisible = false;
 
+  const { groups, allParkMods } = getAllCityGroups();
+
   // 判断模组是否应该在当前筛选条件下显示
   function modMatchFilter(parkKey, mod) {
     const st = getModuleStatus(parkKey, mod);
@@ -700,10 +771,11 @@ function renderCityGroups() {
     return false;
   }
 
-  CITY_GROUPS.forEach(cityGroup => {
+  groups.forEach(cityGroup => {
+    const parksToCheck = cityGroup.dynamicParks || cityGroup.parks;
     // 只留有符合条件模组的园区
-    const filteredParks = cityGroup.parks.filter(parkKey => {
-      const mods = PARK_MODULES[parkKey] || [];
+    const filteredParks = parksToCheck.filter(parkKey => {
+      const mods = allParkMods[parkKey] || [];
       return mods.some(mod => modMatchFilter(parkKey, mod));
     });
     if (!filteredParks.length) return;
@@ -712,7 +784,7 @@ function renderCityGroups() {
     // 城市统计（只统计有进度的）
     let cityDone = 0, cityActive = 0;
     filteredParks.forEach(pk => {
-      (PARK_MODULES[pk]||[]).forEach(mod => {
+      (allParkMods[pk]||[]).forEach(mod => {
         const st = getModuleStatus(pk, mod);
         if (st === 'done') cityDone++;
         else if (st === 'active') cityActive++;
@@ -733,11 +805,11 @@ function renderCityGroups() {
 
     filteredParks.forEach(parkKey => {
       const parkName = PARKS[parkKey] || parkKey;
-      const allMods = PARK_MODULES[parkKey] || [];
+      const allMods = allParkMods[parkKey] || [];
       // 只显示有进度的模组
       const filteredMods = allMods.filter(mod => modMatchFilter(parkKey, mod));
 
-      // 园区整体进度（基于有进度的模组）
+      // 园区整体进度
       let parkSigned = 0, parkTotal = 0, parkDone = 0, parkActive = 0;
       allMods.forEach(mod => {
         const prog = getModuleSignedProgress(parkKey, mod);
@@ -811,7 +883,8 @@ function renderCityGroups() {
 // =============================================
 function openParkDetail(parkKey) {
   const parkName = PARKS[parkKey] || parkKey;
-  const mods = PARK_MODULES[parkKey] || [];
+  const allParkMods = getAllParksAndMods();
+  const mods = allParkMods[parkKey] || [];
   document.getElementById('mm-title').textContent = parkName;
 
   let doneCount = 0, activeCount = 0, notstartCount = 0;
@@ -990,11 +1063,12 @@ function showCityModal(cityKey) {
   const parks = CITY_PARK_MAP[cityKey] || [];
   const cityNames = { cq:'重庆', gz:'贵州', cd:'成都' };
   const cityName = cityNames[cityKey] || cityKey;
+  const allParkMods = getAllParksAndMods();
 
   // 统计
   let doneCount=0, activeCount=0, notstartCount=0, totalMods=0;
   parks.forEach(pk => {
-    (PARK_MODULES[pk]||[]).forEach(mod => {
+    (allParkMods[pk]||[]).forEach(mod => {
       totalMods++;
       const st = getModuleStatus(pk, mod);
       if (st==='done') doneCount++;
@@ -1016,7 +1090,7 @@ function showCityModal(cityKey) {
 
   parks.forEach(pk => {
     const parkName = PARKS[pk] || pk;
-    const mods = PARK_MODULES[pk] || [];
+    const mods = allParkMods[pk] || [];
     let pkDone=0, pkActive=0;
     mods.forEach(m => {
       const st = getModuleStatus(pk,m);
@@ -1040,6 +1114,7 @@ function showCityModal(cityKey) {
 }
 
 function updateMapLegend() {
+  const allParkMods = getAllParksAndMods();
   // 更新图例中各城市的统计数字
   const cityStats = {
     'cq': { done:0, active:0, total:0 },
@@ -1048,7 +1123,7 @@ function updateMapLegend() {
   };
   for (const [cityKey, parks] of Object.entries(CITY_PARK_MAP)) {
     parks.forEach(pk => {
-      (PARK_MODULES[pk]||[]).forEach(mod => {
+      (allParkMods[pk]||[]).forEach(mod => {
         cityStats[cityKey].total++;
         const st = getModuleStatus(pk, mod);
         if (st==='done') cityStats[cityKey].done++;
