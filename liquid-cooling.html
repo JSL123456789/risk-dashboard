@@ -1799,7 +1799,7 @@ function openSectionConfirm(sectionKey, sectionTitle, btnEl) {
   document.getElementById('scModalTitle').textContent = '签名确认本板块';
   document.getElementById('scModalBody').innerHTML = `
     <div style="font-size:13px;color:#374151;margin-bottom:4px;"><b>${sectionTitle}</b></div>
-    <div style="font-size:12px;color:#64748b;">📍 ${currentPark} · ${currentModule}</div>
+    <div style="font-size:12px;color:#64748b;">📍 ${PARKS[currentPark]||currentPark} · ${currentModule}</div>
     <div style="font-size:12px;color:#374151;margin-top:8px;">已完成 <b style="color:#16a34a;">${doneTasks.length}</b> / ${totalTasks} 项</div>
     ${bodyExtra}`;
   document.getElementById('scUserInput').value = '';
@@ -2070,8 +2070,8 @@ function initGuideParkFilter(allItems) {
   const sel = document.getElementById('guide-park-filter');
   if (!sel) return;
   const parks = [...new Set(allItems.map(i => i.park))].sort();
-  // 保留第一个"全部园区"选项，重建其余
-  sel.innerHTML = '<option value="">全部园区</option>' + parks.map(p => `<option value="${p}">${p}</option>`).join('');
+  // 保留第一个"全部园区"选项，重建其余（value=key, 显示=中文名）
+  sel.innerHTML = '<option value="">全部园区</option>' + parks.map(p => `<option value="${p}">${PARKS[p]||p}</option>`).join('');
 }
 
 // 渲染工作台已有记录列表（带筛选）
@@ -2188,7 +2188,7 @@ function applyGuideFilter() {
         <div style="width:44px;height:44px;background:linear-gradient(135deg,#0f4c81,#0d7377);border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">❄️</div>
         <div style="flex:1;min-width:0;">
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:5px;">
-            ${useGroup ? '' : `<span style="font-size:11px;color:#94a3b8;background:#f1f5f9;padding:1px 7px;border-radius:4px;">${item.park}</span>`}
+            ${useGroup ? '' : `<span style="font-size:11px;color:#94a3b8;background:#f1f5f9;padding:1px 7px;border-radius:4px;">${PARKS[item.park]||item.park}</span>`}
             <span style="font-size:14px;font-weight:700;color:#1e293b;">${item.mod}</span>
             ${badge}
             ${signBadge}
@@ -2215,7 +2215,7 @@ function applyGuideFilter() {
         <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:linear-gradient(90deg,#f0f9ff,#f8fafc);border-radius:10px;border:1px solid #e0f2fe;margin-bottom:6px;">
           <div style="display:flex;align-items:center;gap:8px;">
             <span style="font-size:16px;">🏢</span>
-            <span style="font-size:14px;font-weight:700;color:#0f172a;">${park}</span>
+            <span style="font-size:14px;font-weight:700;color:#0f172a;">${PARKS[park]||park}</span>
             <span style="font-size:12px;color:#64748b;">${parkItems.length} 个模组</span>
           </div>
           <div style="display:flex;align-items:center;gap:8px;">
@@ -2302,7 +2302,7 @@ function selectExistingModule(park, mod) {
   initSelectorDropdowns(park, mod);
   document.getElementById('selectGuideModal').classList.add('hidden');
   renderAllTasks();
-  showTip(`✅ 已进入：${park} · ${mod}`);
+  showTip(`✅ 已进入：${PARKS[park]||park} · ${mod}`);
 }
 
 // 显示/隐藏新建区域
@@ -2324,22 +2324,22 @@ function hideNewSection() {
 function fuzzyMatchParkName(input) {
   if (!input) return null;
   const s = input.trim().toLowerCase().replace(/[\s·\-_]/g, '');
-  // 精确匹配key
+  // 精确匹配key → 返回 key
   for (const [key, name] of Object.entries(PARKS)) {
     if (key === 'all') continue;
-    if (s === key.toLowerCase().replace(/[\s·\-_]/g, '')) return name;
+    if (s === key.toLowerCase().replace(/[\s·\-_]/g, '')) return key;
   }
-  // 精确匹配名称
+  // 精确匹配名称 → 返回 key
   for (const [key, name] of Object.entries(PARKS)) {
     if (key === 'all') continue;
-    if (s === name.toLowerCase().replace(/[\s·\-_]/g, '')) return name;
+    if (s === name.toLowerCase().replace(/[\s·\-_]/g, '')) return key;
   }
-  // 模糊包含匹配
+  // 模糊包含匹配 → 返回 key
   for (const [key, name] of Object.entries(PARKS)) {
     if (key === 'all') continue;
     const nk = key.toLowerCase().replace(/[\s·\-_]/g, '');
     const nn = name.toLowerCase().replace(/[\s·\-_]/g, '');
-    if (nk.includes(s) || nn.includes(s) || s.includes(nk) || s.includes(nn)) return name;
+    if (nk.includes(s) || nn.includes(s) || s.includes(nk) || s.includes(nn)) return key;
   }
   return null;
 }
@@ -2369,10 +2369,11 @@ function updateGuideInfo() {
   const parkHint = document.getElementById('guide-park-hint');
   const parkHintText = document.getElementById('guide-park-hint-text');
   if (parkVal && parkHint) {
-    const matched = fuzzyMatchParkName(parkVal);
-    if (matched && matched !== parkVal) {
+    const matchedKey = fuzzyMatchParkName(parkVal);
+    const matchedName = matchedKey ? (PARKS[matchedKey] || matchedKey) : null;
+    if (matchedName && matchedName !== parkVal && matchedKey !== parkVal) {
       parkHint.style.display = 'block';
-      if (parkHintText) parkHintText.textContent = matched;
+      if (parkHintText) parkHintText.textContent = matchedName;
     } else {
       parkHint.style.display = 'none';
     }
@@ -2396,9 +2397,10 @@ function updateGuideInfo() {
   }
 
   // 归一化后用于预览
-  const finalPark = fuzzyMatchParkName(parkVal) || parkVal;
+  const finalParkKey = fuzzyMatchParkName(parkVal) || parkVal;
+  const finalPark = PARKS[finalParkKey] || finalParkKey;
   const finalMod  = fuzzyMatchModName(modVal)   || modVal;
-  guidePark = finalPark;
+  guidePark = finalParkKey;
   guideModule = finalMod;
 
   const info = document.getElementById('guide-selected-info');
@@ -2433,7 +2435,7 @@ function confirmGuide() {
   renderAllTasks();
   // 新建后刷新下拉选择器，选中新建的园区/模组
   initSelectorDropdowns(currentPark, currentModule);
-  showTip(`✅ 已创建：${currentPark} · ${currentModule}`);
+  showTip(`✅ 已创建：${PARKS[currentPark]||currentPark} · ${currentModule}`);
 }
 
 function skipGuide() {
@@ -2512,12 +2514,12 @@ function showProductionComplete() {
     totalDone += stats.done; totalAll += stats.total;
     phaseHtml += `<div class="cert-phase-item"><span class="cpi-icon">${icon}</span><span class="cpi-name">${name}</span><span class="cpi-count">✅ ${stats.done}/${stats.total} 项全部完成</span></div>`;
   });
-  document.getElementById('cert-park').textContent = currentPark;
+  document.getElementById('cert-park').textContent = PARKS[currentPark] || currentPark;
   document.getElementById('cert-module').textContent = currentModule;
   document.getElementById('cert-time').textContent = timeStr;
   document.getElementById('cert-total').textContent = totalDone + ' 项';
   document.getElementById('cert-phase-list').innerHTML = phaseHtml;
-  document.getElementById('cert-sub-text').textContent = `${currentPark} · ${currentModule} 已完成全部四阶段检查确认，正式进入运维阶段！`;
+  document.getElementById('cert-sub-text').textContent = `${PARKS[currentPark]||currentPark} · ${currentModule} 已完成全部四阶段检查确认，正式进入运维阶段！`;
   document.getElementById('certModal').classList.remove('hidden');
 }
 
@@ -2597,7 +2599,7 @@ function updateAllStats() {
 }
 
 function updateHeaderInfo() {
-  const parkName = currentPark && currentPark !== 'all' ? currentPark : '全部园区';
+  const parkName = currentPark && currentPark !== 'all' ? (PARKS[currentPark] || currentPark) : '全部园区';
   const modLabel = (!currentModule || currentModule === 'all') ? '全部模组' : currentModule;
   document.getElementById('currentModuleLabel').textContent = parkName + ' · ' + modLabel;
   const allStats = ['prep','build','handover','ops'].map(p => calcPhaseStats(p));
@@ -2646,7 +2648,7 @@ function updateDashboard() {
     html += `<div style="background:linear-gradient(135deg,#071e3d,#0f4c81);border-radius:14px;padding:24px 28px;margin-bottom:20px;color:#fff;">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
         <div>
-          <div style="font-size:18px;font-weight:800;margin-bottom:4px;">📍 ${currentPark} · ${currentModule}</div>
+          <div style="font-size:18px;font-weight:800;margin-bottom:4px;">📍 ${PARKS[currentPark]||currentPark} · ${currentModule}</div>
           <div style="font-size:13px;opacity:.75;">全生命周期投产进度追踪</div>
         </div>
         <div style="text-align:right;">
@@ -3113,7 +3115,7 @@ function showTip(msg) {
 function exportProgress() {
   const rows = [['园区','模组','阶段','任务ID','任务名称','状态','操作人','完成时间','备注']];
   // 只导出当前选中的园区/模组数据
-  const parkLabel = (currentPark && currentPark !== 'all') ? currentPark : '(未设置)';
+  const parkLabel = (currentPark && currentPark !== 'all') ? (PARKS[currentPark] || currentPark) : '(未设置)';
   const modLabel = (currentModule && currentModule !== 'all') ? currentModule : '(未设置)';
   ['prep','build','handover','ops'].forEach(phase => {
     const phaseNames = {prep:'现场准备',build:'建设管控',handover:'接维管理',ops:'运维执行'};
@@ -3204,7 +3206,7 @@ function renderHistoryPage() {
       <div class="hi-body">
         <div class="hi-title">${r.title}</div>
         <div class="hi-meta">
-          <span>📍 ${currentPark} · ${currentModule}</span>
+          <span>📍 ${PARKS[currentPark]||currentPark} · ${currentModule}</span>
           <span>🏷️ ${r.phase}</span>
           ${r.user ? `<span>👤 ${r.user}</span>` : ''}
           ${r.time ? `<span>🕐 ${r.time}</span>` : ''}
@@ -3234,7 +3236,7 @@ function exportHistory() {
   const csv = rows.map(r => r.map(c => '"'+(c+'').replace(/"/g,'""')+'"').join(',')).join('\n');
   const blob = new Blob(['\ufeff'+csv], {type:'text/csv;charset=utf-8'});
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = '液冷操作记录_'+currentPark+'_'+currentModule+'_'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
+  const a = document.createElement('a'); a.href = url; a.download = '液冷操作记录_'+(PARKS[currentPark]||currentPark)+'_'+currentModule+'_'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
   URL.revokeObjectURL(url);
 }
 
@@ -3243,7 +3245,7 @@ function confirmClearHistory() {
   if (!currentPark || currentPark === 'all' || !currentModule || currentModule === 'all') {
     showTip('请先填写园区和模组'); return;
   }
-  if (!confirm(`确定要清除 [${currentPark}·${currentModule}] 的所有操作记录吗？此操作不可撤销！`)) return;
+  if (!confirm(`确定要清除 [${PARKS[currentPark]||currentPark}·${currentModule}] 的所有操作记录吗？此操作不可撤销！`)) return;
   // 清除该园区模组的所有存储
   const keysToRemove = [];
   for (let i = 0; i < localStorage.length; i++) {
@@ -3286,7 +3288,7 @@ function showPrintReport() {
     <div style="font-size:18px;font-weight:800;color:#0f4c81;margin-bottom:4px;">数据中心液冷全流程管理平台</div>
     <div style="font-size:14px;font-weight:700;color:#1e293b;margin-bottom:8px;">模组进度完成报告</div>
     <div style="display:flex;gap:24px;font-size:12px;color:#64748b;flex-wrap:wrap;">
-      <span>🏢 园区：<b style="color:#1e293b;">${currentPark}</b></span>
+      <span>🏢 园区：<b style="color:#1e293b;">${PARKS[currentPark]||currentPark}</b></span>
       <span>📦 模组：<b style="color:#1e293b;">${currentModule}</b></span>
       <span>📅 生成时间：${timeStr}</span>
     </div>
@@ -3373,7 +3375,11 @@ function initPage() {
   }
 
   // ===== 刷新/重新进入：恢复上次选择的模组（有历史记录时直接恢复，不显示弹窗）=====
-  const lastPark = localStorage.getItem('lc_last_park');
+  const rawLastPark = localStorage.getItem('lc_last_park');
+  // 兼容旧版：可能存了中文名，通过PARK_NAME_ALIAS归一化为英文key
+  const lastPark = rawLastPark ? (PARK_NAME_ALIAS[rawLastPark] || fuzzyMatchParkName(rawLastPark) || rawLastPark) : null;
+  // 如果归一化后与原值不同，更新存储
+  if (lastPark && lastPark !== rawLastPark) localStorage.setItem('lc_last_park', lastPark);
   const lastMod = localStorage.getItem('lc_last_mod');
   if (lastPark && lastMod && lastPark !== 'all' && lastMod !== 'all') {
     currentPark = lastPark;
