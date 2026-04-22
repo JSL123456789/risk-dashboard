@@ -3271,55 +3271,9 @@ document.addEventListener('DOMContentLoaded', function() {
     return; // 不再显示引导弹窗
   }
 
-  // ===== 默认直接进入重庆泰和·模组01，不弹出选择弹窗 =====
-  setTimeout(()=>{
-    const defaultPark = 'cq-taihe';
-    const defaultMod = '模组01';
-    currentPark = defaultPark;
-    currentModule = defaultMod;
-    guidePark = defaultPark;
-    guideModule = defaultMod;
-
-    // 先更新下拉框（包含localStorage数据）
-    initSelectorDropdowns(currentPark, currentModule);
-
-    // 如果下拉框里没有该园区（首次使用，无localStorage数据），手动添加选项并选中
-    const parkSelect = document.getElementById('park-input');
-    const modSelect = document.getElementById('module-input');
-    if (parkSelect) {
-      const existOpt = Array.from(parkSelect.options).find(o => o.value === defaultPark);
-      if (!existOpt) {
-        const opt = document.createElement('option');
-        opt.value = defaultPark;
-        opt.textContent = defaultPark;
-        opt.selected = true;
-        parkSelect.appendChild(opt);
-      } else {
-        parkSelect.value = defaultPark;
-      }
-    }
-    if (modSelect) {
-      const existOpt = Array.from(modSelect.options).find(o => o.value === defaultMod);
-      if (!existOpt) {
-        const opt = document.createElement('option');
-        opt.value = defaultMod;
-        opt.textContent = defaultMod;
-        opt.selected = true;
-        modSelect.appendChild(opt);
-      } else {
-        modSelect.value = defaultMod;
-      }
-    }
-
-    const parkName = PARKS[defaultPark] || defaultPark;
-    if(document.getElementById('currentModuleLabel'))
-      document.getElementById('currentModuleLabel').textContent = parkName + ' · ' + defaultMod;
-    const statusEl = document.getElementById('selectorStatusDot');
-    if(statusEl) statusEl.innerHTML = `<div class="ss-dot" style="background:#22c55e"></div><span>${parkName} · ${defaultMod}</span>`;
-    document.getElementById('selectGuideModal').classList.add('hidden');
-    renderAllTasks();
-    updateAllRings();
-  }, 100);
+  // ===== 默认显示引导弹窗，由用户自行选择园区和模组 =====
+  initSelectorDropdowns('', '');
+  document.getElementById('selectGuideModal').classList.remove('hidden');
 });
 </script>
 
