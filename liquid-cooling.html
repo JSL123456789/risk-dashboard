@@ -535,23 +535,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
     </div>
   </div>
 
-  <!-- 园区/模组选择器 -->
-  <div class="selector-bar">
-    <span class="sel-label">🏢 园区：</span>
-    <select id="park-input" onchange="onParkSelectChange(this.value)" style="padding:7px 14px;border-radius:18px;border:1px solid rgba(255,255,255,.3);background:rgba(30,41,59,.85);color:#fff;font-size:14px;width:160px;outline:none;cursor:pointer;">
-      <option value="">-- 选择园区 --</option>
-    </select>
-    <div class="sel-divider"></div>
-    <span class="sel-label">📦 模组：</span>
-    <select id="module-input" onchange="onModuleSelectChange(this.value)" style="padding:7px 14px;border-radius:18px;border:1px solid rgba(255,255,255,.3);background:rgba(30,41,59,.85);color:#fff;font-size:14px;width:160px;outline:none;cursor:pointer;">
-      <option value="">-- 选择模组 --</option>
-    </select>
-    <div class="sel-status" id="sel-status">
-      <div class="ss-dot" style="background:#94a3b8"></div>
-      <span>未选定具体模组</span>
-    </div>
-  </div>
-
   <!-- 四阶段环形进度概览 -->
   <div class="phase-ring-bar" id="phase-ring-bar">
     <div class="phase-ring-item" id="ring-item-prep" onclick="showPage('prep')" title="点击跳转到现场准备">
