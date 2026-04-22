@@ -418,6 +418,41 @@ function normalizeParkKey(rawKey) {
   return PARK_NAME_ALIAS[rawKey] || rawKey;
 }
 
+/**
+ * 从 localStorage key 中解析出 park 和 mod。
+ * key 格式: lc_{park}_{mod}_{taskId}  或  lc_sec_{park}_{mod}_{sectionKey}
+ * 难点: park 本身可能含 '-'（如 cq-taihe），直接 split('_') 会把 park 错误拆分。
+ * 解决: 优先用已知预设 park key 做前缀匹配，未命中时才降级用首段。
+ */
+function parseParkModFromKey(lcKey) {
+  // 去掉前缀，得到 "park_mod_..." 或 "sec_park_mod_..."
+  let rest;
+  if (lcKey.startsWith('lc_sec_')) {
+    rest = lcKey.slice('lc_sec_'.length);
+  } else {
+    rest = lcKey.slice('lc_'.length);
+  }
+
+  // 收集所有已知的 park key（预设 + 历史别名中能还原的），按长度降序优先匹配长的
+  const knownParkKeys = Object.keys(PARK_MODULES).sort((a, b) => b.length - a.length);
+
+  for (const pk of knownParkKeys) {
+    // 检查 rest 是否以 "pk_" 开头
+    if (rest.startsWith(pk + '_')) {
+      const afterPark = rest.slice(pk.length + 1); // "mod_..."
+      const modEnd = afterPark.indexOf('_');
+      const mod = modEnd >= 0 ? afterPark.slice(0, modEnd) : afterPark;
+      if (mod) return { rawPark: pk, mod };
+    }
+  }
+
+  // 降级：直接 split('_')，park = parts[0], mod = parts[1]
+  // （兼容用户自由输入的中文园区名，中文名不含 '_'）
+  const parts = rest.split('_');
+  if (parts.length < 2) return null;
+  return { rawPark: parts[0], mod: parts[1] };
+}
+
 function getAllParksAndMods() {
   // parkModMap: { parkKey: Set<mod> }
   const parkModMap = {};
@@ -432,20 +467,9 @@ function getAllParksAndMods() {
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
     if (!key || !key.startsWith('lc_') || key.startsWith('lc_goto_')) continue;
-    let rawPark, mod;
-    if (key.startsWith('lc_sec_')) {
-      // lc_sec_{park}_{mod}_{sectionKey}
-      const rest = key.slice('lc_sec_'.length);
-      const parts = rest.split('_');
-      if (parts.length < 2) continue;
-      rawPark = parts[0]; mod = parts[1];
-    } else {
-      // lc_{park}_{mod}_{taskId}
-      const rest = key.slice('lc_'.length);
-      const parts = rest.split('_');
-      if (parts.length < 2) continue;
-      rawPark = parts[0]; mod = parts[1];
-    }
+    const parsed = parseParkModFromKey(key);
+    if (!parsed) continue;
+    const { rawPark, mod } = parsed;
     if (!rawPark || !mod) continue;
     // 归一化：将中文别名映射到预设 key（避免重复）
     const park = normalizeParkKey(rawPark);
