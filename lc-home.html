@@ -87,6 +87,8 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .park-status.active{background:rgba(59,130,246,.12);color:#60a5fa;border:1px solid rgba(59,130,246,.2);}
 .park-status.pending{background:rgba(245,158,11,.1);color:#fbbf24;border:1px solid rgba(245,158,11,.2);}
 .park-status.notstart{background:rgba(255,255,255,.05);color:#64748b;border:1px solid rgba(255,255,255,.08);}
+.park-del-btn{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:5px;border:1px solid rgba(255,255,255,.08);background:transparent;color:#64748b;cursor:pointer;font-size:12px;transition:all .18s;flex-shrink:0;margin-left:4px;}
+.park-del-btn:hover{background:rgba(239,68,68,.15);color:#f87171;border-color:rgba(239,68,68,.3);}
 
 /* 总进度条 */
 .park-progress{margin-bottom:12px;}
@@ -976,7 +978,10 @@ function renderCityGroups() {
               <div class="park-card-name">${parkName}</div>
               <div class="park-card-desc">${filteredMods.length} 个模组 · ${parkDone} 已投产 · ${parkActive} 进行中</div>
             </div>
-            <span class="park-status ${sm.cls}">${sm.label}</span>
+            <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
+              <span class="park-status ${sm.cls}">${sm.label}</span>
+              <button class="park-del-btn" title="删除该园区" onclick="event.stopPropagation();deleteParkData('${parkKey}','${parkName}')">🗑️</button>
+            </div>
           </div>
           <div class="park-progress">
             <div class="park-progress-head">
@@ -1051,7 +1056,10 @@ function renderCityGroups() {
               <div class="park-card-name">${parkName}</div>
               <div class="park-card-desc">${filteredMods.length} 个模组 · ${parkDone} 已投产 · ${parkActive} 进行中</div>
             </div>
-            <span class="park-status ${sm.cls}">${sm.label}</span>
+            <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
+              <span class="park-status ${sm.cls}">${sm.label}</span>
+              <button class="park-del-btn" title="删除该园区" onclick="event.stopPropagation();deleteParkData('${parkKey}','${parkName}')">🗑️</button>
+            </div>
           </div>
           <div class="park-progress">
             <div class="park-progress-head">
@@ -1091,6 +1099,37 @@ function renderCityGroups() {
   }
   container.innerHTML = html;
 
+}
+
+// =============================================
+//  删除园区数据
+// =============================================
+function deleteParkData(parkKey, parkName) {
+  if (!confirm(`确定要删除园区「${parkName}」的所有数据吗？\n此操作不可恢复，将清除该园区所有模组的注册记录、工单和签名数据。`)) return;
+  let deleted = 0;
+  for (let i = localStorage.length - 1; i >= 0; i--) {
+    const key = localStorage.key(i);
+    if (!key) continue;
+    // 匹配所有与该园区相关的key
+    if (
+      key === `lc_reg_${parkKey}` ||
+      key.startsWith(`lc_reg_${parkKey}_`) ||
+      key.startsWith(`lc_${parkKey}_`) ||
+      key.startsWith(`lc_sec_${parkKey}_`)
+    ) {
+      localStorage.removeItem(key);
+      deleted++;
+    }
+  }
+  // 同时清除 last_park/last_mod 若指向被删园区
+  if (localStorage.getItem('lc_last_park') === parkKey) {
+    localStorage.removeItem('lc_last_park');
+    localStorage.removeItem('lc_last_mod');
+  }
+  renderMainContent();
+  calcGlobalStats();
+  renderMap();
+  console.log(`✅ 已删除园区「${parkName}」(${parkKey}) 的 ${deleted} 条数据`);
 }
 
 // =============================================
