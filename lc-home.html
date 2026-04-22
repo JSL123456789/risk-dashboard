@@ -1276,40 +1276,42 @@ function loadChinaMapAndInit() {
   const tipEl = document.getElementById('map-status-tip');
   if (tipEl) tipEl.textContent = '加载地图数据...';
 
-  // 使用 ECharts 官方 CDN 的中国地图数据
-  const geoUrl = 'https://cdn.jsdelivr.net/npm/echarts@5/map/json/china.json';
+  // 优先从本地文件加载（已内嵌到仓库，无需CDN）
+  const urls = [
+    'china.json',
+    'https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json',
+    'https://cdn.jsdelivr.net/npm/echarts@5/map/json/china.json'
+  ];
 
-  fetch(geoUrl)
-    .then(res => {
-      if (!res.ok) throw new Error('网络错误');
-      return res.json();
-    })
-    .then(geoJson => {
-      echarts.registerMap('china', geoJson);
-      if (tipEl) tipEl.textContent = '';
-      initEchartsMap();
-    })
-    .catch(err => {
-      console.warn('ECharts地图数据加载失败，尝试备用源', err);
-      if (tipEl) tipEl.textContent = '尝试备用数据源...';
-      // 备用CDN
-      return fetch('https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json')
-        .then(res => res.json())
-        .then(geoJson => {
-          echarts.registerMap('china', geoJson);
-          if (tipEl) tipEl.textContent = '';
-          initEchartsMap();
-        })
-        .catch(() => {
-          if (tipEl) tipEl.textContent = '地图数据加载失败，请检查网络';
-          document.getElementById('echarts-map').innerHTML =
-            '<div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:12px;color:#64748b;">' +
-            '<div style="font-size:32px;">🗺️</div>' +
-            '<div style="font-size:13px;">地图数据加载失败</div>' +
-            '<div style="font-size:11px;color:#475569;">请确保网络可以访问 CDN 资源</div>' +
-            '</div>';
-        });
-    });
+  function tryLoad(index) {
+    if (index >= urls.length) {
+      if (tipEl) tipEl.textContent = '地图数据加载失败，请检查网络';
+      document.getElementById('echarts-map').innerHTML =
+        '<div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:12px;color:#64748b;">' +
+        '<div style="font-size:32px;">🗺️</div>' +
+        '<div style="font-size:13px;">地图数据加载失败</div>' +
+        '<div style="font-size:11px;color:#475569;">请刷新页面重试</div>' +
+        '</div>';
+      return;
+    }
+    fetch(urls[index])
+      .then(res => {
+        if (!res.ok) throw new Error('请求失败 ' + res.status);
+        return res.json();
+      })
+      .then(geoJson => {
+        echarts.registerMap('china', geoJson);
+        if (tipEl) tipEl.textContent = '';
+        initEchartsMap();
+      })
+      .catch(err => {
+        console.warn('地图源加载失败，尝试下一个:', urls[index], err);
+        if (index === 0 && tipEl) tipEl.textContent = '尝试备用数据源...';
+        tryLoad(index + 1);
+      });
+  }
+
+  tryLoad(0);
 }
 
 function showCityModal(cityKey) {
