@@ -541,18 +541,46 @@ function getAllCityGroups() {
 // =============================================
 //  数据读取
 // =============================================
-// 获取某模组某板块签名状态
-function getSectionState(park, mod, sectionKey) {
-  const key = `lc_sec_${park}_${mod}_${sectionKey}`;
-  try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch(e) { return null; }
+
+// 获取某个预设parkKey在localStorage中所有可能出现的原始key形式
+// 例如 cq-taihe 可能存为 "cq-taihe" 或 "重庆泰和" 或 "重庆·泰和"
+const PARK_RAW_KEYS_CACHE = {};
+function getParkRawKeys(park) {
+  if (PARK_RAW_KEYS_CACHE[park]) return PARK_RAW_KEYS_CACHE[park];
+  const rawKeys = new Set([park]); // 自身
+  // 从PARK_NAME_ALIAS反查：找所有映射到此park的中文别名
+  for (const [alias, canonical] of Object.entries(PARK_NAME_ALIAS)) {
+    if (canonical === park) rawKeys.add(alias);
+  }
+  // 也加上PARKS中的中文名
+  if (PARKS[park]) rawKeys.add(PARKS[park]);
+  PARK_RAW_KEYS_CACHE[park] = Array.from(rawKeys);
+  return PARK_RAW_KEYS_CACHE[park];
 }
 
-// 获取某模组某任务完成数
+// 获取某模组某板块签名状态（支持预设key和中文原始key双向查找）
+function getSectionState(park, mod, sectionKey) {
+  for (const rawPark of getParkRawKeys(park)) {
+    const key = `lc_sec_${rawPark}_${mod}_${sectionKey}`;
+    try {
+      const val = localStorage.getItem(key);
+      if (val) return JSON.parse(val);
+    } catch(e) {}
+  }
+  return null;
+}
+
+// 获取某模组某任务完成数（支持预设key和中文原始key双向查找）
 function getModuleTaskStats(park, mod) {
   let done = 0, total = 0;
+  const rawParkKeys = getParkRawKeys(park);
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
-    if (key && key.startsWith(`lc_${park}_${mod}_`) && !key.startsWith('lc_sec_')) {
+    if (!key || key.startsWith('lc_sec_') || key.startsWith('lc_goto_')) continue;
+    if (!key.startsWith('lc_')) continue;
+    // 检查是否匹配任意一种 park raw key
+    const matched = rawParkKeys.some(rp => key.startsWith(`lc_${rp}_${mod}_`));
+    if (matched) {
       total++;
       try { const st = JSON.parse(localStorage.getItem(key)||'{}'); if(st.done) done++; } catch(e){}
     }
