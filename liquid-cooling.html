@@ -473,7 +473,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
   .header-right button{font-size:10px;padding:4px 8px;}
   .selector-bar{padding:6px 12px;gap:8px;}
   .sel-label{font-size:11px;}
-  #park-input,#module-input{width:100px;font-size:11px;}
+  #park-input,#module-input{width:110px;font-size:11px;padding:5px 8px;}
   .selector-bar button{font-size:11px;padding:4px 10px;}
   .phase-nav{padding:0;}
   .phase-btn{padding:8px 12px;font-size:11px;}
@@ -508,7 +508,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
   .overview-grid{grid-template-columns:1fr;}
   .phase-btn .pbn{display:none;}
   .header-right{gap:6px;}
-  #park-input,#module-input{width:85px;}
+  #park-input,#module-input{width:95px;font-size:11px;}
   .phase-ring-total{display:none;}
 }
 </style>
@@ -538,11 +538,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
   <!-- 园区/模组选择器 -->
   <div class="selector-bar">
     <span class="sel-label">🏢 园区：</span>
-    <input id="park-input" placeholder="填写园区名称" oninput="onParkInput(this.value)" style="padding:7px 14px;border-radius:18px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.12);color:#fff;font-size:14px;width:160px;outline:none;" />
+    <select id="park-input" onchange="onParkSelectChange(this.value)" style="padding:7px 14px;border-radius:18px;border:1px solid rgba(255,255,255,.3);background:rgba(30,41,59,.85);color:#fff;font-size:14px;width:160px;outline:none;cursor:pointer;">
+      <option value="">-- 选择园区 --</option>
+    </select>
     <div class="sel-divider"></div>
     <span class="sel-label">📦 模组：</span>
-    <input id="module-input" placeholder="填写模组名称" oninput="onModuleInput(this.value)" style="padding:7px 14px;border-radius:18px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.12);color:#fff;font-size:14px;width:160px;outline:none;" />
-    <button onclick="applyInputSelection()" style="padding:7px 18px;border-radius:18px;border:1px solid rgba(56,189,248,.5);background:rgba(56,189,248,.2);color:#fff;font-size:14px;cursor:pointer;white-space:nowrap;">✅ 确认</button>
+    <select id="module-input" onchange="onModuleSelectChange(this.value)" style="padding:7px 14px;border-radius:18px;border:1px solid rgba(255,255,255,.3);background:rgba(30,41,59,.85);color:#fff;font-size:14px;width:160px;outline:none;cursor:pointer;">
+      <option value="">-- 选择模组 --</option>
+    </select>
     <div class="sel-status" id="sel-status">
       <div class="ss-dot" style="background:#94a3b8"></div>
       <span>未选定具体模组</span>
@@ -2279,10 +2282,8 @@ function escStr(s) { return (s || '').replace(/'/g, "\\'").replace(/"/g, '&quot;
 function selectExistingModule(park, mod) {
   currentPark = park;
   currentModule = mod;
-  const pi = document.getElementById('park-input');
-  const mi = document.getElementById('module-input');
-  if (pi) pi.value = park;
-  if (mi) mi.value = mod;
+  // 刷新下拉选择器并保持当前选中值
+  initSelectorDropdowns(park, mod);
   document.getElementById('selectGuideModal').classList.add('hidden');
   renderAllTasks();
   showTip(`✅ 已进入：${park} · ${mod}`);
@@ -2328,12 +2329,10 @@ function confirmGuide() {
   if (!parkVal || !modVal) { showTip('请填写园区和模组名称'); return; }
   currentPark = parkVal;
   currentModule = modVal;
-  const pi = document.getElementById('park-input');
-  const mi = document.getElementById('module-input');
-  if (pi) pi.value = currentPark;
-  if (mi) mi.value = currentModule;
   document.getElementById('selectGuideModal').classList.add('hidden');
   renderAllTasks();
+  // 新建后刷新下拉选择器，选中新建的园区/模组
+  initSelectorDropdowns(currentPark, currentModule);
   showTip(`✅ 已创建：${currentPark} · ${currentModule}`);
 }
 
@@ -2663,19 +2662,127 @@ function updateDashboard() {
   content.innerHTML = html;
 }
 
-// 顶部输入框实时响应（输入时暂存，不立即刷新，点确认才生效）
-let _inputParkPending = '';
-let _inputModPending = '';
-function onParkInput(val) { _inputParkPending = val.trim(); }
-function onModuleInput(val) { _inputModPending = val.trim(); }
-function applyInputSelection() {
-  const parkVal = _inputParkPending || (document.getElementById('park-input').value||'').trim();
-  const modVal = _inputModPending || (document.getElementById('module-input').value||'').trim();
-  if (!parkVal || !modVal) { showTip('请填写园区和模组名称后点击确认'); return; }
+// =============================================
+//  顶部园区/模组下拉选择器（从 localStorage 动态加载）
+// =============================================
+
+// 从 localStorage 扫描所有已有园区和模组（进行中/已完成）
+function getExistingParksAndMods() {
+  const parkModMap = {}; // { parkKey: Set<mod> }
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key || !key.startsWith('lc_') || key.startsWith('lc_goto_')) continue;
+    let park, mod;
+    if (key.startsWith('lc_sec_')) {
+      const rest = key.slice('lc_sec_'.length);
+      const parts = rest.split('_');
+      if (parts.length < 2) continue;
+      park = parts[0]; mod = parts[1];
+    } else {
+      const rest = key.slice('lc_'.length);
+      const parts = rest.split('_');
+      if (parts.length < 2) continue;
+      park = parts[0]; mod = parts[1];
+    }
+    if (!park || !mod) continue;
+    if (!parkModMap[park]) parkModMap[park] = new Set();
+    parkModMap[park].add(mod);
+  }
+  // 转为普通对象
+  const result = {};
+  for (const [p, mSet] of Object.entries(parkModMap)) {
+    result[p] = Array.from(mSet).sort();
+  }
+  return result;
+}
+
+// 初始化/刷新园区下拉列表
+function initSelectorDropdowns(keepPark, keepMod) {
+  const parkSelect = document.getElementById('park-input');
+  const modSelect = document.getElementById('module-input');
+  if (!parkSelect || !modSelect) return;
+
+  const existingData = getExistingParksAndMods();
+  const parks = Object.keys(existingData).sort();
+
+  // 渲染园区下拉
+  parkSelect.innerHTML = '<option value="">-- 选择园区 --</option>';
+  parks.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p;
+    opt.textContent = p;
+    if (p === keepPark) opt.selected = true;
+    parkSelect.appendChild(opt);
+  });
+
+  // 渲染模组下拉（根据当前选中园区）
+  const selectedPark = keepPark || '';
+  const mods = selectedPark ? (existingData[selectedPark] || []) : [];
+  modSelect.innerHTML = '<option value="">-- 选择模组 --</option>';
+  mods.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m;
+    opt.textContent = m;
+    if (m === keepMod) opt.selected = true;
+    modSelect.appendChild(opt);
+  });
+
+  // 如果有保留的值，同步状态
+  if (keepPark && keepMod) {
+    updateSelStatus(keepPark, keepMod);
+  }
+}
+
+// 园区下拉变化：刷新模组下拉
+function onParkSelectChange(parkVal) {
+  const modSelect = document.getElementById('module-input');
+  if (!modSelect) return;
+  const existingData = getExistingParksAndMods();
+  const mods = parkVal ? (existingData[parkVal] || []) : [];
+  modSelect.innerHTML = '<option value="">-- 选择模组 --</option>';
+  mods.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m;
+    opt.textContent = m;
+    modSelect.appendChild(opt);
+  });
+  // 重置模组选择
+  currentModule = 'all';
+  updateSelStatus(parkVal, '');
+}
+
+// 模组下拉变化：立即生效，切换模组
+function onModuleSelectChange(modVal) {
+  const parkVal = (document.getElementById('park-input').value || '').trim();
+  if (!parkVal || !modVal) {
+    updateSelStatus(parkVal, '');
+    return;
+  }
   currentPark = parkVal;
   currentModule = modVal;
   renderAllTasks();
+  updateSelStatus(parkVal, modVal);
 }
+
+// 更新顶部状态显示
+function updateSelStatus(park, mod) {
+  const statusEl = document.getElementById('sel-status');
+  if (!statusEl) return;
+  if (park && mod) {
+    statusEl.innerHTML = `<div class="ss-dot" style="background:#4ade80"></div><span>${park} · ${mod}</span>`;
+  } else if (park) {
+    statusEl.innerHTML = `<div class="ss-dot" style="background:#f59e0b"></div><span>请选择模组</span>`;
+  } else {
+    statusEl.innerHTML = `<div class="ss-dot" style="background:#94a3b8"></div><span>未选定具体模组</span>`;
+  }
+}
+
+// 兼容旧版：保留空函数避免报错
+function onParkInput(val) {}
+function onModuleInput(val) {}
+function applyInputSelection() {}
+let _inputParkPending = '';
+let _inputModPending = '';
 
 // 兼容旧版（顶部按钮已移除，保留空函数避免报错）
 function selectPark(park, btn) {}
@@ -3113,6 +3220,8 @@ function showPrintReport() {
 
 // 初始化
 document.addEventListener('DOMContentLoaded', function() {
+  // 初始化顶部下拉选择器
+  initSelectorDropdowns('', '');
   renderAllTasks();
   // 自动修复子标签点击 – 用事件委托
   document.querySelectorAll('.sub-tab').forEach(btn => {
@@ -3143,6 +3252,8 @@ document.addEventListener('DOMContentLoaded', function() {
       currentModule = modToUse || 'all';
       guidePark = gotoPark;
       guideModule = modToUse || 'all';
+      // 刷新下拉选择器
+      initSelectorDropdowns(currentPark, currentModule !== 'all' ? currentModule : '');
       // 找 PARKS 显示名
       const parkName = PARKS[gotoPark] || gotoPark;
       const modLabel = modToUse || '全部';
