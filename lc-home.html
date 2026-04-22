@@ -59,6 +59,12 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .filter-btn.active{background:rgba(6,182,212,.12);border-color:#06b6d4;color:#67e8f9;font-weight:600;}
 .filter-label{font-size:12px;color:var(--muted);}
 
+/* ===== 片区分组 ===== */
+.region-group{margin-bottom:24px;border:1px solid rgba(255,255,255,.06);border-radius:16px;overflow:hidden;background:rgba(255,255,255,.015);}
+.region-title{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;cursor:pointer;transition:background .18s;}
+.region-title:hover{background:rgba(255,255,255,.04);}
+.region-content{padding:0 16px 16px;}
+
 /* ===== 园区分组 ===== */
 .city-group{margin-bottom:32px;}
 .city-title{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
@@ -373,14 +379,46 @@ const PARK_MODULES = {
   'cd-gaoxin':  ['模组01'],
 };
 
-// 城市分组
-const CITY_GROUPS = [
-  { city:'重庆', icon:'🏙️', color:'#3b82f6', parks:['cq-taihe','cq-yunfu'] },
-  { city:'贵州', icon:'🏔️', color:'#a78bfa', parks:['gz-guian','gz-guian32'] },
-  { city:'成都', icon:'🌸', color:'#22c55e', parks:['cd-xiqu','cd-gaoxin'] },
-  { city:'广东', icon:'🌴', color:'#f97316', parks:[] },
-  { city:'天津', icon:'🌊', color:'#06b6d4', parks:[] },
+// =============================================
+//  统一城市配置表（新增城市只需在此加一行）
+//  每项字段说明：
+//    key        - 城市唯一标识（英文短码）
+//    name       - 显示名称
+//    province   - ECharts 地图中对应的省份/直辖市名称
+//    region     - 所属片区 key（对应 REGION_CONFIG）
+//    icon       - 城市图标
+//    color      - 城市主色调（十六进制）
+//    coords     - 地图标注坐标 [经度, 纬度]
+//    parks      - 预设园区 key 列表（可为空，动态园区会自动归入）
+//    keywords   - 识别关键词（用于自定义园区归属匹配）
+// =============================================
+const CITY_CONFIG = [
+  { key:'cq',  name:'重庆', province:'重庆', region:'southwest', icon:'🏙️', color:'#3b82f6', coords:[106.504962,29.533155], parks:['cq-taihe','cq-yunfu'],   keywords:['重庆','cq'] },
+  { key:'gz',  name:'贵州', province:'贵州', region:'southwest', icon:'🏔️', color:'#a78bfa', coords:[106.713478,26.578343], parks:['gz-guian','gz-guian32'], keywords:['贵州','贵安','gz'] },
+  { key:'cd',  name:'成都', province:'四川', region:'southwest', icon:'🌸', color:'#22c55e', coords:[104.065735,30.659462], parks:['cd-xiqu','cd-gaoxin'],   keywords:['成都','四川','cd'] },
+  { key:'gd',  name:'广东', province:'广东', region:'south',     icon:'🌴', color:'#f97316', coords:[113.280637,23.125178], parks:[],                         keywords:['广东','广州','深圳','清远','东莞','佛山','珠海','gd'] },
+  { key:'tj',  name:'天津', province:'天津', region:'north',     icon:'🌊', color:'#06b6d4', coords:[117.200983,39.084158], parks:[],                         keywords:['天津','tj','滨海'] },
+  // 如需新增城市，在此追加一行即可，例如：
+  // { key:'sh', name:'上海', province:'上海', region:'east', icon:'🌆', color:'#f59e0b', coords:[121.473701,31.230416], parks:[], keywords:['上海','sh'] },
 ];
+
+// 片区配置（按地理方位分组城市）
+const REGION_CONFIG = [
+  { key:'southwest', name:'西南片区', icon:'🏔️', color:'#6366f1' },
+  { key:'south',     name:'华南片区', icon:'🌴', color:'#f97316' },
+  { key:'north',     name:'华北片区', icon:'❄️', color:'#06b6d4' },
+  { key:'east',      name:'华东片区', icon:'🌊', color:'#f59e0b' },
+  { key:'central',   name:'华中片区', icon:'🌾', color:'#a78bfa' },
+  { key:'northwest', name:'西北片区', icon:'🏜️', color:'#84cc16' },
+  { key:'northeast', name:'东北片区', icon:'🌨️', color:'#94a3b8' },
+];
+
+// ── 以下均从 CITY_CONFIG 自动派生，无需手动维护 ──────────────────
+
+// 城市分组（兼容旧逻辑）
+const CITY_GROUPS = CITY_CONFIG.map(c => ({
+  city: c.name, icon: c.icon, color: c.color, parks: c.parks,
+}));
 
 // 四阶段定义
 const PHASES = [
@@ -494,14 +532,11 @@ function getAllParksAndMods() {
   return result;
 }
 
-// 城市关键词 → 预设城市分组索引（用于将自定义园区归入正确城市）
-const CITY_KEYWORD_MAP = [
-  { keywords: ['重庆', 'cq'], groupIdx: 0 },
-  { keywords: ['贵州', '贵安', 'gz'], groupIdx: 1 },
-  { keywords: ['成都', '四川', 'cd'], groupIdx: 2 },
-  { keywords: ['广东', '广州', '深圳', '清远', '东莞', '佛山', '珠海', 'gd'], groupIdx: 3 },
-  { keywords: ['天津', 'tj', '滨海'], groupIdx: 4 },
-];
+// 城市关键词 → 预设城市分组索引（从 CITY_CONFIG 自动派生）
+const CITY_KEYWORD_MAP = CITY_CONFIG.map((c, idx) => ({
+  keywords: c.keywords,
+  groupIdx: idx,
+}));
 
 function getCityGroupIdxForPark(parkKey) {
   const name = (PARKS[parkKey] || parkKey).toLowerCase();
@@ -739,17 +774,20 @@ function renderCityGroups() {
     return false;
   }
 
-  groups.forEach(cityGroup => {
+  // 按片区分组
+  const regionMap = {}; // regionKey → [{ cityConf, group, filteredParks, cityDone, cityActive }]
+
+  groups.forEach((cityGroup, idx) => {
+    const cityConf = idx < CITY_CONFIG.length ? CITY_CONFIG[idx] : null;
+    const regionKey = cityConf ? cityConf.region : 'other';
     const parksToCheck = cityGroup.dynamicParks || cityGroup.parks;
-    // 只留有符合条件模组的园区
+
     const filteredParks = parksToCheck.filter(parkKey => {
       const mods = allParkMods[parkKey] || [];
       return mods.some(mod => modMatchFilter(parkKey, mod));
     });
     if (!filteredParks.length) return;
-    anyVisible = true;
 
-    // 城市统计（只统计有进度的）
     let cityDone = 0, cityActive = 0;
     filteredParks.forEach(pk => {
       (allParkMods[pk]||[]).forEach(mod => {
@@ -758,81 +796,183 @@ function renderCityGroups() {
         else if (st === 'active') cityActive++;
       });
     });
-    const cityTotal = cityDone + cityActive;
 
-    html += `<div class="city-group">
-      <div class="city-title">
-        <div class="city-icon" style="background:${cityGroup.color}22;">${cityGroup.icon}</div>
-        <div>
-          <div class="city-name">${cityGroup.city}</div>
-          <div class="city-sub">${filteredParks.length} 个园区 · ${cityTotal} 个模组有进度</div>
-        </div>
-        <div class="city-stats-badge">${cityDone} 已投产 · ${cityActive} 进行中</div>
-      </div>
-      <div class="park-cards">`;
+    if (!regionMap[regionKey]) regionMap[regionKey] = [];
+    regionMap[regionKey].push({ cityGroup, cityConf, filteredParks, cityDone, cityActive });
+    anyVisible = true;
+  });
 
-    filteredParks.forEach(parkKey => {
-      const parkName = PARKS[parkKey] || parkKey;
-      const allMods = allParkMods[parkKey] || [];
-      // 只显示有进度的模组
-      const filteredMods = allMods.filter(mod => modMatchFilter(parkKey, mod));
+  // 渲染片区分组
+  const renderedRegions = new Set();
+  // 先按 REGION_CONFIG 顺序渲染
+  REGION_CONFIG.forEach(region => {
+    const cityItems = regionMap[region.key];
+    if (!cityItems || !cityItems.length) return;
+    renderedRegions.add(region.key);
 
-      // 园区整体进度
-      let parkSigned = 0, parkTotal = 0, parkDone = 0, parkActive = 0;
-      allMods.forEach(mod => {
-        const prog = getModuleSignedProgress(parkKey, mod);
-        parkSigned += prog.signed;
-        parkTotal += prog.total;
-        const st = getModuleStatus(parkKey, mod);
-        if (st === 'done') parkDone++;
-        else if (st === 'active') parkActive++;
-      });
-      const parkPct = parkTotal > 0 ? Math.round(parkSigned / parkTotal * 100) : 0;
+    const regionTotalDone = cityItems.reduce((s,c) => s+c.cityDone, 0);
+    const regionTotalActive = cityItems.reduce((s,c) => s+c.cityActive, 0);
 
-      let parkStatus = 'active';
-      if (parkDone > 0 && parkActive === 0) parkStatus = 'done';
-      const sm = STATUS_MAP[parkStatus];
-
-      html += `<div class="park-card" onclick="openParkDetail('${parkKey}')">
-        <div class="park-card-head">
+    html += `<div class="region-group">
+      <div class="region-title" onclick="toggleRegion('region-${region.key}')">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div class="city-icon" style="background:${region.color}22;font-size:18px;">${region.icon}</div>
           <div>
-            <div class="park-card-name">${parkName}</div>
-            <div class="park-card-desc">${filteredMods.length} 个模组 · ${parkDone} 已投产 · ${parkActive} 进行中</div>
-          </div>
-          <span class="park-status ${sm.cls}">${sm.label}</span>
-        </div>
-
-        <div class="park-progress">
-          <div class="park-progress-head">
-            <span class="park-progress-label">板块签名进度</span>
-            <span class="park-progress-pct" style="color:${sm.pctColor};">${parkPct}%</span>
-          </div>
-          <div class="park-progress-track">
-            <div class="park-progress-fill" style="background:${sm.barColor};width:${parkPct}%;"></div>
+            <div style="font-size:15px;font-weight:800;color:${region.color};">${region.name}</div>
+            <div class="city-sub">${cityItems.length} 个城市 · ${regionTotalDone} 已投产 · ${regionTotalActive} 进行中</div>
           </div>
         </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div class="city-stats-badge">${regionTotalDone} 已投产 · ${regionTotalActive} 进行中</div>
+          <span id="arrow-region-${region.key}" style="color:${region.color};font-size:14px;transition:transform .2s;">▼</span>
+        </div>
+      </div>
+      <div id="region-${region.key}" class="region-content">`;
 
-        <div class="mod-list">`;
+    cityItems.forEach(({ cityGroup, cityConf, filteredParks, cityDone, cityActive }) => {
+      const cityColor = cityConf ? cityConf.color : cityGroup.color;
+      const cityTotal = cityDone + cityActive;
 
-      filteredMods.forEach(mod => {
-        const prog = getModuleSignedProgress(parkKey, mod);
-        const st = getModuleStatus(parkKey, mod);
-        const msm = STATUS_MAP[st];
-        const tasks = getModuleTaskStats(parkKey, mod);
-        html += `<div class="mod-item mod-${st}" onclick="event.stopPropagation();openModDetail('${parkKey}','${mod}')">
-          <div class="mod-name">
-            ${mod}
-            <span class="mod-badge ${st}">${msm.label}</span>
+      html += `<div class="city-group">
+        <div class="city-title">
+          <div class="city-icon" style="background:${cityColor}22;">${cityGroup.icon}</div>
+          <div>
+            <div class="city-name" style="color:${cityColor};">${cityGroup.city}</div>
+            <div class="city-sub">${filteredParks.length} 个园区 · ${cityTotal} 个模组有进度</div>
           </div>
-          <div class="mod-bar"><div class="mod-bar-fill" style="background:${msm.barColor};width:${prog.pct}%;"></div></div>
-          <div class="mod-pct">${prog.pct > 0 ? `签名 ${prog.signed}/${prog.total} · ${prog.pct}%` : (tasks.done > 0 ? `已确认 ${tasks.done} 项` : '进行中')}</div>
-        </div>`;
+          <div class="city-stats-badge">${cityDone} 已投产 · ${cityActive} 进行中</div>
+        </div>
+        <div class="park-cards">`;
+
+      filteredParks.forEach(parkKey => {
+        const parkName = PARKS[parkKey] || parkKey;
+        const allMods = allParkMods[parkKey] || [];
+        const filteredMods = allMods.filter(mod => modMatchFilter(parkKey, mod));
+
+        let parkSigned = 0, parkTotal = 0, parkDone = 0, parkActive = 0;
+        allMods.forEach(mod => {
+          const prog = getModuleSignedProgress(parkKey, mod);
+          parkSigned += prog.signed;
+          parkTotal += prog.total;
+          const st = getModuleStatus(parkKey, mod);
+          if (st === 'done') parkDone++;
+          else if (st === 'active') parkActive++;
+        });
+        const parkPct = parkTotal > 0 ? Math.round(parkSigned / parkTotal * 100) : 0;
+
+        let parkStatus = 'active';
+        if (parkDone > 0 && parkActive === 0) parkStatus = 'done';
+        const sm = STATUS_MAP[parkStatus];
+
+        html += `<div class="park-card" onclick="openParkDetail('${parkKey}')">
+          <div class="park-card-head">
+            <div>
+              <div class="park-card-name">${parkName}</div>
+              <div class="park-card-desc">${filteredMods.length} 个模组 · ${parkDone} 已投产 · ${parkActive} 进行中</div>
+            </div>
+            <span class="park-status ${sm.cls}">${sm.label}</span>
+          </div>
+          <div class="park-progress">
+            <div class="park-progress-head">
+              <span class="park-progress-label">板块签名进度</span>
+              <span class="park-progress-pct" style="color:${sm.pctColor};">${parkPct}%</span>
+            </div>
+            <div class="park-progress-track">
+              <div class="park-progress-fill" style="background:${sm.barColor};width:${parkPct}%;"></div>
+            </div>
+          </div>
+          <div class="mod-list">`;
+
+        filteredMods.forEach(mod => {
+          const prog = getModuleSignedProgress(parkKey, mod);
+          const st = getModuleStatus(parkKey, mod);
+          const msm = STATUS_MAP[st];
+          const tasks = getModuleTaskStats(parkKey, mod);
+          html += `<div class="mod-item mod-${st}" onclick="event.stopPropagation();openModDetail('${parkKey}','${mod}')">
+            <div class="mod-name">
+              ${mod}
+              <span class="mod-badge ${st}">${msm.label}</span>
+            </div>
+            <div class="mod-bar"><div class="mod-bar-fill" style="background:${msm.barColor};width:${prog.pct}%;"></div></div>
+            <div class="mod-pct">${prog.pct > 0 ? `签名 ${prog.signed}/${prog.total} · ${prog.pct}%` : (tasks.done > 0 ? `已确认 ${tasks.done} 项` : '进行中')}</div>
+          </div>`;
+        });
+
+        html += `</div></div>`; // end mod-list, park-card
       });
 
-      html += `</div></div>`; // end mod-list, park-card
+      html += `</div></div>`; // end park-cards, city-group
     });
 
-    html += `</div></div>`; // end park-cards, city-group
+    html += `</div></div>`; // end region-content, region-group
+  });
+
+  // 渲染未归入任何片区的分组（如"其他园区"）
+  Object.keys(regionMap).forEach(rk => {
+    if (renderedRegions.has(rk)) return;
+    const cityItems = regionMap[rk];
+    cityItems.forEach(({ cityGroup, cityConf, filteredParks, cityDone, cityActive }) => {
+      const cityTotal = cityDone + cityActive;
+      html += `<div class="city-group">
+        <div class="city-title">
+          <div class="city-icon" style="background:${cityGroup.color}22;">${cityGroup.icon}</div>
+          <div>
+            <div class="city-name">${cityGroup.city}</div>
+            <div class="city-sub">${filteredParks.length} 个园区 · ${cityTotal} 个模组有进度</div>
+          </div>
+          <div class="city-stats-badge">${cityDone} 已投产 · ${cityActive} 进行中</div>
+        </div>
+        <div class="park-cards">`;
+
+      filteredParks.forEach(parkKey => {
+        const parkName = PARKS[parkKey] || parkKey;
+        const allMods = allParkMods[parkKey] || [];
+        const filteredMods = allMods.filter(mod => modMatchFilter(parkKey, mod));
+        let parkSigned = 0, parkTotal = 0, parkDone = 0, parkActive = 0;
+        allMods.forEach(mod => {
+          const prog = getModuleSignedProgress(parkKey, mod);
+          parkSigned += prog.signed; parkTotal += prog.total;
+          const st = getModuleStatus(parkKey, mod);
+          if (st === 'done') parkDone++;
+          else if (st === 'active') parkActive++;
+        });
+        const parkPct = parkTotal > 0 ? Math.round(parkSigned / parkTotal * 100) : 0;
+        const sm = STATUS_MAP[parkDone > 0 && parkActive === 0 ? 'done' : 'active'];
+
+        html += `<div class="park-card" onclick="openParkDetail('${parkKey}')">
+          <div class="park-card-head">
+            <div>
+              <div class="park-card-name">${parkName}</div>
+              <div class="park-card-desc">${filteredMods.length} 个模组 · ${parkDone} 已投产 · ${parkActive} 进行中</div>
+            </div>
+            <span class="park-status ${sm.cls}">${sm.label}</span>
+          </div>
+          <div class="park-progress">
+            <div class="park-progress-head">
+              <span class="park-progress-label">板块签名进度</span>
+              <span class="park-progress-pct" style="color:${sm.pctColor};">${parkPct}%</span>
+            </div>
+            <div class="park-progress-track">
+              <div class="park-progress-fill" style="background:${sm.barColor};width:${parkPct}%;"></div>
+            </div>
+          </div>
+          <div class="mod-list">`;
+
+        filteredMods.forEach(mod => {
+          const prog = getModuleSignedProgress(parkKey, mod);
+          const st = getModuleStatus(parkKey, mod);
+          const msm = STATUS_MAP[st];
+          const tasks = getModuleTaskStats(parkKey, mod);
+          html += `<div class="mod-item mod-${st}" onclick="event.stopPropagation();openModDetail('${parkKey}','${mod}')">
+            <div class="mod-name">${mod}<span class="mod-badge ${st}">${msm.label}</span></div>
+            <div class="mod-bar"><div class="mod-bar-fill" style="background:${msm.barColor};width:${prog.pct}%;"></div></div>
+            <div class="mod-pct">${prog.pct > 0 ? `签名 ${prog.signed}/${prog.total} · ${prog.pct}%` : (tasks.done > 0 ? `已确认 ${tasks.done} 项` : '进行中')}</div>
+          </div>`;
+        });
+        html += `</div></div>`;
+      });
+      html += `</div></div>`;
+    });
   });
 
   if (!anyVisible) {
@@ -844,6 +984,7 @@ function renderCityGroups() {
     </div>`;
   }
   container.innerHTML = html;
+
 }
 
 // =============================================
@@ -998,38 +1139,26 @@ function closeModal() {
 // =============================================
 let echartsInstance = null;
 
+// ── 以下全部从 CITY_CONFIG 自动派生 ──────────────────
 // 城市到园区的映射
-const CITY_PARK_MAP = {
-  'cq': ['cq-taihe','cq-yunfu'],
-  'gz': ['gz-guian','gz-guian32'],
-  'cd': ['cd-xiqu','cd-gaoxin'],
-  'gd': [],   // 广东（动态填充）
-  'tj': [],   // 天津（动态填充）
-};
+const CITY_PARK_MAP = Object.fromEntries(CITY_CONFIG.map(c => [c.key, [...c.parks]]));
 
-// 各城市中心坐标（经度, 纬度）
-const CITY_COORDS = {
-  'cq': [106.504962, 29.533155],  // 重庆
-  'gz': [106.713478, 26.578343],  // 贵阳
-  'cd': [104.065735, 30.659462],  // 成都
-  'gd': [113.280637, 23.125178],  // 广州（广东）
-  'tj': [117.200983, 39.084158],  // 天津
-};
+// 各城市中心坐标
+const CITY_COORDS = Object.fromEntries(CITY_CONFIG.map(c => [c.key, c.coords]));
 
-const CITY_LABELS = { cq:'重庆', gz:'贵州', cd:'成都', gd:'广东', tj:'天津' };
+// 城市显示名称
+const CITY_LABELS = Object.fromEntries(CITY_CONFIG.map(c => [c.key, c.name]));
 
-// 省份名称映射（用于ECharts地图数据）
-const HIGHLIGHT_PROVINCES = ['重庆', '贵州', '四川', '广东', '天津'];
+// 需要高亮的省份名称列表
+const HIGHLIGHT_PROVINCES = [...new Set(CITY_CONFIG.map(c => c.province))];
 
 function calcCityStats() {
   const { groups, allParkMods } = getAllCityGroups();
   const stats = {};
 
-  // 城市分组index到cityKey的映射
-  const groupIdxToKey = ['cq', 'gz', 'cd', 'gd', 'tj'];
-
   groups.forEach((group, idx) => {
-    const cityKey = groupIdxToKey[idx] || ('other_' + idx);
+    // 从 CITY_CONFIG 获取 cityKey（若超出预设城市范围则使用 other_N）
+    const cityKey = idx < CITY_CONFIG.length ? CITY_CONFIG[idx].key : ('other_' + idx);
     let done=0, active=0, total=0;
     (group.dynamicParks || []).forEach(pk => {
       (allParkMods[pk]||[]).forEach(mod => {
@@ -1106,8 +1235,10 @@ function initEchartsMap() {
         if (params.seriesType === 'map') {
           const name = params.name;
           if (HIGHLIGHT_PROVINCES.includes(name)) {
-            const cityKeyMap = { '重庆':'cq', '贵州':'gz', '四川':'cd', '广东':'gd', '天津':'tj' };
-            const cityKey = cityKeyMap[name] || 'cq';
+            // 从 CITY_CONFIG 动态查找省份对应的 cityKey
+            const cityConf = CITY_CONFIG.find(c => c.province === name);
+            const cityKey = cityConf ? cityConf.key : null;
+            if (!cityKey) return `<span style="color:#64748b;">${name}</span>`;
             const s = cityStats[cityKey] || {};
             return `<div style="font-weight:700;color:#67e8f9;margin-bottom:6px;">📍 ${name}</div>
               <div style="color:#4ade80;">✅ 已投产：${s.done||0} 个模组</div>
@@ -1151,33 +1282,16 @@ function initEchartsMap() {
         borderColor: 'rgba(6,182,212,0.18)',
         borderWidth: 0.8,
       },
-      regions: [
-        {
-          name: '重庆',
-          itemStyle: { areaColor: 'rgba(59,130,246,0.18)', borderColor: 'rgba(59,130,246,0.5)', borderWidth: 1.2 },
-          label: { show: true, color: '#93c5fd', fontSize: 11, fontWeight: 700 }
-        },
-        {
-          name: '贵州',
-          itemStyle: { areaColor: 'rgba(167,139,250,0.18)', borderColor: 'rgba(167,139,250,0.5)', borderWidth: 1.2 },
-          label: { show: true, color: '#c4b5fd', fontSize: 11, fontWeight: 700 }
-        },
-        {
-          name: '四川',
-          itemStyle: { areaColor: 'rgba(34,197,94,0.12)', borderColor: 'rgba(34,197,94,0.4)', borderWidth: 1.2 },
-          label: { show: true, color: '#86efac', fontSize: 11, fontWeight: 700 }
-        },
-        {
-          name: '广东',
-          itemStyle: { areaColor: 'rgba(249,115,22,0.18)', borderColor: 'rgba(249,115,22,0.5)', borderWidth: 1.2 },
-          label: { show: true, color: '#fdba74', fontSize: 11, fontWeight: 700 }
-        },
-        {
-          name: '天津',
-          itemStyle: { areaColor: 'rgba(6,182,212,0.2)', borderColor: 'rgba(6,182,212,0.6)', borderWidth: 1.2 },
-          label: { show: true, color: '#67e8f9', fontSize: 11, fontWeight: 700 }
-        },
-      ]
+      regions: CITY_CONFIG.map(c => {
+        // 将十六进制颜色转换为rgba
+        const hex = c.color.replace('#','');
+        const r = parseInt(hex.slice(0,2),16), g = parseInt(hex.slice(2,4),16), b = parseInt(hex.slice(4,6),16);
+        return {
+          name: c.province,
+          itemStyle: { areaColor: `rgba(${r},${g},${b},0.15)`, borderColor: `rgba(${r},${g},${b},0.5)`, borderWidth: 1.2 },
+          label: { show: true, color: c.color, fontSize: 11, fontWeight: 700 }
+        };
+      })
     },
     series: [
       // 地图系列（用于tooltip和点击）
@@ -1257,9 +1371,9 @@ function initEchartsMap() {
   echartsInstance.on('click', function(params) {
     if (params.componentType === 'geo' || params.seriesType === 'map') {
       const name = params.name;
-      const provinceKeyMap = { '重庆':'cq', '贵州':'gz', '四川':'cd', '广东':'gd', '天津':'tj' };
-      const ck = provinceKeyMap[name];
-      if (ck) onMapCityClick(ck);
+      // 从 CITY_CONFIG 动态查找省份对应的城市
+      const cityConf = CITY_CONFIG.find(c => c.province === name);
+      if (cityConf) onMapCityClick(cityConf.key);
     } else if (params.seriesType === 'effectScatter') {
       if (params.data && params.data.cityKey) {
         onMapCityClick(params.data.cityKey);
@@ -1274,29 +1388,92 @@ function initEchartsMap() {
 }
 
 function onMapCityClick(cityKey) {
-  // 动态获取该城市的所有园区（含自定义园区）
-  const { groups } = getAllCityGroups();
-  const groupIdxToKey = ['cq', 'gz', 'cd', 'gd', 'tj'];
-  const groupIdx = groupIdxToKey.indexOf(cityKey);
-  const group = groupIdx >= 0 ? groups[groupIdx] : null;
-  const parks = group ? (group.dynamicParks || []) : (CITY_PARK_MAP[cityKey] || []);
-  if (!parks.length) return;
+  // 找到城市配置
+  const cityConf = CITY_CONFIG.find(c => c.key === cityKey);
+  if (!cityConf) return;
+  // 弹出该城市所属片区的总览弹窗
+  showRegionModal(cityConf.region, cityKey);
+}
 
-  // 弹出第一个有数据的园区详情，或显示城市汇总
-  const allParkMods = getAllParksAndMods();
-  const firstParkWithData = parks.find(pk => {
-    return (allParkMods[pk]||[]).some(m => getModuleStatus(pk,m) !== 'notstart');
+// 显示片区总览弹窗（含该片区所有城市，高亮当前点击城市）
+function showRegionModal(regionKey, highlightCityKey) {
+  const region = REGION_CONFIG.find(r => r.key === regionKey);
+  if (!region) return;
+
+  const { groups, allParkMods } = getAllCityGroups();
+  // 获取该片区内的所有城市
+  const citiesInRegion = CITY_CONFIG
+    .map((c, idx) => ({ conf: c, group: groups[idx] }))
+    .filter(item => item.conf.region === regionKey);
+
+  // 计算片区汇总数据
+  let regionDone=0, regionActive=0, regionTotal=0;
+  citiesInRegion.forEach(({ group }) => {
+    (group.dynamicParks||[]).forEach(pk => {
+      (allParkMods[pk]||[]).forEach(mod => {
+        const st = getModuleStatus(pk, mod);
+        if (st === 'notstart') return;
+        regionTotal++;
+        if (st === 'done') regionDone++;
+        else if (st === 'active') regionActive++;
+      });
+    });
   });
 
-  if (firstParkWithData) {
-    if (parks.length === 1) {
-      openParkDetail(firstParkWithData);
-    } else {
-      showCityModal(cityKey);
-    }
-  } else {
-    openNewModModal();
-  }
+  document.getElementById('mm-title').innerHTML =
+    `<span style="color:${region.color}">${region.icon} ${region.name}</span>`;
+  document.getElementById('mm-sub').textContent =
+    `${citiesInRegion.length} 个城市 · ${regionTotal} 个模组 · ${regionDone} 已投产 · ${regionActive} 进行中`;
+
+  let body = `<div class="mod-stats-row">
+    <div class="mod-stat-card"><div class="mod-stat-val" style="color:#4ade80;">${regionDone}</div><div class="mod-stat-lbl">已投产</div></div>
+    <div class="mod-stat-card"><div class="mod-stat-val" style="color:#60a5fa;">${regionActive}</div><div class="mod-stat-lbl">进行中</div></div>
+    <div class="mod-stat-card"><div class="mod-stat-val" style="color:#94a3b8;">${regionTotal - regionDone - regionActive}</div><div class="mod-stat-lbl">未开始</div></div>
+  </div>
+  <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:10px;">🌏 选择城市查看园区详情</div>
+  <div style="display:flex;flex-direction:column;gap:8px;">`;
+
+  citiesInRegion.forEach(({ conf, group }) => {
+    const parks = group.dynamicParks || [];
+    let cityDone=0, cityActive=0, cityTotal=0;
+    parks.forEach(pk => {
+      (allParkMods[pk]||[]).forEach(mod => {
+        const st = getModuleStatus(pk, mod);
+        if (st === 'notstart') return;
+        cityTotal++;
+        if (st === 'done') cityDone++;
+        else if (st === 'active') cityActive++;
+      });
+    });
+    const isHL = conf.key === highlightCityKey;
+    const hasPark = parks.length > 0;
+    const cityStatus = cityDone > 0 && cityActive === 0 ? 'done' : cityActive > 0 ? 'active' : 'notstart';
+    const sm = STATUS_MAP[cityStatus];
+
+    body += `<div onclick="${hasPark ? `showCityModal('${conf.key}')` : 'openNewModModal()'}"
+      style="background:${isHL ? `${conf.color}18` : 'rgba(255,255,255,.03)'};
+             border:1px solid ${isHL ? conf.color + '55' : (cityStatus==='done'?'rgba(34,197,94,.2)':cityStatus==='active'?'rgba(59,130,246,.18)':'rgba(255,255,255,.07)')};
+             border-radius:12px;padding:12px 14px;cursor:pointer;transition:all .15s;"
+      onmouseover="this.style.background='${conf.color}18'"
+      onmouseout="this.style.background='${isHL ? conf.color+'18' : 'rgba(255,255,255,.03)'}'"
+    >
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:18px;">${conf.icon}</span>
+          <span style="font-size:15px;font-weight:800;color:${conf.color};">${conf.name}</span>
+          ${isHL ? '<span style="font-size:10px;padding:1px 6px;border-radius:4px;background:rgba(255,255,255,.12);color:#94a3b8;">当前位置</span>' : ''}
+        </div>
+        <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:${sm.color}1a;color:${sm.color};">${sm.label}</span>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-left:26px;">
+        ${hasPark ? `${parks.length} 个园区 · ${cityDone} 已投产 · ${cityActive} 进行中` : '暂无园区，点击新建'}
+      </div>
+    </div>`;
+  });
+
+  body += '</div>';
+  document.getElementById('mm-body').innerHTML = body;
+  document.getElementById('modModal').classList.remove('hidden');
 }
 
 function updateMapLegend() {
@@ -1351,10 +1528,18 @@ function loadChinaMapAndInit() {
 }
 
 function showCityModal(cityKey) {
-  const parks = CITY_PARK_MAP[cityKey] || [];
-  const cityNames = { cq:'重庆', gz:'贵州', cd:'成都', gd:'广东', tj:'天津' };
-  const cityName = cityNames[cityKey] || cityKey;
-  const allParkMods = getAllParksAndMods();
+  // 从 CITY_CONFIG 查找城市配置
+  const cityConf = CITY_CONFIG.find(c => c.key === cityKey);
+  const cityName = cityConf ? cityConf.name : cityKey;
+  const cityColor = cityConf ? cityConf.color : '#67e8f9';
+  const cityIcon = cityConf ? cityConf.icon : '🏙️';
+  const regionKey = cityConf ? cityConf.region : null;
+  const region = regionKey ? REGION_CONFIG.find(r => r.key === regionKey) : null;
+
+  const { groups, allParkMods } = getAllCityGroups();
+  const cityGroupIdx = CITY_CONFIG.findIndex(c => c.key === cityKey);
+  const group = cityGroupIdx >= 0 ? groups[cityGroupIdx] : null;
+  const parks = group ? (group.dynamicParks || []) : [];
 
   let doneCount=0, activeCount=0, notstartCount=0, totalMods=0;
   parks.forEach(pk => {
@@ -1367,7 +1552,9 @@ function showCityModal(cityKey) {
     });
   });
 
-  document.getElementById('mm-title').textContent = cityName + ' · 园区总览';
+  document.getElementById('mm-title').innerHTML =
+    `${region ? `<span onclick="showRegionModal('${regionKey}','${cityKey}')" style="font-size:11px;color:${region.color};cursor:pointer;display:inline-flex;align-items:center;gap:3px;margin-right:8px;padding:2px 8px;border-radius:6px;border:1px solid ${region.color}44;background:${region.color}11;" onmouseover="this.style.opacity='.7'" onmouseout="this.style.opacity='1'">← ${region.icon} ${region.name}</span>` : ''}
+    <span style="color:${cityColor}">${cityIcon} ${cityName}</span> · 园区总览`;
   document.getElementById('mm-sub').textContent = `${parks.length} 个园区 · ${totalMods} 个模组 · ${doneCount} 已投产 · ${activeCount} 进行中`;
 
   let body = `<div class="mod-stats-row">
@@ -1402,6 +1589,16 @@ function showCityModal(cityKey) {
   document.getElementById('modModal').classList.remove('hidden');
 }
 
+
+// 片区展开/收起切换
+function toggleRegion(regionId) {
+  const content = document.getElementById(regionId);
+  const arrow = document.getElementById('arrow-' + regionId);
+  if (!content) return;
+  const isOpen = content.style.display !== 'none';
+  content.style.display = isOpen ? 'none' : '';
+  if (arrow) arrow.style.transform = isOpen ? 'rotate(-90deg)' : 'rotate(0deg)';
+}
 
 let nmSelectedPark = null;
 let nmSelectedMod = null;
