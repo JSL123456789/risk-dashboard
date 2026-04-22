@@ -1951,6 +1951,34 @@ function getExistingModules() {
 
     let parkMod = null;
 
+    if (key.startsWith('lc_reg_')) {
+      // 格式：lc_reg_{park}_{mod} ，park 可能含 '-'
+      // 用已知 PARK_MODULES 的 key 做前缀匹配，找出 park 和 mod
+      const inner = key.replace('lc_reg_', '');
+      let matched = false;
+      for (const pk of Object.keys(PARK_MODULES)) {
+        if (pk === 'all') continue;
+        if (inner.startsWith(pk + '_')) {
+          const mod = inner.slice(pk.length + 1);
+          if (mod && mod !== 'all') {
+            set.add(pk + '|||' + mod);
+            matched = true;
+            break;
+          }
+        }
+      }
+      if (!matched) {
+        // fallback：直接按第一个 _ 分割
+        const uIdx = inner.indexOf('_');
+        if (uIdx > 0) {
+          const park = inner.substring(0, uIdx);
+          const mod = inner.substring(uIdx + 1);
+          if (park && park !== 'all' && mod && mod !== 'all') set.add(park + '|||' + mod);
+        }
+      }
+      continue;
+    }
+
     if (key.startsWith('lc_sec_')) {
       // 格式：lc_sec_{park}_{module}_section_{groupId}
       const inner = key.replace('lc_sec_', '');
