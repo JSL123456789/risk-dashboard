@@ -1107,22 +1107,36 @@ function renderCityGroups() {
 function deleteParkData(parkKey, parkName) {
   if (!confirm(`确定要删除园区「${parkName}」的所有数据吗？\n此操作不可恢复，将清除该园区所有模组的注册记录、工单和签名数据。`)) return;
   let deleted = 0;
+  // 收集所有可能的rawKey形式（parkKey本身 + 中文别名 + PARKS中文名）
+  const rawKeys = new Set([parkKey]);
+  for (const [alias, canonical] of Object.entries(PARK_NAME_ALIAS)) {
+    if (canonical === parkKey) rawKeys.add(alias);
+  }
+  if (PARKS[parkKey]) rawKeys.add(PARKS[parkKey]);
+
   for (let i = localStorage.length - 1; i >= 0; i--) {
     const key = localStorage.key(i);
     if (!key) continue;
-    // 匹配所有与该园区相关的key
-    if (
-      key === `lc_reg_${parkKey}` ||
-      key.startsWith(`lc_reg_${parkKey}_`) ||
-      key.startsWith(`lc_${parkKey}_`) ||
-      key.startsWith(`lc_sec_${parkKey}_`)
-    ) {
+    let shouldDelete = false;
+    for (const rk of rawKeys) {
+      if (
+        key === `lc_reg_${rk}` ||
+        key.startsWith(`lc_reg_${rk}_`) ||
+        key.startsWith(`lc_${rk}_`) ||
+        key.startsWith(`lc_sec_${rk}_`)
+      ) {
+        shouldDelete = true;
+        break;
+      }
+    }
+    if (shouldDelete) {
       localStorage.removeItem(key);
       deleted++;
     }
   }
   // 同时清除 last_park/last_mod 若指向被删园区
-  if (localStorage.getItem('lc_last_park') === parkKey) {
+  const lastPark = localStorage.getItem('lc_last_park');
+  if (lastPark && (rawKeys.has(lastPark) || lastPark === parkKey)) {
     localStorage.removeItem('lc_last_park');
     localStorage.removeItem('lc_last_mod');
   }
