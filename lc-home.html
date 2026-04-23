@@ -722,8 +722,28 @@ function isModuleDone(park, mod) {
   return true;
 }
 
-// 获取模组总体签名进度（已签名板块 / 总板块）
+// 获取模组总体进度（已打勾任务 / 总任务数，与liquid-cooling.html的calcModuleProgress保持一致）
 function getModuleSignedProgress(park, mod) {
+  const tasks = getModuleTaskStats(park, mod);
+  const pct = tasks.total > 0 ? Math.round(tasks.done / tasks.total * 100) : 0;
+  // 兼容旧字段：signed=done, total=total
+  return { signed: tasks.done, total: tasks.total, pct };
+}
+
+// 获取模组状态
+function getModuleStatus(park, mod) {
+  const tasks = getModuleTaskStats(park, mod);
+  // 检查是否全部签名完成（已投产）
+  if (isModuleDone(park, mod)) return 'done';
+  if (tasks.done > 0) return 'active';
+  // 检查签名数
+  const prog = getModuleSignedProgressBySig(park, mod);
+  if (prog.signed > 0) return 'active';
+  return 'notstart';
+}
+
+// 仅按签名板块数计算状态（用于getModuleStatus判断是否有任何操作）
+function getModuleSignedProgressBySig(park, mod) {
   let signed = 0, total = 0;
   for (const phaseKey of Object.keys(PHASE_SECTIONS)) {
     const sections = PHASE_SECTIONS[phaseKey];
@@ -733,19 +753,7 @@ function getModuleSignedProgress(park, mod) {
       if (st && st.user) signed++;
     });
   }
-  const pct = total > 0 ? Math.round(signed / total * 100) : 0;
-  return { signed, total, pct };
-}
-
-// 获取模组状态
-function getModuleStatus(park, mod) {
-  const prog = getModuleSignedProgress(park, mod);
-  if (prog.pct === 100) return 'done';
-  if (prog.signed > 0) return 'active';
-  // 检查任务数
-  const tasks = getModuleTaskStats(park, mod);
-  if (tasks.done > 0) return 'active';
-  return 'notstart';
+  return { signed, total };
 }
 
 // =============================================
@@ -1219,16 +1227,16 @@ function openModDetail(parkKey, mod) {
   const prog = getModuleSignedProgress(parkKey, mod);
   const st = getModuleStatus(parkKey, mod);
   const sm = STATUS_MAP[st];
-  const tasks = getModuleTaskStats(parkKey, mod);
+  const sigProg = getModuleSignedProgressBySig(parkKey, mod);
 
   document.getElementById('mm-title').textContent = `${parkName} · ${mod}`;
-  document.getElementById('mm-sub').textContent = `${sm.label} · 板块签名进度 ${prog.pct}%`;
+  document.getElementById('mm-sub').textContent = `${sm.label} · 任务完成进度 ${prog.pct}%`;
 
   let body = `
     <div class="mod-stats-row">
       <div class="mod-stat-card"><div class="mod-stat-val" style="color:${sm.pctColor};">${prog.pct}%</div><div class="mod-stat-lbl">总进度</div></div>
-      <div class="mod-stat-card"><div class="mod-stat-val" style="color:#67e8f9;">${prog.signed}/${prog.total}</div><div class="mod-stat-lbl">已签名板块</div></div>
-      <div class="mod-stat-card"><div class="mod-stat-val" style="color:#a5f3fc;">${tasks.done > 0 ? tasks.done+'/'+tasks.total : '--'}</div><div class="mod-stat-lbl">任务确认</div></div>
+      <div class="mod-stat-card"><div class="mod-stat-val" style="color:#67e8f9;">${sigProg.signed}/${sigProg.total}</div><div class="mod-stat-lbl">已签名板块</div></div>
+      <div class="mod-stat-card"><div class="mod-stat-val" style="color:#a5f3fc;">${prog.signed > 0 ? prog.signed+'/'+prog.total : '--'}</div><div class="mod-stat-lbl">任务确认</div></div>
     </div>
 
     <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:10px;">📊 四阶段详情</div>
