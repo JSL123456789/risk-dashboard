@@ -1466,11 +1466,30 @@ function storeKey(taskId) {
   return `lc_${currentPark}_${currentModule}_${taskId}`;
 }
 
-// 获取任务状态
+// 获取当前park的所有可能存储别名（英文key + 中文名 + PARK_NAME_ALIAS反查）
+function getCurrentParkAliases() {
+  const aliases = new Set([currentPark]);
+  if (typeof PARKS !== 'undefined' && PARKS[currentPark]) aliases.add(PARKS[currentPark]);
+  if (typeof PARK_NAME_ALIAS !== 'undefined') {
+    for (const [alias, canonical] of Object.entries(PARK_NAME_ALIAS)) {
+      if (canonical === currentPark) aliases.add(alias);
+    }
+  }
+  return Array.from(aliases);
+}
+
+// 获取任务状态（支持英文key和中文别名双向查找）
 function getTaskState(taskId) {
   const key = storeKey(taskId);
   const val = localStorage.getItem(key);
-  return val ? JSON.parse(val) : null;
+  if (val) return JSON.parse(val);
+  // 用别名回退查找（兼容旧版中文key存储的数据）
+  for (const alias of getCurrentParkAliases()) {
+    if (alias === currentPark) continue;
+    const altVal = localStorage.getItem(`lc_${alias}_${currentModule}_${taskId}`);
+    if (altVal) return JSON.parse(altVal);
+  }
+  return null;
 }
 
 // 保存任务状态
@@ -1715,7 +1734,14 @@ function sectionStoreKey(sectionKey) {
 }
 function getSectionState(sectionKey) {
   const val = localStorage.getItem(sectionStoreKey(sectionKey));
-  return val ? JSON.parse(val) : null;
+  if (val) return JSON.parse(val);
+  // 别名回退查找（兼容旧版中文key存储的数据）
+  for (const alias of getCurrentParkAliases()) {
+    if (alias === currentPark) continue;
+    const altVal = localStorage.getItem(`lc_sec_${alias}_${currentModule}_${sectionKey}`);
+    if (altVal) return JSON.parse(altVal);
+  }
+  return null;
 }
 function saveSectionState(sectionKey, state) {
   const key = sectionStoreKey(sectionKey);
