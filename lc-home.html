@@ -441,6 +441,11 @@ const PHASE_SECTIONS = {
   ops:      ['section_ops-daily-temp','section_ops-water-test','section_ops-cp-install','section_ops-cdu-check','section_ops-pm-quarterly'],
 };
 
+// 各阶段任务总数（与liquid-cooling.html的TASKS数据严格对齐: prep:29 build:45 handover:35 ops:42 = 151）
+// 固定预设总数，与localStorage无关，保证进度%与liquid-cooling页面一致
+const PHASE_TASK_TOTAL = { prep: 29, build: 45, handover: 35, ops: 42 };
+const ALL_TASKS_TOTAL = 151;
+
 let currentFilter = 'all';
 
 // =============================================
@@ -682,21 +687,21 @@ function getSectionState(park, mod, sectionKey) {
 }
 
 // 获取某模组某任务完成数（支持预设key和中文原始key双向查找）
+// total 固定为 ALL_TASKS_TOTAL（151），与 liquid-cooling.html 的预设任务总数完全一致
 function getModuleTaskStats(park, mod) {
-  let done = 0, total = 0;
+  let done = 0;
   const rawParkKeys = getParkRawKeys(park);
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
-    if (!key || key.startsWith('lc_sec_') || key.startsWith('lc_goto_')) continue;
+    if (!key || key.startsWith('lc_sec_') || key.startsWith('lc_goto_') || key.startsWith('lc_reg_')) continue;
     if (!key.startsWith('lc_')) continue;
     // 检查是否匹配任意一种 park raw key
     const matched = rawParkKeys.some(rp => key.startsWith(`lc_${rp}_${mod}_`));
     if (matched) {
-      total++;
       try { const st = JSON.parse(localStorage.getItem(key)||'{}'); if(st.done) done++; } catch(e){}
     }
   }
-  return { done, total };
+  return { done, total: ALL_TASKS_TOTAL };
 }
 
 // 获取某模组某阶段已签名板块数 / 总板块数
